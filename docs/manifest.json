@@ -1,0 +1,23 @@
+{
+  "project": "Bonaventure",
+  "subtitle": "Clinical Evidence Intelligence",
+  "problem_statement": "HNX26PSI05: Multimodal Medical Image Intelligence",
+  "documents": [
+    "README.md",
+    "01_PRD.md",
+    "02_SRS.md",
+    "03_SYSTEM_ARCHITECTURE.md",
+    "04_AI_PIPELINE.md",
+    "05_DATA_AND_EVALUATION.md",
+    "06_API_CONTRACTS.md",
+    "07_UI_UX_SPEC.md",
+    "08_REPORT_SPEC.md",
+    "09_IMPLEMENTATION_PLAN.md",
+    "10_TEST_PLAN.md",
+    "11_DEMO_AND_ACCEPTANCE.md",
+    "12_RISK_REGISTER.md",
+    "13_MODEL_RESOURCE_REGISTER.md",
+    "14_PS_TRACEABILITY_MATRIX.md",
+    "15_REPOSITORY_STRUCTURE.md"
+  ]
+}
