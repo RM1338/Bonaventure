@@ -6,7 +6,7 @@ interpreter and cannot execute here. Native Mac results remain unverified.
 
 ## Automated results
 
-All **63 Python tests** and the Node launcher checks pass. Context and evidence
+All **82 Python tests** and the Node launcher checks pass. Context and evidence
 reconciliation self-checks also pass. These tests use fake native APIs, clocks,
 recorders, and speech decoders where the real platform or models are unavailable.
 
@@ -24,7 +24,9 @@ recorders, and speech decoders where the real platform or models are unavailable
 | Input preservation | Draft inputs and processing view survive hide/reopen; rapid-toggle races | Verify scan/history attachments with native picker |
 | Voice model locations | Repo/home lookup and environment overrides; optional setup checks | Load and decode with the real speech models |
 | Voice recording lifecycle | Final/live decoder fallback, typed-text preservation, live captions, final replacement, cancellation, saved WAV, recorder exit race, kill/reap, pending start/stop, serialized restart, stale captions, quit cleanup | Real microphone capture and Whisper decoding |
-| Local imaging setup | Existing source/config/checkpoint file-presence checks pass | Load weights and run inference |
+| Stage 3 latency/failure | Known phrases bypass rewriting; lock wait, decoding budget/partial-output rejection, malformed rewrite, original-text preservation, semantic fallback failure, full pipeline completion and persisted failure tests | Time CPU generation on the Mac |
+| Model health | Per-model statuses, no automatic mock fallback; diagnostic timeout/exit codes and shared-weight checks tested | Run real per-model inference command below |
+| Local imaging setup | Existing source/config/checkpoint file-presence checks pass; MedGemma/Whisper safetensors headers and tensor offsets fit file sizes | Load weights and run inference; file checks do not verify tensor values or quality |
 
 Python syntax, shell syntax, README links/anchors, and `git diff --check` pass.
 The imaging setup checker finds the local CLEAR, CheXzero, MedSAM, and MedGemma
@@ -57,6 +59,28 @@ bash -n run.sh scripts/bonaventure-toggle
 
 The voice setup command requires the optional voice downloads. A setup check
 does not load models or verify checkpoint contents, rendering, or permissions.
+
+## Real model inference checks
+
+Close Bonaventure, then run:
+
+```bash
+.venv/bin/python scripts/diagnose_models.py
+```
+
+The diagnostic uses a separate process per model and saves
+`cases/model-health.json`. It exercises both image readers, concept retrieval,
+segmentation, MedGemma text/image generation and both Whisper decoders; optional
+MiniLM may be skipped if absent. Whisper uses synthetic audio, not a patient
+recording or microphone. These inference checks have **not** run in the Linux
+sandbox because the mounted Mac interpreter cannot execute here.
+
+A Stage 3 run now records stage boundaries in Terminal and
+`cases/BV-XXX/progress.json`. Rewriting uses a cooperative generation budget,
+so a single slow forward pass can exceed it. Timed-out text rewriting falls back
+to original phrases with warnings; image generation fails instead of accepting
+partial output. Mac MedGemma remains on CPU, and the full application's combined
+memory pressure is not reproduced by sequential model checks.
 
 ## Mac runtime checks
 

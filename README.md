@@ -230,6 +230,50 @@ BV_START=expand ./run.sh    # open intake immediately
 scripts/bonaventure-toggle  # Linux only: toggle/start the pill using a key or bar binding
 ```
 
+### Diagnose slow stages and model inference
+
+Stage 3 is **Structuring current presentation**. Known clinical phrases use the
+built-in parser; MedGemma rewrites unmatched phrases only. Rewrites have a
+30-second generation budget and a two-second model-lock wait. Failure preserves
+the original wording, lists unmatched phrases, and adds a review warning. Long
+phrases (over 500 characters) and phrases beyond the first 12 eligible unmatched
+phrases remain available for review without a model rewrite.
+
+MedGemma image calls have a 180-second generation budget; exceeding it fails
+analysis rather than accepting partial reasoning. These budgets are checked
+between decoding steps, so a slow CPU step can exceed the limit. Override with
+`BV_PRESENTATION_SECONDS` or `BV_IMAGE_GENERATION_SECONDS` when starting the app.
+Currently MedGemma and MedSAM use CUDA when available and CPU otherwise,
+including on Macs; Apple MPS acceleration is not configured. The RTX timing
+below is not an estimate for a Mac.
+
+Terminal output reports stage starts and elapsed times. Each case writes
+`cases/BV-XXX/progress.json`; successful results also include stage timings in
+`technical.stage_seconds`. Failed real-model loading is reported as a failure;
+mock output requires explicitly setting `BV_MOCK=1`.
+
+Close Bonaventure first, then run the actual model smoke tests:
+
+```bash
+.venv/bin/python scripts/diagnose_models.py
+```
+
+This checks CLEAR, CheXzero, CLEAR concept retrieval, MedSAM, MedGemma text
+(Stage 3) and image generation, both Whisper checkpoints, and optional MiniLM.
+It checks shared input/output weights for the language models, finite outputs,
+and inference completion. Whisper uses synthetic audio: this does not test
+microphone permission or speech-recognition accuracy. No patient recording is
+read. Missing optional MiniLM is reported as skipped.
+
+Models run sequentially in separate processes to release RAM between checks.
+The hard limit per process is 600 seconds including loading; use `--timeout 1200`
+for a slower machine or `--only MedGemma-text` to isolate Stage 3. The report is
+saved locally at `cases/model-health.json`; a failed/timed-out required check
+returns a nonzero exit status. Hugging Face loads are offline and need complete
+local checkpoints. CLEAR's DINOv2 source also needs its existing Torch Hub cache.
+This smoke test verifies execution, not diagnostic accuracy or the full app's
+combined memory usage.
+
 Reproduce the three acceptance demo cases (docs/11) on the real models:
 
 ```bash

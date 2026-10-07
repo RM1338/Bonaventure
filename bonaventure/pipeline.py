@@ -50,15 +50,30 @@ class Case:
         self.state = "PROCESSING"
         self.error = None
         self.result = None
+        self.stage_seconds = {}
 
     def progress(self):
         return dict(case_id=self.id, state=self.state, error=self.error,
-                    steps=[dict(key=k, label=label, state=self.steps[k]) for k, label in STEPS])
+                    steps=[dict(key=k, label=label, state=self.steps[k], seconds=self.stage_seconds.get(k)) for k, label in STEPS])
+
+    def _save_progress(self):
+        path = self.dir / "progress.json"
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(self.progress(), indent=2))
+        temporary.replace(path)
 
     def _step(self, key, fn):
         self.steps[key] = "running"
-        out = fn()
+        self._save_progress()
+        start = time.monotonic()
+        print(f"[case {self.id}] {key}: started", flush=True)
+        try:
+            out = fn()
+        finally:
+            self.stage_seconds[key] = round(time.monotonic() - start, 2)
+            print(f"[case {self.id}] {key}: returned after {self.stage_seconds[key]}s", flush=True)
         self.steps[key] = "complete"
+        self._save_progress()
         return out
 
     def _fail(self, code, exc):
@@ -68,6 +83,7 @@ class Case:
             self.steps[k] = "failed"
         self.state = "FAILED"
         self.error = dict(code=code, title=title, message=message, causes=causes, details=f"{exc!r}\n\n{traceback.format_exc()}")
+        self._save_progress()
 
     def run(self, engine):
         t0 = time.time()
@@ -99,18 +115,15 @@ class Case:
             if not self.histories:
                 self.steps["history"] = "skipped"
             def understand():
-                """MedGemma reads every phrase and rewrites it in clinical language; the deterministic parser maps the rewrite to
-                concepts (auditable); the rules' own reading of the clinician's words checks it. Disagreements keep the safer
-                reading and are shown. Phrases nothing understood are reported, never silently dropped."""
+                """Parse known phrases directly and ask for optional rewrites of unmatched wording.
+                Keep original text, provenance and unresolved phrases available for review."""
                 from .knowledge import HISTORY_CONCEPTS, SYMPTOM_CONCEPTS
-                from . import semantic
                 text = self.symptoms_text
                 clauses = [c.strip() for c in re.split(r"[,.;]|\band\b", text) if len(c.strip().split()) >= 2]
-                mg = None if engine.mock else (engine.models.get("reasoning") if engine.ready() else None)
-                rewrites = [""] * len(clauses)
-                if mg and clauses:
-                    with engine._lock:
-                        rewrites, self._nl_raw = mg.rewrite_clinical(clauses)
+                from .presentation import clinical_rewrites
+                rewrites, self._nl_raw, rewrite_warnings = clinical_rewrites(
+                    engine, clauses, lambda phrase: context.parse_symptoms(phrase) or context.presentation_as_history(phrase))
+                warnings.extend(rewrite_warnings)
 
                 found, hx, flags, unrecognised, have = [], [], [], [], {}
 
@@ -130,6 +143,7 @@ class Case:
                     out.update({e["concept"]: ("history", "present" if e["state"] == "present" else "denied", None) for e in context.presentation_as_history(t)})
                     return out
 
+                matcher, matcher_checked = None, False
                 for clause, rw in zip(clauses, rewrites):
                     rules, model = read(clause), read(rw) if rw else {}
                     for cid, (kind, state, dur) in rules.items():
@@ -143,8 +157,21 @@ class Case:
                         # where the rules already read a symptom in this phrase, MedGemma's extra symptoms are looser paraphrase
                         if cid not in rules and not (kind == "symptom" and rules_saw_symptom):
                             add(kind, cid, state, clause, f"understood by MedGemma: “{clause}” → {rw}", dur)
-                    if not rules and not model and semantic.matcher():
-                        m = semantic.matcher().match(rw or clause) or semantic.matcher().match(clause)
+                    if not rules and not model and not matcher_checked:
+                        matcher_checked = True
+                        try:
+                            from . import semantic
+                            matcher = semantic.matcher()
+                        except Exception as exc:
+                            print(f"[presentation] semantic matcher unavailable: {exc!r}", flush=True)
+                            warnings.append("Meaning-based matching unavailable; unmatched phrases need review.")
+                    if not rules and not model and matcher:
+                        try:
+                            m = matcher.match(rw or clause) or matcher.match(clause)
+                        except Exception as exc:
+                            print(f"[presentation] semantic matching failed: {exc!r}", flush=True)
+                            warnings.append("Meaning-based matching failed; unmatched phrases need review.")
+                            matcher, m = None, None
                         if m:
                             denied = bool(re.match(r"\s*(?:no|not|never|denies|denied|without)\b", clause, re.I))
                             add(m[0], m[1], "denied" if denied else "present", clause, f"matched by meaning ({m[2]:.2f}): “{clause}”")
@@ -191,11 +218,15 @@ class Case:
                     timeline=context.build_timeline(events, reconcile.relevant_concepts(findings)),
                     findings=findings, summary=summary, not_assessable=not_assessable, other_observations=other,
                     technical=dict(models=[dict(role=s["role"], model=s["model"]) for s in result["sources"]],
-                                   timing=result.get("timing", {}), raw_reasoning=(result.get("raw_reasoning") or []) + ([f"[natural-language understanding] {self._nl_raw}"] if getattr(self, "_nl_raw", None) else []),
+                                   timing=result.get("timing", {}), stage_seconds=dict(self.stage_seconds), raw_reasoning=(result.get("raw_reasoning") or []) + ([f"[natural-language understanding] {self._nl_raw}"] if getattr(self, "_nl_raw", None) else []),
                                    top_concepts=result.get("top_concepts") or [], total_seconds=round(time.time() - t0, 2), engine_status=dict(engine.status)),
                 )
                 (self.dir / "result.json").write_text(json.dumps(self.result, indent=2))
             self._step("review", prepare)
+            self.result["technical"]["stage_seconds"] = dict(self.stage_seconds)
+            self.result["technical"]["total_seconds"] = round(time.time() - t0, 2)
+            (self.dir / "result.json").write_text(json.dumps(self.result, indent=2))
             self.state = "REVIEW_READY"
+            self._save_progress()
         except Exception as e:
             self._fail("INTERNAL", e)
