@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Show/hide the Bonaventure island; starts the app (island expanded) if it is not running.
+# Bound to a Hyprland key and the Omarchy bar button.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+SOCK="${XDG_RUNTIME_DIR:-/tmp}/bonaventure.sock"
+if [ -S "$SOCK" ] && "$ROOT/.venv/bin/python" -c "import socket,sys; s=socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); s.sendall(b'toggle')" "$SOCK" 2>/dev/null; then
+  exit 0
+fi
+BV_START=expand setsid "$ROOT/run.sh" >"${XDG_RUNTIME_DIR:-/tmp}/bonaventure.log" 2>&1 < /dev/null &

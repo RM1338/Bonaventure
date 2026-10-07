@@ -1,0 +1,79 @@
+@font-face { font-family: "Inter"; src: url("fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+
+/* macOS dark-mode palette (system colours, label hierarchy, separators) */
+:root {
+  --window: #1E1E20;
+  --toolbar: #2A2A2D;
+  --sidebar: #252528;
+  --inspector: #222224;
+  --canvas: #000000;
+  --control: rgba(255, 255, 255, 0.08);
+  --control-hover: rgba(255, 255, 255, 0.13);
+  --control-active: rgba(255, 255, 255, 0.2);
+  --sep: rgba(255, 255, 255, 0.09);
+  --sep-strong: rgba(255, 255, 255, 0.16);
+  --label: rgba(255, 255, 255, 0.92);
+  --label-2: rgba(235, 235, 245, 0.62);
+  --label-3: rgba(235, 235, 245, 0.38);
+  --label-4: rgba(235, 235, 245, 0.2);
+  --blue: #0A84FF;
+  --green: #30D158;
+  --orange: #FF9F0A;
+  --yellow: #FFD60A;
+  --red: #FF453A;
+  --gray: #8E8E93;
+  --region: #FF9F0A;
+  --island: #000000;
+  --mono: "JetBrainsMono NF", "JetBrains Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: "Inter", "SF Pro Text", "Liberation Sans", system-ui, sans-serif;
+  font-size: 13px; line-height: 1.38; color: var(--label); background: var(--window);
+  -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01", "tnum"; letter-spacing: -0.003em;
+  user-select: none; cursor: default;
+}
+button { font: inherit; color: inherit; cursor: default; }
+svg.i { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+.caps { font-size: 11px; font-weight: 600; color: var(--label-3); letter-spacing: 0.02em; }
+.muted { color: var(--label-2); }
+.faint { color: var(--label-3); }
+.mono { font-family: var(--mono); font-size: 11.5px; }
+
+/* push button (macOS style) */
+.pb {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 7px; border: 0;
+  background: var(--control); color: var(--label); font-size: 12.5px; font-weight: 500; white-space: nowrap;
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,.08), 0 0.5px 1px rgba(0,0,0,.4);
+}
+.pb:hover { background: var(--control-hover); }
+.pb:active { background: var(--control-active); }
+.pb.on { background: rgba(10,132,255,.22); color: #64B5FF; }
+.pb.accent { background: var(--blue); color: #fff; }
+.pb.accent:hover { background: #2B95FF; }
+.pb.icon { width: 30px; padding: 0; justify-content: center; }
+.pb:focus-visible { outline: 3px solid rgba(10,132,255,.55); outline-offset: 1px; }
+
+/* evidence-state badges */
+.badge { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.b-SUPPORTED { color: var(--green); background: rgba(48,209,88,.14); }
+.b-UNCERTAIN { color: var(--yellow); background: rgba(255,214,10,.13); }
+.b-CONFLICTING { color: var(--red); background: rgba(255,69,58,.15); }
+.b-INSUFFICIENT_EVIDENCE { color: var(--gray); background: rgba(142,142,147,.16); }
+.c-SUPPORTED { color: var(--green); } .c-UNCERTAIN { color: var(--yellow); } .c-CONFLICTING { color: var(--red); } .c-INSUFFICIENT_EVIDENCE { color: var(--gray); }
+
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--gray); flex: none; }
+.dot.ready { background: var(--green); }
+.dot.loading { background: var(--orange); animation: pulse 1.2s ease-in-out infinite; }
+.dot.mock { background: var(--orange); }
+.dot.unavailable { background: var(--red); }
+@keyframes pulse { 50% { opacity: .3; } }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 9px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,.28); }

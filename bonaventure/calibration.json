@@ -1,0 +1,409 @@
+{
+  "datasets": {
+    "CheXpert": "CheXpert v1.0 validation, radiologist consensus, frontal views",
+    "NIH": "NIH ChestX-ray14 test split (2 shards), NLP-mined labels, sampled per finding"
+  },
+  "readers": {
+    "CLEAR": {
+      "PLEURAL_EFFUSION": {
+        "auroc": 0.909,
+        "n_pos": 64,
+        "n_neg": 138,
+        "thresholds": [
+          0.7529,
+          0.8246,
+          0.9213
+        ],
+        "sens_at_moderate": 0.875,
+        "spec_at_moderate": 0.775
+      },
+      "CARDIOMEGALY": {
+        "auroc": 0.848,
+        "n_pos": 66,
+        "n_neg": 136,
+        "thresholds": [
+          0.5076,
+          0.5472,
+          0.7291
+        ],
+        "sens_at_moderate": 0.864,
+        "spec_at_moderate": 0.728
+      },
+      "PNEUMOTHORAX": {
+        "auroc": 0.785,
+        "n_pos": 7,
+        "n_neg": 195,
+        "thresholds": [
+          0.2881,
+          0.7114,
+          0.7114
+        ],
+        "sens_at_moderate": 0.714,
+        "spec_at_moderate": 0.964
+      },
+      "CONSOLIDATION": {
+        "auroc": 0.901,
+        "n_pos": 32,
+        "n_neg": 170,
+        "thresholds": [
+          0.8669,
+          0.8944,
+          0.9529
+        ],
+        "sens_at_moderate": 0.906,
+        "spec_at_moderate": 0.788
+      },
+      "PULMONARY_EDEMA": {
+        "auroc": 0.912,
+        "n_pos": 42,
+        "n_neg": 160,
+        "thresholds": [
+          0.9196,
+          0.9509,
+          0.9828
+        ],
+        "sens_at_moderate": 0.905,
+        "spec_at_moderate": 0.794
+      },
+      "ATELECTASIS": {
+        "auroc": 0.814,
+        "n_pos": 75,
+        "n_neg": 127,
+        "thresholds": [
+          0.2974,
+          0.457,
+          0.6295
+        ],
+        "sens_at_moderate": 0.787,
+        "spec_at_moderate": 0.732
+      },
+      "ENLARGED_MEDIASTINUM": {
+        "auroc": 0.88,
+        "n_pos": 105,
+        "n_neg": 97,
+        "thresholds": [
+          0.0521,
+          0.2275,
+          0.3997
+        ],
+        "sens_at_moderate": 0.8,
+        "spec_at_moderate": 0.856
+      },
+      "SUPPORT_DEVICES": {
+        "auroc": 0.736,
+        "n_pos": 99,
+        "n_neg": 103,
+        "thresholds": [
+          0.3965,
+          0.7029,
+          0.9165
+        ],
+        "sens_at_moderate": 0.717,
+        "spec_at_moderate": 0.65
+      },
+      "PNEUMONIA": {
+        "auroc": 0.724,
+        "n_pos": 60,
+        "n_neg": 616,
+        "thresholds": [
+          0.6331,
+          0.8965,
+          0.9815
+        ],
+        "sens_at_moderate": 0.7,
+        "spec_at_moderate": 0.633
+      },
+      "LUNG_NODULE": {
+        "auroc": 0.535,
+        "n_pos": 82,
+        "n_neg": 594,
+        "thresholds": [
+          0.678,
+          0.6825,
+          0.8967
+        ],
+        "sens_at_moderate": 0.902,
+        "spec_at_moderate": 0.276
+      },
+      "LUNG_MASS": {
+        "auroc": 0.673,
+        "n_pos": 79,
+        "n_neg": 597,
+        "thresholds": [
+          0.5429,
+          0.8571,
+          0.9407
+        ],
+        "sens_at_moderate": 0.62,
+        "spec_at_moderate": 0.692
+      },
+      "EMPHYSEMA": {
+        "auroc": 0.627,
+        "n_pos": 68,
+        "n_neg": 608,
+        "thresholds": [
+          0.5364,
+          0.6879,
+          0.7784
+        ],
+        "sens_at_moderate": 0.574,
+        "spec_at_moderate": 0.645
+      },
+      "FIBROSIS": {
+        "auroc": 0.627,
+        "n_pos": 68,
+        "n_neg": 608,
+        "thresholds": [
+          0.7751,
+          0.998,
+          0.999
+        ],
+        "sens_at_moderate": 0.382,
+        "spec_at_moderate": 0.824
+      },
+      "PLEURAL_THICKENING": {
+        "auroc": 0.699,
+        "n_pos": 85,
+        "n_neg": 591,
+        "thresholds": [
+          0.546,
+          0.8102,
+          0.9157
+        ],
+        "sens_at_moderate": 0.706,
+        "spec_at_moderate": 0.633
+      },
+      "HERNIA": {
+        "auroc": 0.531,
+        "n_pos": 30,
+        "n_neg": 646,
+        "thresholds": [
+          0.4396,
+          0.785,
+          0.9242
+        ],
+        "sens_at_moderate": 0.567,
+        "spec_at_moderate": 0.556
+      }
+    },
+    "CheXzero": {
+      "PLEURAL_EFFUSION": {
+        "auroc": 0.884,
+        "n_pos": 64,
+        "n_neg": 138,
+        "thresholds": [
+          0.0916,
+          0.3787,
+          0.4996
+        ],
+        "sens_at_moderate": 0.781,
+        "spec_at_moderate": 0.855
+      },
+      "CARDIOMEGALY": {
+        "auroc": 0.825,
+        "n_pos": 66,
+        "n_neg": 136,
+        "thresholds": [
+          0.1943,
+          0.1943,
+          0.7168
+        ],
+        "sens_at_moderate": 0.924,
+        "spec_at_moderate": 0.618
+      },
+      "PNEUMOTHORAX": {
+        "auroc": 0.763,
+        "n_pos": 7,
+        "n_neg": 195,
+        "thresholds": [
+          0.3732,
+          0.7453,
+          0.8472
+        ],
+        "sens_at_moderate": 0.714,
+        "spec_at_moderate": 0.749
+      },
+      "CONSOLIDATION": {
+        "auroc": 0.851,
+        "n_pos": 32,
+        "n_neg": 170,
+        "thresholds": [
+          0.7144,
+          0.7227,
+          0.925
+        ],
+        "sens_at_moderate": 0.906,
+        "spec_at_moderate": 0.7
+      },
+      "PULMONARY_EDEMA": {
+        "auroc": 0.906,
+        "n_pos": 42,
+        "n_neg": 160,
+        "thresholds": [
+          0.0951,
+          0.3809,
+          0.3809
+        ],
+        "sens_at_moderate": 0.786,
+        "spec_at_moderate": 0.95
+      },
+      "ATELECTASIS": {
+        "auroc": 0.786,
+        "n_pos": 75,
+        "n_neg": 127,
+        "thresholds": [
+          0.1881,
+          0.2558,
+          0.7538
+        ],
+        "sens_at_moderate": 0.867,
+        "spec_at_moderate": 0.598
+      },
+      "ENLARGED_MEDIASTINUM": {
+        "auroc": 0.877,
+        "n_pos": 105,
+        "n_neg": 97,
+        "thresholds": [
+          0.9681,
+          0.9774,
+          0.9963
+        ],
+        "sens_at_moderate": 0.886,
+        "spec_at_moderate": 0.763
+      },
+      "SUPPORT_DEVICES": {
+        "auroc": 0.73,
+        "n_pos": 99,
+        "n_neg": 103,
+        "thresholds": [
+          0.0257,
+          0.2119,
+          0.2163
+        ],
+        "sens_at_moderate": 0.475,
+        "spec_at_moderate": 0.893
+      },
+      "PNEUMONIA": {
+        "auroc": 0.689,
+        "n_pos": 60,
+        "n_neg": 616,
+        "thresholds": [
+          0.6039,
+          0.8054,
+          0.9943
+        ],
+        "sens_at_moderate": 0.833,
+        "spec_at_moderate": 0.494
+      },
+      "LUNG_NODULE": {
+        "auroc": 0.514,
+        "n_pos": 82,
+        "n_neg": 594,
+        "thresholds": [
+          0.3856,
+          0.8155,
+          0.8582
+        ],
+        "sens_at_moderate": 0.256,
+        "spec_at_moderate": 0.825
+      },
+      "LUNG_MASS": {
+        "auroc": 0.619,
+        "n_pos": 79,
+        "n_neg": 597,
+        "thresholds": [
+          0.038,
+          0.6939,
+          0.9872
+        ],
+        "sens_at_moderate": 0.684,
+        "spec_at_moderate": 0.546
+      },
+      "EMPHYSEMA": {
+        "auroc": 0.548,
+        "n_pos": 68,
+        "n_neg": 608,
+        "thresholds": [
+          0.0719,
+          0.1469,
+          0.93
+        ],
+        "sens_at_moderate": 0.824,
+        "spec_at_moderate": 0.345
+      },
+      "FIBROSIS": {
+        "auroc": 0.546,
+        "n_pos": 68,
+        "n_neg": 608,
+        "thresholds": [
+          0.0016,
+          0.0084,
+          0.9943
+        ],
+        "sens_at_moderate": 0.838,
+        "spec_at_moderate": 0.281
+      },
+      "PLEURAL_THICKENING": {
+        "auroc": 0.73,
+        "n_pos": 85,
+        "n_neg": 591,
+        "thresholds": [
+          0.2912,
+          0.7658,
+          0.8698
+        ],
+        "sens_at_moderate": 0.6,
+        "spec_at_moderate": 0.81
+      },
+      "HERNIA": {
+        "auroc": 0.859,
+        "n_pos": 30,
+        "n_neg": 646,
+        "thresholds": [
+          0.0551,
+          0.0757,
+          0.2866
+        ],
+        "sens_at_moderate": 0.867,
+        "spec_at_moderate": 0.729
+      }
+    }
+  },
+  "combined_auroc": {
+    "PLEURAL_EFFUSION": 0.904,
+    "CARDIOMEGALY": 0.843,
+    "PNEUMOTHORAX": 0.8,
+    "CONSOLIDATION": 0.897,
+    "PULMONARY_EDEMA": 0.935,
+    "ATELECTASIS": 0.817,
+    "ENLARGED_MEDIASTINUM": 0.9,
+    "SUPPORT_DEVICES": 0.755,
+    "PNEUMONIA": 0.715,
+    "LUNG_NODULE": 0.531,
+    "LUNG_MASS": 0.656,
+    "EMPHYSEMA": 0.573,
+    "FIBROSIS": 0.561,
+    "PLEURAL_THICKENING": 0.734,
+    "HERNIA": 0.724
+  },
+  "source": {
+    "PLEURAL_EFFUSION": "CheXpert",
+    "CARDIOMEGALY": "CheXpert",
+    "PNEUMOTHORAX": "CheXpert",
+    "CONSOLIDATION": "CheXpert",
+    "PULMONARY_EDEMA": "CheXpert",
+    "ATELECTASIS": "CheXpert",
+    "ENLARGED_MEDIASTINUM": "CheXpert",
+    "SUPPORT_DEVICES": "CheXpert",
+    "PNEUMONIA": "NIH",
+    "LUNG_NODULE": "NIH",
+    "LUNG_MASS": "NIH",
+    "EMPHYSEMA": "NIH",
+    "FIBROSIS": "NIH",
+    "PLEURAL_THICKENING": "NIH",
+    "HERNIA": "NIH"
+  },
+  "uncalibrated": [
+    "FRACTURE"
+  ]
+}

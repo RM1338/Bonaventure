@@ -1,0 +1,21 @@
+# Desktop client + backend
+pywebview==6.2.1          # needs system webkit2gtk-4.1 + python-gobject (Linux)
+weasyprint==70.0
+pydicom==3.0.2
+pillow==12.3.0
+numpy==2.5.3
+# Imaging / reasoning models (install torch from the CUDA index: --index-url https://download.pytorch.org/whl/cu128)
+torch==2.11.0
+torchvision==0.26.0
+transformers==5.19.0
+accelerate==1.15.0
+bitsandbytes==0.50.2
+huggingface_hub==1.33.0
+# CLEAR / CheXzero code dependencies
+ftfy==6.3.1
+regex==2026.9.29
+pandas==3.0.6
+scikit-learn==1.9.1
+scipy==1.18.1
+h5py==3.16.0
+tqdm==4.70.1

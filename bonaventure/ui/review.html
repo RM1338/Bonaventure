@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bonaventure — Review</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  /* Same material as the island: pure black, #1C1C1E tiles, Inter, white pill actions, system status colours. */
+  @font-face { font-family: "Caveat"; src: url("fonts/caveat.woff2") format("woff2"); font-weight: 400 700; }
+  :root { --tile: #1C1C1E; --tile-2: #2C2C2E; --line: rgba(255,255,255,.08); --t1: #fff; --t2: rgba(255,255,255,.62); --t3: rgba(255,255,255,.4);
+          --marker: #FFB21E; --marker-red: #FF453A; }
+  html, body { background: #000; overflow: hidden; color: var(--t1); }
+  .app { position: fixed; inset: 0; transform-origin: 50% 0; animation: grow .5s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes grow { from { transform: scale(.94) translateY(-14px); opacity: 0; border-radius: 40px; } to { transform: none; opacity: 1; } }
+
+  /* window controls + case line, top-left */
+  .top { position: fixed; z-index: 6; top: 16px; left: 18px; display: flex; align-items: center; gap: 16px; }
+  .lights { display: flex; gap: 8px; }
+  .lights button { width: 12px; height: 12px; border-radius: 50%; border: 0; padding: 0; font-size: 9px; line-height: 1; color: transparent; font-weight: 800; }
+  .lights:hover button { color: rgba(0,0,0,.55); }
+  .l-close { background: #FF5F57; } .l-min { background: #3A3A3C; } .l-zoom { background: #28C840; }
+  .case { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+  .glyph { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #5AC8FA, #0A84FF 60%, #0040A8); box-shadow: 0 0 10px rgba(10,132,255,.55); }
+  .case b { font-weight: 600; } .case span { color: var(--t3); }
+
+  /* ---------- film ---------- */
+  .stagewrap { position: fixed; top: 58px; bottom: 74px; left: var(--lm, 24px); right: 412px; display: grid; place-items: center; transition: left .3s ease; }
+  .stagewrap.drag { cursor: grabbing; }
+  .stage { position: relative; transform-origin: center; }
+  .stage img { display: block; width: 100%; height: 100%; border-radius: 14px; -webkit-user-drag: none; }
+  .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .qbar { position: fixed; z-index: 5; top: 60px; left: calc(var(--lm, 24px) + (100vw - var(--lm, 24px) - 412px) / 2); transform: translateX(-50%); display: none;
+    padding: 7px 14px; border-radius: 16px; background: var(--tile); font-size: 12.5px; color: #FFD60A; }
+  .qbar.poor { color: #FF6961; }
+  .ctl { position: fixed; z-index: 5; bottom: 22px; left: calc(var(--lm, 24px) + (100vw - var(--lm, 24px) - 412px) / 2); transform: translateX(-50%);
+    display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 20px; background: var(--tile); transition: left .3s ease; }
+  .ctl button { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: transparent; color: var(--t2); font-size: 12.5px; font-weight: 500; }
+  .ctl button:hover { color: #fff; background: rgba(255,255,255,.08); }
+  .ctl button.on { color: #fff; background: rgba(255,255,255,.14); }
+  .ctl .z { font-size: 12px; color: var(--t3); width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+  .ctl .sep { width: 1px; height: 16px; background: var(--line); margin: 0 4px; }
+
+  /* grease pencil */
+  .mark { cursor: pointer; }
+  .mark path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .mark .ink { stroke: var(--marker); filter: drop-shadow(0 0 1px rgba(0,0,0,.9)); }
+  .mark.red .ink { stroke: var(--marker-red); }
+  .mark .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1s ease-out forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .mark text { font-family: "Caveat", cursive; font-weight: 700; fill: var(--marker); paint-order: stroke; stroke: rgba(0,0,0,.85); opacity: 0; animation: ink .4s ease-out forwards; }
+  .mark.red text { fill: var(--marker-red); }
+  @keyframes ink { to { opacity: 1; } }
+  .mark.dim { opacity: .55; } .mark.dim:hover { opacity: 1; }
+  .raw polygon, .raw rect { fill: rgba(10,132,255,.14); stroke: #0A84FF; stroke-dasharray: 5 4; }
+  .raw text { fill: #64B5FF; font-family: var(--mono); paint-order: stroke; stroke: #000; }
+
+  /* ---------- right column of tiles ---------- */
+  .col { position: fixed; z-index: 4; top: 16px; right: 16px; bottom: 16px; width: 380px; display: flex; flex-direction: column; gap: 10px; }
+  .tile { background: var(--tile); border-radius: 20px; padding: 16px; }
+  .k { font-size: 11.5px; color: var(--t3); font-weight: 500; }
+  .fl { margin: 8px -8px 0; }
+  .fr { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 12px; cursor: pointer; }
+  .fr:hover { background: rgba(255,255,255,.05); }
+  .fr.sel { background: var(--tile-2); }
+  .fr .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600; background: rgba(255,255,255,.08); color: var(--t2); flex: none; }
+  .fr.sel .n { background: #fff; color: #000; }
+  .fr .nm { font-size: 14px; font-weight: 500; }
+  .fr .st { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--t2); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .d-SUPPORTED { background: #30D158; } .d-CONFLICTING { background: #FF453A; } .d-UNCERTAIN { background: #FFD60A; } .d-INSUFFICIENT_EVIDENCE { background: #636366; }
+
+  .fl { max-height: 34vh; overflow-y: auto; }
+  .sub-h { font-size: 11.5px; color: var(--t3); margin: 10px 8px 2px; }
+  .fr.other { cursor: default; }
+  .fr.other .nm { font-weight: 400; color: var(--t2); }
+  .na { background: rgba(255,159,10,.08); border: 1px solid rgba(255,159,10,.28); }
+  .na .k { color: #FFB340; }
+  .na h3 { margin: 4px 0 0; font-size: 15px; font-weight: 600; }
+  .na .why { font-size: 12px; color: var(--t3); margin-top: 3px; }
+  .na p { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: rgba(255,255,255,.86); }
+  .focus { flex: 1; min-height: 0; overflow-y: auto; }
+  .focus h2 { margin: 2px 0 0; font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
+  .verdict { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--t2); }
+  .say { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.86); }
+  .chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .chip { background: var(--tile-2); border-radius: 14px; padding: 10px 11px; cursor: pointer; border: 1px solid transparent; transition: border-color .15s; }
+  .chip:hover { border-color: rgba(255,255,255,.14); }
+  .chip .lbl { font-size: 11.5px; color: var(--t3); }
+  .chip .val { margin-top: 3px; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .c-for { color: #30D158; } .c-against { color: #FF453A; } .c-none { color: var(--t3); }
+  .readers { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; font-size: 12px; color: var(--t2); }
+  .readers span { display: inline-flex; align-items: center; gap: 6px; }
+  .more { margin-top: 14px; width: 100%; height: 32px; border-radius: 16px; border: 0; background: var(--tile-2); color: var(--t2); font-size: 12.5px; font-weight: 500; }
+  .more:hover { color: #fff; }
+  .ev { display: none; margin-top: 12px; }
+  .ev.open { display: block; }
+  .ev .g { margin-top: 12px; }
+  .ev .g:first-child { margin-top: 0; }
+  .ev .gk { font-size: 11.5px; color: var(--t3); margin-bottom: 4px; }
+  .li { display: flex; gap: 10px; font-size: 13px; line-height: 1.4; color: rgba(255,255,255,.82); padding: 4px 0; }
+  .li .b { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex: none; }
+  .b-for { background: #30D158; } .b-against { background: #FF453A; } .b-note { background: #FFD60A; } .b-none { border: 1.2px solid var(--t3); }
+  .li .r { margin-left: auto; padding-left: 8px; color: var(--t3); font-size: 11.5px; white-space: nowrap; }
+  .li .src { display: block; color: #64B5FF; font-size: 11.5px; cursor: pointer; }
+  .li .src:hover { text-decoration: underline; }
+  .li i { color: rgba(255,255,255,.95); }
+  .alert { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255,69,58,.12); color: #FF8A82; font-size: 13px; line-height: 1.4; }
+
+  .imp p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.45; color: rgba(255,255,255,.86); }
+  .acts { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
+  .go { height: 32px; padding: 0 18px; border-radius: 16px; border: 0; background: #fff; color: #000; font-weight: 600; font-size: 13px; }
+  .go:hover { background: #E8E8ED; }
+  .ghost { height: 32px; padding: 0 14px; border-radius: 16px; border: 0; background: var(--tile-2); color: var(--t2); font-size: 13px; font-weight: 500; }
+  .ghost:hover { color: #fff; }
+  .acts .grow { flex: 1; }
+  .fine { margin-top: 10px; font-size: 11px; color: var(--t3); }
+
+  /* ---------- patient context drawer (hidden until asked for) ---------- */
+  .ctx { position: fixed; z-index: 4; top: 58px; bottom: 16px; left: 16px; width: 320px; transform: translateX(-360px); transition: transform .3s cubic-bezier(.2,.8,.2,1); overflow-y: auto; }
+  body.ctxopen .ctx { transform: none; }
+  body.ctxopen { --lm: 352px; }
+  .ctx .x { float: right; border: 0; background: var(--tile-2); color: var(--t2); width: 24px; height: 24px; border-radius: 50%; }
+  .quote { margin-top: 8px; font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.86); }
+  .sym { display: flex; justify-content: space-between; padding: 5px 8px; margin: 0 -8px; border-radius: 9px; font-size: 13px; color: var(--t2); transition: background .25s; }
+  .sym.neg { color: var(--t3); text-decoration: line-through; text-decoration-color: rgba(255,255,255,.25); }
+  .sym .d { color: var(--t3); font-size: 12px; }
+  .hx { padding: 7px 8px; margin: 0 -8px; border-radius: 10px; cursor: pointer; transition: background .25s; }
+  .hx:hover { background: rgba(255,255,255,.05); }
+  .hx .dt { font-size: 11.5px; color: var(--t3); }
+  .hx .lb { font-size: 13.5px; font-weight: 500; }
+  .hx .sr { font-size: 11.5px; color: var(--t3); }
+  .hl { background: rgba(255,178,30,.13) !important; color: #fff !important; text-decoration: none !important; }
+  .sec { margin-top: 18px; }
+  .muted { font-size: 13px; color: var(--t3); margin-top: 6px; }
+
+  /* ---------- overlays ---------- */
+  #links { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
+  #links path { fill: none; stroke: var(--marker); stroke-width: 1.3; stroke-dasharray: 4 4; opacity: .85; }
+  #links circle { fill: var(--marker); }
+  .pop { position: fixed; z-index: 40; width: 340px; background: var(--tile-2); border-radius: 18px; padding: 16px; display: none; box-shadow: 0 24px 60px rgba(0,0,0,.7); }
+  .pop h3 { margin: 4px 0 2px; font-size: 16px; font-weight: 600; }
+  .pop .m { font-size: 12px; color: var(--t3); }
+  .pop blockquote { margin: 12px 0; padding: 10px 12px; background: rgba(0,0,0,.35); border-radius: 10px; font-size: 13px; line-height: 1.5; user-select: text; }
+  .pop blockquote mark { background: rgba(255,178,30,.3); color: inherit; border-radius: 3px; padding: 0 2px; }
+  .menu { position: fixed; z-index: 45; background: var(--tile-2); border-radius: 12px; padding: 5px; box-shadow: 0 14px 40px rgba(0,0,0,.6); display: none; min-width: 150px; }
+  .menu button { display: flex; width: 100%; justify-content: space-between; border: 0; background: none; padding: 5px 10px; border-radius: 7px; font-size: 13px; }
+  .menu button:hover { background: var(--blue); }
+  .modal { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.6); display: none; place-items: center; }
+  .modal.show { display: grid; }
+  .modal .box { width: 620px; max-height: 82vh; overflow: auto; background: var(--tile); border-radius: 22px; padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+  .modal h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+  .kv { display: grid; grid-template-columns: 1fr auto; margin: 10px 0 14px; background: var(--tile-2); border-radius: 12px; }
+  .kv > * { padding: 6px 12px; border-top: 1px solid var(--line); font-size: 12px; }
+  .kv > :nth-child(1), .kv > :nth-child(2) { border-top: 0; }
+  .kv .kk { color: var(--t2); } .kv .v { font-family: var(--mono); font-size: 11.5px; text-align: right; }
+  .modal pre { font-family: var(--mono); font-size: 10.5px; color: var(--t2); white-space: pre-wrap; max-height: 240px; overflow: auto; user-select: text; background: var(--tile-2); padding: 10px; border-radius: 10px; }
+  .hud { position: fixed; bottom: 70px; left: 40vw; transform: translateX(-50%) scale(.96); opacity: 0; z-index: 50; background: var(--tile-2); border-radius: 16px; padding: 9px 15px; font-size: 13px; transition: .2s; pointer-events: none; }
+  .hud.show { opacity: 1; transform: translateX(-50%); }
+  .tip { position: fixed; z-index: 30; pointer-events: none; background: var(--tile-2); border-radius: 10px; padding: 6px 10px; font-size: 12px; display: none; }
+  .empty { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; z-index: 80; background: #000; color: var(--t2); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top pywebview-drag-region">
+    <div class="lights">
+      <button class="l-close" onclick="pywebview.api.window_close()" title="Close">×</button>
+      <button class="l-min" title="Minimise (not available)">–</button>
+      <button class="l-zoom" onclick="pywebview.api.window_zoom()" title="Zoom">+</button>
+    </div>
+    <div class="case"><span class="glyph"></span><b id="caseId">—</b><span id="caseMeta"></span></div>
+  </div>
+
+  <div class="qbar" id="qbar"></div>
+  <div class="stagewrap" id="wrap"><div class="stage" id="stage"><img id="img" alt="Chest X-ray"><svg id="ov"></svg></div></div>
+  <div class="ctl">
+    <button onclick="toggleCtx()" id="ctxBtn">Context</button><span class="sep"></span>
+    <button id="wlBtn" onclick="openWL(event)">Window</button>
+    <button onclick="zoomBy(0.8)">−</button><span class="z" id="zoomv">100%</span><button onclick="zoomBy(1.25)">+</button><span class="sep"></span>
+    <button class="on" id="mkBtn" onclick="toggleMarks()">Marks</button>
+    <button id="rawBtn" onclick="toggleRaw()">AI outlines</button>
+  </div>
+
+  <aside class="tile ctx" id="ctxPanel"></aside>
+
+  <div class="col">
+    <div class="tile"><div class="k" id="sumLine">Findings</div><div class="fl" id="flist"></div></div>
+    <div class="tile focus" id="focus"></div>
+    <div id="naSlot"></div>
+    <div class="tile">
+      <div class="k">Impression</div><div class="imp" id="imp"></div>
+      <div class="acts"><button class="ghost" onclick="openTech()">Models</button><span class="grow"></span>
+        <button class="ghost" onclick="pywebview.api.new_case()">New case</button><button class="go" onclick="exportReport()">Export report</button></div>
+      <div class="fine">Decision support only — review by a qualified clinician is required.</div>
+    </div>
+  </div>
+</div>
+
+<div class="empty" id="empty" style="display:none"><div><h2>No case open</h2><p>Press Super + Alt + B to start one.</p></div></div>
+<svg id="links"></svg>
+<div class="tip" id="tip"></div>
+<div class="pop" id="pop"></div>
+<div class="menu" id="wlMenu"></div>
+<div class="modal" id="modal" onclick="if (event.target === this) this.classList.remove('show')"><div class="box" id="modalBox"></div></div>
+<div class="hud" id="hud"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const STATE = { SUPPORTED: "Supported", UNCERTAIN: "Uncertain", CONFLICTING: "Conflicting", INSUFFICIENT_EVIDENCE: "Insufficient" };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+const fmtDate = (d) => !d ? "Undated" : d.length === 4 ? d : d.length === 7 ? `${MONTHS[+d.slice(5, 7) - 1]} ${d.slice(0, 4)}` : `${+d.slice(8, 10)} ${MONTHS[+d.slice(5, 7) - 1]} ${d.slice(0, 4)}`;
+let C = null, sel = null, showMarks = true, showRaw = false, W = 1, H = 1, firstDraw = true, evOpen = false;
+const num = (f) => C.findings.indexOf(f) + 1;
+const isRed = (f) => f.status === "CONFLICTING";
+
+// ---------------- load ----------------
+window.addEventListener("pywebviewready", async () => {
+  const id = await pywebview.api.current_case();
+  if (!id) { $("empty").style.display = "grid"; return; }
+  C = await pywebview.api.get_case(id);
+  const dt = new Date(C.created);
+  $("caseId").textContent = C.case_id;
+  $("caseMeta").textContent = `${C.scan.view} · ${dt.getDate()} ${MONTHS[dt.getMonth()]} · ${C.created.slice(11, 16)}`;
+  const s = C.summary;
+  $("sumLine").textContent = s.total ? `${s.total} finding${s.total === 1 ? "" : "s"} · evidence ${s.overall_quality}` : "No findings";
+  const q = C.quality;
+  if (q.state !== "acceptable") { $("qbar").style.display = "block"; $("qbar").classList.toggle("poor", q.state === "poor");
+    $("qbar").textContent = `Image quality ${q.state} · ${q.warnings[0] || ""}`; }
+  $("flist").innerHTML = C.findings.map((f) => `<div class="fr" id="fr-${f.id}" onclick="select('${f.id}')"><span class="n">${num(f)}</span>
+      <span class="nm">${esc(f.display_name)}</span><span class="st"><i class="dot d-${f.status}"></i>${STATE[f.status]}</span></div>`).join("")
+    || `<div class="muted" style="padding:0 8px">${esc(s.message || "")}</div>`;
+  const other = C.other_observations || [];
+  if (other.length) $("flist").innerHTML += `<div class="sub-h">Also seen · single reader, unverified</div>` + other.map((o) => `<div class="fr other" title="Raised by ${esc(o.source)} only — not confirmed by a second reader">
+      <span class="n">·</span><span class="nm">${esc(o.name)}</span><span class="st"><i class="dot" style="background:#636366"></i>${esc(o.region || "")}</span></div>`).join("");
+  $("naSlot").innerHTML = (C.not_assessable || []).map((n) => `<div class="tile na"><div class="k">Not assessable on a chest X-ray</div><h3>${esc(n.name)}</h3>
+      <div class="why">Raised by: ${esc(n.because.join(", ").toLowerCase() || "the clinical context")}</div><p>${esc(n.advice)}</p></div>`).join("");
+  $("imp").innerHTML = impression();
+  renderCtx(); loadImage();
+  setTimeout(() => select(C.findings.find((f) => f.status !== "INSUFFICIENT_EVIDENCE")?.id || C.findings[0]?.id || null), 500);
+});
+
+function impression() {
+  const sup = C.findings.filter((f) => f.status === "SUPPORTED"), con = C.findings.filter((f) => f.status === "CONFLICTING"), unc = C.findings.filter((f) => f.status === "UNCERTAIN");
+  const names = (a) => a.map((f) => f.display_name.toLowerCase()).join(", ").replace(/, ([^,]*)$/, " and $1");
+  // cite the underlying diagnosis (e.g. heart failure), not the same finding from an earlier report
+  const ctx = [...new Set(sup.flatMap((f) => f.history_evidence.filter((e) => e.category === "Diagnosis").map((e) => e.text.toLowerCase())))].slice(0, 1);
+  const out = [];
+  if (sup.length) out.push(`${cap(names(sup))}${ctx.length ? `, consistent with known ${ctx[0]}` : ""}.`);
+  if (con.length) out.push(`${cap(names(con))}: sources disagree — review required.`);
+  if (!out.length) out.push(unc.length ? `Possible ${names(unc)}; evidence limited.` : "No sufficiently supported finding.");
+  if (C.quality.state !== "acceptable") out.push(`Limited by image quality.`);
+  (C.not_assessable || []).forEach((n) => out.push(`${n.name} cannot be assessed on this film — see advice.`));
+  return out.map((p) => `<p>${esc(p)}</p>`).join("");
+}
+
+// ---------------- focus tile: one finding, summary first, detail on demand ----------------
+function chipState(sig) { return sig === "present" ? ["for", "Supports"] : sig === "against" ? ["against", "Against"] : sig === "not provided" ? ["none", "Not given"] : ["none", "Nothing"]; }
+function renderFocus() {
+  if (!sel) { $("focus").innerHTML = `<div class="k">No finding</div><p class="say">${esc(C.summary.message || "")}</p>`; return; }
+  const f = sel;
+  const img = f.signals.agreement === "discordant" ? ["against", "Disagree"] : ["concordant", "partial"].includes(f.signals.agreement) ? ["for", cap(f.signals.image)] : ["none", "Weak"];
+  const hx = chipState(f.signals.history), sx = chipState(f.signals.symptoms);
+  const desc = f.image_evidence.find((e) => e.source === "description");
+  const rd = (name, ok, txt) => `<span><i class="dot" style="background:${ok === true ? "#30D158" : ok === false ? "#FF453A" : ok === "w" ? "#FFD60A" : "#636366"}"></i>${name} · ${txt}</span>`;
+  const lvl = (l) => (l === "strong" || l === "moderate" ? true : l === "weak" ? "w" : l ? false : null);
+  $("focus").innerHTML = `<div class="k">Finding ${num(f)} of ${C.findings.length}</div><h2>${esc(f.display_name)}</h2>
+    <div class="verdict"><i class="dot d-${f.status}"></i>${STATE[f.status]} · ${cap(f.evidence_strength)} evidence${f.localization ? ` · ${esc(f.localization.region_name)}` : ""}</div>
+    <p class="say">${esc(f.clinician_text)}</p>
+    ${isRed(f) && f.contradictions[0] ? `<div class="alert">${esc(f.contradictions[0])}</div>` : ""}
+    <div class="chips">
+      <div class="chip" onclick="toggleEv(true)"><div class="lbl">Image</div><div class="val c-${img[0]}">${img[1]}</div></div>
+      <div class="chip" onclick="toggleCtx(true)"><div class="lbl">History</div><div class="val c-${hx[0]}">${hx[1]}</div></div>
+      <div class="chip" onclick="toggleCtx(true)"><div class="lbl">Symptoms</div><div class="val c-${sx[0]}">${sx[1]}</div></div>
+    </div>
+    <div class="readers">${rd(f.technical.primary_model, lvl(f.signals.image), f.signals.image)}${f.technical.verifier_model ? rd(f.technical.verifier_model, lvl(f.signals.verifier), f.signals.verifier) : ""}
+      ${rd("MedGemma", desc ? desc.level !== "absent" : null, desc ? (desc.level === "absent" ? "not seen" : "sees it") : "—")}
+      ${rd("MedSAM", f.localization?.contour ? true : f.localization ? "w" : null, f.localization?.contour ? "outlined" : f.localization ? "box" : "—")}</div>
+    <button class="more" onclick="toggleEv()">${evOpen ? "Hide evidence" : "Show evidence"}</button>
+    <div class="ev ${evOpen ? "open" : ""}" id="ev">${evidence(f)}</div>`;
+  bindLinks();
+}
+function evidence(f) {
+  const li = (b, body, r = "", attrs = "") => `<div class="li" ${attrs}><span class="b b-${b}"></span><span>${body}</span>${r ? `<span class="r">${r}</span>` : ""}</div>`;
+  const img = [
+    ...f.image_evidence.filter((e) => e.source === "description" && e.level !== "absent").map((e) => li("for", esc(e.text), "MedGemma")),
+    ...f.image_evidence.filter((e) => e.source === "CLEAR concept").map((e) => li("for", `<i>${esc(e.text)}</i>`, `CLEAR #${e.rank}`)),
+    ...f.negative_evidence.filter((n) => n.kind === "image").map((n) => li("against", esc(n.text), `CLEAR #${n.rank}`)),
+  ].join("") || li("none", "No descriptive evidence");
+  const hist = f.history_evidence.map((e, i) => li("for", `${esc(e.text)}<span class="src" onclick="openPop(event, sel.history_evidence[${i}])">${esc(e.source.doc_type)}, p.${e.source.page}</span>`,
+      e.date ? fmtDate(e.date) : "", `data-link="hist" data-concept="${e.concept}"`)).join("")
+    + f.negative_evidence.filter((n) => n.kind === "history").map((n) => li("against", esc(n.text))).join("") || li("none", "Nothing on file");
+  const sym = f.symptom_evidence.map((s) => li("for", esc(s.text), esc(s.duration || ""), `data-link="sym" data-concept="${s.concept}"`)).join("")
+    + f.negative_evidence.filter((n) => n.kind === "symptom").map((n) => li("against", esc(n.text), "", `data-link="sym" data-concept="${n.concept}"`)).join("") || li("none", "None reported");
+  const notes = f.notes.map((c) => li("note", esc(c))).join("");
+  return `<div class="g"><div class="gk">Image</div>${img}</div><div class="g"><div class="gk">History</div>${hist}</div>
+    <div class="g"><div class="gk">Symptoms</div>${sym}</div>${notes ? `<div class="g"><div class="gk">Caveats</div>${notes}</div>` : ""}`;
+}
+function toggleEv(force) { evOpen = force === undefined ? !evOpen : force; renderFocus(); }
+
+// ---------------- patient context drawer ----------------
+function renderCtx() {
+  const present = C.symptoms.filter((x) => x.state === "present"), denied = C.symptoms.filter((x) => x.state === "denied");
+  let h = `<button class="x" onclick="toggleCtx(false)">×</button><div class="k">Presentation</div>`;
+  h += C.presentation_text ? `<div class="quote">“${esc(C.presentation_text)}”</div>` : `<div class="muted">Not recorded.</div>`;
+  h += `<div class="sec">` + present.map((x) => `<div class="sym" data-concept="${x.concept}"><span>${esc(x.label)}</span><span class="d">${esc(x.duration || "")}</span></div>`).join("")
+    + denied.map((x) => `<div class="sym neg" data-concept="${x.concept}"><span>${esc(x.label)}</span><span class="d">denied</span></div>`).join("") + `</div>`;
+  h += `<div class="sec"><div class="k">History</div>`;
+  if (!C.history_provided) h += `<div class="muted">No records supplied.</div>`;
+  else if (!C.timeline.length) h += `<div class="muted">Nothing relevant on file.</div>`;
+  else h += C.timeline.map((e, i) => `<div class="hx" data-concept="${e.concept}" onclick="openPop(event, C.timeline[${i}])">
+      <div class="dt">${fmtDate(e.date)} · ${esc(e.category.toLowerCase())}</div><div class="lb">${esc(e.label)}</div><div class="sr">${esc(e.source.doc_type)}, p.${e.source.page}</div></div>`).join("");
+  $("ctxPanel").innerHTML = h + `</div>`;
+}
+function toggleCtx(force) {
+  const open = force === undefined ? !document.body.classList.contains("ctxopen") : force;
+  document.body.classList.toggle("ctxopen", open); $("ctxBtn").classList.toggle("on", open);
+  setTimeout(fit, 320);
+}
+
+// ---------------- selection & linking ----------------
+function select(id) {
+  if (sel && sel.id !== id) firstDraw = false;
+  sel = C.findings.find((f) => f.id === id) || null;
+  document.querySelectorAll(".fr").forEach((el) => el.classList.toggle("sel", el.id === "fr-" + id));
+  renderFocus(); restoreHL(); renderMarks();
+}
+function restoreHL() {
+  const hist = new Set(sel ? sel.history_evidence.map((e) => e.concept) : []);
+  const sym = new Set(sel ? [...sel.symptom_evidence.map((s) => s.concept), ...sel.negative_evidence.filter((n) => n.concept).map((n) => n.concept)] : []);
+  document.querySelectorAll(".hx").forEach((e) => e.classList.toggle("hl", hist.has(e.dataset.concept)));
+  document.querySelectorAll(".sym").forEach((e) => e.classList.toggle("hl", sym.has(e.dataset.concept)));
+}
+function bindLinks() {
+  document.querySelectorAll(".li[data-link]").forEach((el) => {
+    el.onmouseenter = () => {
+      const mark = document.querySelector(`.mark[data-id="${sel.id}"] .ring`);
+      const twin = document.body.classList.contains("ctxopen") && document.querySelector(`${el.dataset.link === "hist" ? ".hx" : ".sym"}[data-concept="${el.dataset.concept}"]`);
+      const a = el.getBoundingClientRect(), x1 = a.left, y1 = a.top + a.height / 2;
+      const curve = (x2, y2) => `<path d="M${x1},${y1} C${x1 - 160},${y1} ${x2 + 160},${y2} ${x2},${y2}"/><circle cx="${x2}" cy="${y2}" r="3.5"/>`;
+      let s = "";
+      if (mark && showMarks) { const b = mark.getBoundingClientRect(); s += curve(b.left + b.width * 0.85, b.top + b.height / 2); }
+      if (twin) { const t = twin.getBoundingClientRect(); s += curve(t.right - 8, t.top + t.height / 2); twin.classList.add("hl"); }
+      $("links").innerHTML = s;
+    };
+    el.onmouseleave = () => { $("links").innerHTML = ""; restoreHL(); };
+  });
+}
+
+// ---------------- source excerpt ----------------
+function openPop(ev, e) {
+  ev.stopPropagation();
+  const p = $("pop"), r = ev.currentTarget.getBoundingClientRect();
+  const key = esc((e.label || e.text).split(" ")[0]);
+  const hlq = esc(e.source.quote).replace(new RegExp(`(${key}[^.;,]*)`, "i"), "<mark>$1</mark>");
+  p.innerHTML = `<div class="k">${esc(e.source.doc_type)} · page ${e.source.page}</div><h3>${esc(e.label || e.text)}</h3><div class="m">${esc(e.source.file)} · ${fmtDate(e.date)}</div>
+    <blockquote>“${hlq}”</blockquote>
+    <div class="acts" style="margin:0"><span class="grow"></span><button class="ghost" onclick="closePop()">Done</button><button class="go" onclick='pywebview.api.open_source(${JSON.stringify(e.source.path)})'>Open document</button></div>`;
+  p.style.display = "block";
+  const left = r.right + 14 + 340 < innerWidth ? r.right + 14 : r.left - 354;
+  p.style.left = Math.max(10, left) + "px";
+  p.style.top = Math.max(10, Math.min(r.top - 10, innerHeight - p.offsetHeight - 12)) + "px";
+}
+function closePop() { $("pop").style.display = "none"; }
+document.addEventListener("click", (e) => {
+  if (!$("pop").contains(e.target)) closePop();
+  if (!$("wlMenu").contains(e.target) && e.target.id !== "wlBtn") $("wlMenu").style.display = "none";
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closePop(); $("modal").classList.remove("show"); }
+  const i = parseInt(e.key, 10);
+  if (C && i >= 1 && i <= C.findings.length) select(C.findings[i - 1].id);
+  if (e.key === "m") toggleMarks();
+  if (e.key === "c") toggleCtx();
+  if (e.key === "e") toggleEv();
+});
+
+// ---------------- film ----------------
+let zoom = 1, panX = 0, panY = 0, base = { w: 0, h: 0 }, wl = 0;
+const WL = [["Default", "none"], ["Soft tissue", "contrast(1.35) brightness(0.95)"], ["Lung", "contrast(1.7) brightness(1.12)"], ["Bone", "contrast(2.1) brightness(0.9)"], ["Inverted", "invert(1)"]];
+function loadImage() {
+  const img = $("img");
+  img.onload = () => { W = img.naturalWidth; H = img.naturalHeight; $("ov").setAttribute("viewBox", `0 0 ${W} ${H}`); fit(); };
+  img.src = C.image;
+}
+function fit() {
+  if (W === 1) return;
+  const v = $("wrap").getBoundingClientRect();
+  const s = Math.min((v.width - 40) / W, (v.height - 10) / H);
+  base = { w: W * s, h: H * s };
+  $("stage").style.width = base.w + "px"; $("stage").style.height = base.h + "px";
+  applyT(); renderMarks();
+}
+function applyT() { $("stage").style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; $("zoomv").textContent = Math.round(zoom * 100) + "%"; $("links").innerHTML = ""; }
+function zoomBy(k) { zoom = Math.min(8, Math.max(1, zoom * k)); if (zoom === 1) panX = panY = 0; applyT(); }
+function openWL(ev) {
+  ev.stopPropagation();
+  const m = $("wlMenu"), r = ev.currentTarget.getBoundingClientRect();
+  m.innerHTML = WL.map(([n], i) => `<button onclick="setWL(${i})"><span>${n}</span><span>${i === wl ? "✓" : ""}</span></button>`).join("");
+  m.style.display = "block"; m.style.left = r.left + "px"; m.style.top = r.top - m.offsetHeight - 8 + "px";
+}
+function setWL(i) { wl = i; $("img").style.filter = WL[i][1]; $("wlBtn").textContent = i ? WL[i][0] : "Window"; $("wlMenu").style.display = "none"; }
+function toggleMarks() { showMarks = !showMarks; $("mkBtn").classList.toggle("on", showMarks); renderMarks(); }
+function toggleRaw() { showRaw = !showRaw; $("rawBtn").classList.toggle("on", showRaw); renderMarks(); }
+window.addEventListener("resize", () => C && fit());
+$("wrap").addEventListener("wheel", (e) => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.12 : 0.89); }, { passive: false });
+$("wrap").addEventListener("dblclick", () => { zoom = 1; panX = panY = 0; applyT(); });
+$("wrap").addEventListener("mousedown", (e) => {
+  if (e.target.closest(".mark") || zoom === 1) return;
+  const sx = e.clientX - panX, sy = e.clientY - panY;
+  $("wrap").classList.add("drag");
+  const mv = (m) => { panX = m.clientX - sx; panY = m.clientY - sy; applyT(); };
+  const up = () => { $("wrap").classList.remove("drag"); removeEventListener("mousemove", mv); removeEventListener("mouseup", up); };
+  addEventListener("mousemove", mv); addEventListener("mouseup", up);
+});
+
+// ---------------- grease pencil ----------------
+function rng(seed) { let s = seed; return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646; }
+function seedOf(str) { let h = 7; for (const c of str) h = (h * 31 + c.charCodeAt(0)) % 2147483647; return h || 1; }
+function smooth(pts) {
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length - 1; i++) d += ` Q${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)} ${((pts[i][0] + pts[i + 1][0]) / 2).toFixed(1)},${((pts[i][1] + pts[i + 1][1]) / 2).toFixed(1)}`;
+  return d;
+}
+function handEllipse(cx, cy, rx, ry, r, pass) {
+  const start = r() * Math.PI * 2, turns = 1.06 + r() * 0.08, n = 46, pts = [];
+  const p1 = r() * 6, p2 = r() * 6, a1 = 0.035 + r() * 0.03, a2 = 0.02 + r() * 0.02;
+  for (let i = 0; i <= n; i++) {
+    const t = start + (i / n) * turns * Math.PI * 2, wob = 1 + a1 * Math.sin(t * 2 + p1 + pass) + a2 * Math.sin(t * 3 + p2), grow = 1 + (i / n) * 0.05 * (pass ? -1 : 1);
+    pts.push([cx + Math.cos(t) * rx * wob * grow, cy + Math.sin(t) * ry * wob * grow]);
+  }
+  return smooth(pts);
+}
+function handContour(contour, r, pass, pad) {   // trace MedSAM's outline like a pencil: just outside, wobbling, overshooting
+  const n = contour.length, cx = contour.reduce((a, p) => a + p[0], 0) / n, cy = contour.reduce((a, p) => a + p[1], 0) / n;
+  const off = Math.floor(r() * n), pts = [];
+  for (let i = 0; i <= n + Math.round(n * 0.08); i++) {
+    const [x, y] = contour[(i + off) % n], j = 1 + pad + 0.025 * Math.sin(i * 0.5 + pass * 2) + (r() - 0.5) * 0.01;
+    pts.push([(cx + (x - cx) * j) * W, (cy + (y - cy) * j) * H]);
+  }
+  return smooth(pts);
+}
+const handLine = (x1, y1, x2, y2, r, k) => `M${x1.toFixed(1)},${y1.toFixed(1)} Q${((x1 + x2) / 2 + (r() - 0.5) * 14 * k).toFixed(1)},${((y1 + y2) / 2 + (r() - 0.5) * 14 * k - 8 * k).toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+function arrowHead(x2, y2, x1, y1, k) {
+  const a = Math.atan2(y2 - y1, x2 - x1), L = 11 * k, p = (da) => `${(x2 - Math.cos(a + da) * L).toFixed(1)},${(y2 - Math.sin(a + da) * L).toFixed(1)}`;
+  return `M${p(0.45)} L${x2.toFixed(1)},${y2.toFixed(1)} L${p(-0.45)}`;
+}
+function renderMarks() {
+  if (!C || W === 1) return;
+  const k = W / (base.w || W), sw = 2.8 * k, fs = 25 * k;
+  let s = "";
+  for (const f of C.findings) {
+    const L = f.localization;
+    if (!L) continue;
+    const [bx0, by0, bx1, by1] = L.coordinates;
+    if (showRaw) {
+      s += L.contour ? `<g class="raw"><polygon points="${L.contour.map(([x, y]) => `${x * W},${y * H}`).join(" ")}" stroke-width="${1.2 * k}"/>` : `<g class="raw"><rect x="${bx0 * W}" y="${by0 * H}" width="${(bx1 - bx0) * W}" height="${(by1 - by0) * H}" stroke-width="${1.2 * k}"/>`;
+      s += `<text x="${bx0 * W + 4 * k}" y="${by0 * H - 6 * k}" font-size="${11 * k}" stroke-width="${3 * k}">${f.canonical_name} · ${esc(L.source || "")}</text></g>`;
+    }
+    if (!showMarks || f.status === "INSUFFICIENT_EVIDENCE") continue;
+    const r = rng(seedOf(f.id + C.case_id));
+    const x0 = bx0 * W, y0 = by0 * H, x1 = bx1 * W, y1 = by1 * H, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const rx = (x1 - x0) / 2 * 1.08, ry = (y1 - y0) / 2 * 1.08;
+    const isSel = sel && sel.id === f.id, red = isRed(f) ? "red" : "";
+    if (!isSel) {
+      const rr = 15 * k;
+      s += `<g class="mark ${red} dim" data-id="${f.id}" onclick="select('${f.id}')" onmousemove="tip(event,'${f.id}')" onmouseleave="$('tip').style.display='none'">
+        <path class="ink" d="${handEllipse(cx, cy, rr, rr, r, 0)}" stroke-width="${sw * 0.8}"/>
+        <text x="${cx}" y="${cy + fs * 0.32}" font-size="${fs * 0.9}" text-anchor="middle" stroke-width="${fs / 6}" style="opacity:1;animation:none">${num(f)}</text></g>`;
+      continue;
+    }
+    const ring1 = L.contour ? handContour(L.contour, r, 0, 0.06) : handEllipse(cx, cy, rx, ry, r, 0);
+    const ring2 = L.contour ? handContour(L.contour, r, 1, 0.075) : handEllipse(cx, cy, rx * 0.985, ry * 1.01, r, 1);
+    const leftSide = cx < W / 2, lx = leftSide ? Math.max(fs * 0.4, x0 - W * 0.17) : Math.min(W - fs * 0.4, x1 + W * 0.17);
+    const ly = Math.min(Math.max(cy - ry * 0.9 - fs * 0.6, fs * 1.4), H - fs);
+    const ax = cx + (leftSide ? -rx : rx) * 0.92, ay = cy - ry * 0.35, sx = lx + (leftSide ? fs * 0.3 : -fs * 0.3), sy = ly + fs * 0.35;
+    const suffix = f.status === "SUPPORTED" ? "" : f.status === "CONFLICTING" ? " ??" : " ?", d0 = firstDraw ? 0.25 : 0;
+    s += `<g class="mark ${red}" data-id="${f.id}" onclick="select('${f.id}')" onmousemove="tip(event,'${f.id}')" onmouseleave="$('tip').style.display='none'">
+      <path class="ink ring draw" pathLength="1" style="animation-delay:${d0}s" d="${ring1}" stroke-width="${sw}"/>
+      <path class="ink draw" pathLength="1" style="animation-delay:${d0 + 0.1}s" d="${ring2}" stroke-width="${sw * 0.5}" opacity=".65"/>
+      <path class="ink draw" pathLength="1" style="animation-delay:${d0 + 0.5}s" d="${handLine(sx, sy, ax, ay, r, k)}" stroke-width="${sw * 0.8}"/>
+      <path class="ink draw" pathLength="1" style="animation-delay:${d0 + 0.8}s" d="${arrowHead(ax, ay, sx, sy, k)}" stroke-width="${sw * 0.8}"/>
+      <text x="${lx}" y="${ly}" font-size="${fs}" text-anchor="${leftSide ? "start" : "end"}" stroke-width="${fs / 6}" style="animation-delay:${d0 + 0.3}s">${num(f)}. ${esc(f.display_name)}${suffix}</text></g>`;
+  }
+  $("ov").innerHTML = s;
+}
+function tip(e, id) {
+  const f = C.findings.find((x) => x.id === id), t = $("tip");
+  t.innerHTML = `<b>${esc(f.display_name)}</b> · ${STATE[f.status].toLowerCase()}`;
+  t.style.display = "block"; t.style.left = e.clientX + 14 + "px"; t.style.top = e.clientY + 14 + "px";
+}
+
+// ---------------- models readout ----------------
+function openTech() {
+  const t = C.technical, kv = (o) => `<div class="kv">${Object.entries(o).map(([k, v]) => `<span class="kk">${esc(k)}</span><span class="v">${esc(v ?? "—")}</span>`).join("")}</div>`;
+  let h = `<div class="k">${esc(C.case_id)}</div><h3>How the models read it</h3>`;
+  if (sel) { const x = sel.technical; h += kv({ Finding: sel.display_name, "CLEAR score": x.primary_score, "CLEAR thresholds": x.thresholds.join(" / "),
+    "CheXzero score": x.verifier_score, Agreement: sel.signals.agreement, Localization: x.localization_source || "none",
+    "Context for / against": `${x.support_count} / ${x.against_count}`, State: sel.status }); }
+  h += kv(Object.fromEntries([...t.models.map((m) => [cap(m.role), m.model]), ...Object.entries(t.timing).map(([k, v]) => [k, v + " s"]), ["Total", t.total_seconds + " s"]]));
+  if (t.top_concepts?.length) h += `<div class="k">CLEAR — closest of 368,294 concepts</div>` + kv(Object.fromEntries(t.top_concepts.map(([c, r, v]) => [`#${r}  ${c}`, v])));
+  h += kv(Object.fromEntries([["Image quality", C.quality.state], ...Object.entries(C.quality.metrics)]));
+  if (t.raw_reasoning?.length) h += `<div class="k">MedGemma raw output</div><pre>${esc(t.raw_reasoning.join("\n\n"))}</pre>`;
+  $("modalBox").innerHTML = h; $("modal").classList.add("show");
+}
+
+// ---------------- export ----------------
+async function exportReport() {
+  hud("Generating evidence report…");
+  const r = await pywebview.api.export_report(C.case_id);
+  hud(r.error ? r.error : `Saved ${r.path}`, 3500);
+}
+let hudT;
+function hud(msg, ms = 2500) { const t = $("hud"); t.textContent = msg; t.classList.add("show"); clearTimeout(hudT); hudT = setTimeout(() => t.classList.remove("show"), ms); }
+</script>
+</body>
+</html>
