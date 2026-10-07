@@ -231,6 +231,11 @@ a different, fictional history and presentation. To try one, drop `film.png` and
 | Pulmonary edema | **SUPPORTED** | high · 82 % (CLEAR 92, CheXzero 73) | MedGemma: "increased opacity in the lung fields, suggestive of pulmonary edema"; furosemide in the record; breathlessness, ankle swelling |
 | Consolidation | **SUPPORTED** | high · 32 % (CLEAR 48, CheXzero 17) | Both readers pass their cut-offs and breathlessness supports it, so the rule-based state is SUPPORTED. The 32 % image confidence and MedGemma not confirming it are shown alongside, and it is drawn as an approximate zone, so the clinician can weigh it. See Scope and safeguards |
 
+**The exported PDF evidence report** for this case (*Export report* in the reading room), scrolled from the presentation
+and lung diagram through each finding's evidence:
+
+![Exported evidence report, demo case 02](docs/media/report_demo.gif)
+
 * 10 model claims were checked and rejected, e.g. "right-sided central venous catheter" and "left lower lobe opacity"
   (MedGemma's survey; CLEAR did not confirm them).
 
