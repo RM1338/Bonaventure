@@ -1,5 +1,18 @@
 # Desktop verification
 
+## Integrated PR verification (2026-10-07)
+
+After integrating main `769bdad` and adding OS-specific setup and the demo
+reproduction runner, 106 Python tests and all three JavaScript test files pass
+using the Linux project's working virtual environment. Both demo inventories
+pass input checks (14 library and seven acceptance cases), and an explicitly
+mocked case 02 completes with JSON, manifest and PDF output. The older 99-test
+snapshot below describes the original PR before this integration.
+An additional real Linux/CUDA case 02 completes in 32.56 seconds of pipeline time,
+with localization, heatmaps, 10 rejected claims and a valid four-page PDF; image
+confidence matches the reference (96/82/32%). Mac runtime remains unverified.
+See [MACOS_PR_REVIEW.md](MACOS_PR_REVIEW.md) for fixes and verification limits.
+
 Verification snapshot for `feat/macos-picker-startup-fixes` (2026-10-07).
 The test environment is Linux. The mounted `.venv` points to a Homebrew macOS
 interpreter and cannot execute here. Native Mac results remain unverified.

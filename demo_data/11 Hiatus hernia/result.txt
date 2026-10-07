@@ -1,0 +1,6 @@
+BV-234
+Hiatus hernia: SUPPORTED (high, image confidence 70 %)
+Cardiomegaly: SUPPORTED (high, image confidence 61 %)
+Pleural thickening: SUPPORTED (moderate, image confidence 25 %)
+Atelectasis: INSUFFICIENT_EVIDENCE (low, image confidence 30 %)
+Lines & devices: INSUFFICIENT_EVIDENCE (low, image confidence 38 %)

@@ -39,7 +39,12 @@ def thresholds(y, s):
     weak, moderate, strong = thr[np.argmax(tpr >= 0.90)], thr[np.argmax(tpr - fpr)], thr[np.nonzero(fpr <= 0.10)[0][-1]]
     w, m, st = sorted([float(weak), float(moderate), float(strong)])
     pred = s >= m
-    return dict(thresholds=[round(w, 4), round(m, 4), round(st, 4)],
+    # Platt scaling on the score's logit: P(finding | score) on this labelled set, shown as the reader's confidence
+    from sklearn.linear_model import LogisticRegression
+    x = np.log(np.clip(s, 1e-6, 1 - 1e-6) / (1 - np.clip(s, 1e-6, 1 - 1e-6))).reshape(-1, 1)
+    lr = LogisticRegression(C=1.0).fit(x, y)
+    return dict(thresholds=[round(w, 4), round(m, 4), round(st, 4)], platt=[round(float(lr.coef_[0][0]), 5), round(float(lr.intercept_[0]), 5)],
+                prevalence=round(float(y.mean()), 3),
                 sens_at_moderate=round(float(pred[y == 1].mean()), 3), spec_at_moderate=round(float((~pred[y == 0]).mean()), 3))
 
 

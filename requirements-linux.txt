@@ -1,0 +1,3 @@
+# Install the pinned CUDA torch/torchvision wheels first; see README.md.
+-r requirements.txt
+bitsandbytes==0.50.2; platform_system == "Linux"
