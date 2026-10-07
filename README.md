@@ -227,6 +227,10 @@ and menu-bar height. Expansion grows a black shell with a smooth timing curve;
 content fades in after the shell starts opening, and disappears before collapse.
 Collapse keeps the transparent native window surface stable to avoid menu bar
 repaint flashes; the invisible idle area passes clicks through to the desktop.
+During analysis, a charcoal progress card shows the current stage, a short
+explanation, and a seven-segment track grouped into patient context, image
+findings, and evidence review. Stage counts reflect pipeline state, not an
+estimated completion time. The outer shell stays black to blend with the notch.
 Reduce Motion disables these transitions. The interaction design is informed by
 [NotchBox](https://github.com/chrisdemir/notchBOX), implemented using the existing
 Python/AppKit frontend without bundling its source.

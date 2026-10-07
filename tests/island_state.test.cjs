@@ -147,5 +147,29 @@ function advance(delay) {
   api.pick_scan = async () => { pickerCalls++; return null; };
   await vm.runInContext("pick('scan')", context);
   assert.equal(pickerCalls, 2);
+  const progress = {
+    state: 'ANALYZING',
+    steps: ['scan', 'history', 'symptoms', 'image', 'localize', 'reconcile', 'review'].map((key, index) => ({
+      key, label: key === 'image' ? 'Evaluating image findings' : key,
+      state: index === 1 ? 'skipped' : index < 3 ? 'complete' : index === 3 ? 'running' : 'pending'
+    }))
+  };
+  context.progressFixture = progress;
+  vm.runInContext('renderProgress(progressFixture)', context);
+  assert.equal(element('procCount').textContent, 'Stage 4 / 7');
+  assert.equal(element('procStep').textContent, 'Evaluating image findings');
+  assert.match(element('procDescription').textContent, /candidate findings/);
+  assert.equal((element('procTrack').innerHTML.match(/class="done"/g) || []).length, 3);
+  assert.match(element('procPhases').innerHTML, /class="done">Patient context/);
+  assert.match(element('procPhases').innerHTML, /class="run">Image findings/);
+  progress.steps.forEach(step => { step.state = 'complete'; });
+  progress.state = 'REVIEW_READY';
+  vm.runInContext('renderProgress(progressFixture)', context);
+  assert.equal(element('procStep').textContent, 'Review ready');
+  assert.equal(element('procCount').textContent, '7 stages complete');
+  assert(element('proc').classList.contains('ready'));
+  vm.runInContext("renderProgress({ state: 'PREPARING', steps: [] })", context);
+  assert.equal(element('procCount').textContent, 'Preparing');
+  assert(!element('proc').classList.contains('ready'));
   console.log('Launcher bridge checks passed: shell sizing, collapse timing, draft preservation, rapid toggles, analysis view, and reduced motion.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
