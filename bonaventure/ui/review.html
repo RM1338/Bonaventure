@@ -125,6 +125,7 @@
   .mic:hover { background: rgba(255,255,255,.18); color: #fff; }
   .mic.rec { background: #FF453A; color: #fff; animation: pulse 1.2s ease-in-out infinite; }
   .mic.busy { opacity: .5; pointer-events: none; }
+  .mic.starting { pointer-events: auto; }
   .mic svg { width: 15px; height: 15px; }
   textarea.live { color: rgba(255,255,255,.62); }
   .notewrap { position: relative; }
@@ -250,6 +251,7 @@
 <div class="modal" id="modal" onclick="if (event.target === this) this.classList.remove('show')"><div class="box" id="modalBox"></div></div>
 <div class="hud" id="hud"></div>
 
+<script src="dictation.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -603,33 +605,15 @@ function openTech() {
   h += kv(Object.fromEntries([...t.models.map((m) => [cap(m.role), m.model]), ...Object.entries(t.timing).map(([k, v]) => [k, v + " s"]), ["Total", t.total_seconds + " s"]]));
   if (t.top_concepts?.length) h += `<div class="k">CLEAR — closest of 368,294 concepts</div>` + kv(Object.fromEntries(t.top_concepts.map(([c, r, v]) => [`#${r}  ${c}`, v])));
   h += kv(Object.fromEntries([["Image quality", C.quality.state], ...Object.entries(C.quality.metrics)]));
-  if (t.raw_reasoning?.length) h += `<div class="k">MedGemma raw output</div><pre>${esc(t.raw_reasoning.join("\n\n"))}</pre>`;
+  const raw = (Array.isArray(t.raw_reasoning) ? t.raw_reasoning : [t.raw_reasoning]).filter((x) => typeof x === "string" && x.trim());
+  const imageRaw = raw.filter((x) => !x.startsWith("[natural-language understanding]"));
+  h += `<div class="k">MedGemma raw output</div>`;
+  h += imageRaw.length ? `<pre>${esc(imageRaw.join("\n\n"))}</pre>` : `<div class="muted">No MedGemma image response was saved for this case. Clinical rewriting output is separate below.</div>`;
+  const clinicalRaw = raw.filter((x) => x.startsWith("[natural-language understanding]"));
+  if (clinicalRaw.length) h += `<div class="k">Clinical rewriting output</div><pre>${esc(clinicalRaw.join("\n\n"))}</pre>`;
   $("modalBox").innerHTML = h; $("modal").classList.add("show");
 }
 
-
-// ---------- dictation: live captions while speaking, accurate final text when stopped (offline Whisper) ----------
-let micTimer = null, micBase = "";
-async function toggleMic(btn, target) {
-  const t = document.getElementById(target);
-  if (btn.classList.contains("rec")) {
-    clearInterval(micTimer); btn.classList.remove("rec"); btn.classList.add("busy"); t.classList.add("live");
-    const r = await pywebview.api.stop_dictation();
-    btn.classList.remove("busy"); t.classList.remove("live");
-    if (r.text) t.value = (micBase ? micBase + " " : "") + r.text;
-    else if (r.error) btn.title = r.error;
-    t.dispatchEvent(new Event("input"));
-    return;
-  }
-  const r = await pywebview.api.start_dictation();
-  if (r.error) { btn.title = r.error; return; }
-  micBase = t.value.trimEnd();
-  btn.classList.add("rec"); t.classList.add("live");
-  micTimer = setInterval(async () => {          // show the words as they are spoken
-    const p = await pywebview.api.dictation_partial();
-    if (p.text) { t.value = (micBase ? micBase + " " : "") + p.text; t.scrollTop = t.scrollHeight; }
-  }, 600);
-}
 
 // ---------------- clinician challenges a finding ----------------
 let chVerdict = "absent";
@@ -673,7 +657,7 @@ function openRejected() {
 async function exportReport() {
   hud("Generating evidence report…");
   const r = await pywebview.api.export_report(C.case_id);
-  hud(r.error ? r.error : `Saved ${r.path}`, 3500);
+  hud(r.error ? r.error : r.warning ? `${r.warning} Saved ${r.path}` : `Saved ${r.path} — opened in your PDF viewer`, 5000);
 }
 let hudT;
 function hud(msg, ms = 2500) { const t = $("hud"); t.textContent = msg; t.classList.add("show"); clearTimeout(hudT); hudT = setTimeout(() => t.classList.remove("show"), ms); }

@@ -18,6 +18,7 @@ not back is listed under *Checked and rejected*.
 | [`docs/PS05_CHECKLIST.md`](docs/PS05_CHECKLIST.md) | Every PS05 requirement and submission guideline, and where it is met |
 | [`docs/13_MODEL_RESOURCE_REGISTER.md`](docs/13_MODEL_RESOURCE_REGISTER.md) | Declared models, datasets and libraries |
 | [`docs/sample_output/`](docs/sample_output/) | Real outputs: result JSON for demo cases A–E and a normal film, PDF report, annotated film |
+| [`docs/MACOS_PR_REVIEW.md`](docs/MACOS_PR_REVIEW.md) | Review of the macOS PR, integration fixes, tests and remaining native checks |
 
 ---
 
@@ -91,7 +92,7 @@ All models run locally on the laptop. None was trained or fine-tuned by us; they
 | **CLEAR** (DINOv2 ViT-B/14 image encoder + text encoder) | Primary image reader: zero-shot score per finding from a positive / negative prompt pair | [code](https://github.com/peterhan91/CLEAR) · [weights](https://huggingface.co/peterhan91/CLEAR) | Apache-2.0 |
 | **CLEAR concept bank** (368,294 report-phrase embeddings) | Ranks the film against real radiology phrases: specificity gate, third reader, quotes shown as evidence | [weights](https://huggingface.co/peterhan91/CLEAR) (`concept_embeddings_368294.pt`, `mimic_concepts.csv`) | Apache-2.0 |
 | **CheXzero** (CLIP ViT-B/32 trained on MIMIC-CXR) | Independent verifier with the same prompts; occlusion heatmap | [code + weights](https://github.com/rajpurkarlab/CheXzero) | MIT |
-| **MedGemma 1.5 4B-it** (4-bit NF4) | Open survey of the film, per-finding visibility + observations, bounding boxes, clinical rewrite of the presentation, second look when a clinician disagrees | [Hugging Face](https://huggingface.co/google/medgemma-1.5-4b-it) | Health AI Developer Foundations terms |
+| **MedGemma 1.5 4B-it** (4-bit NF4 on CUDA; unquantized on MPS/CPU) | Open survey of the film, per-finding visibility + observations, bounding boxes, clinical rewrite of the presentation, second look when a clinician disagrees | [Hugging Face](https://huggingface.co/google/medgemma-1.5-4b-it) | Health AI Developer Foundations terms |
 | **MedSAM** (SAM ViT-B, medical) | Turns each box into an outline | [code + weights](https://github.com/bowang-lab/MedSAM) | Apache-2.0 |
 | **DINOv2** (code only) | Backbone architecture loaded by CLEAR | [code](https://github.com/facebookresearch/dinov2) | Apache-2.0 |
 | **Whisper base.en** | Live dictation captions | [Hugging Face](https://huggingface.co/openai/whisper-base.en) | MIT |
@@ -116,10 +117,10 @@ All patient histories and presentations in this repository are **fictional**.
 
 | Layer | Used |
 |---|---|
-| Runtime | Python 3.12+, PyTorch 2.11 (CUDA 12.8), transformers 5.19, bitsandbytes 0.50 (4-bit), accelerate |
-| Desktop | pywebview 6.2 on WebKitGTK (Linux), HTML/CSS/JS UI, Hyprland window rules |
+| Runtime | Python 3.12+, PyTorch 2.11 (CUDA 12.8 on Linux; MPS/CPU on macOS), transformers 5.19, accelerate; bitsandbytes 0.50 for Linux CUDA |
+| Desktop | pywebview 6.2 on WebKitGTK (Linux) or Cocoa/WebKit through PyObjC (macOS), HTML/CSS/JS UI; separate native shells |
 | Documents | poppler `pdftotext` / `pdfinfo`, WeasyPrint (PDF report), pydicom, Pillow, NumPy |
-| Audio | PipeWire `pw-record` |
+| Audio | PipeWire `pw-record` on Linux; ffmpeg/AVFoundation on macOS |
 | Evaluation | scikit-learn (ROC, AUROC, logistic calibration), pandas (parquet datasets) |
 
 Everything runs **locally and offline**. No external API is called and no patient data leaves the machine. Versions and
@@ -129,36 +130,187 @@ licences: [`docs/13_MODEL_RESOURCE_REGISTER.md`](docs/13_MODEL_RESOURCE_REGISTER
 
 ## Install
 
-### Linux (tested: Arch / Omarchy + Hyprland, RTX 3050 6 GB)
+Clone the repository and run the following commands from its root. Keep a separate
+`.venv` on each machine: a Linux virtual environment cannot be reused on macOS.
+[`requirements.txt`](requirements.txt) contains shared package versions;
+[`requirements-linux.txt`](requirements-linux.txt) adds CUDA quantization, while
+[`requirements-macos.txt`](requirements-macos.txt) installs the shared stack without it.
+pywebview supplies its macOS PyObjC dependencies automatically.
 
 ```bash
-sudo pacman -S --needed webkit2gtk-4.1 python-gobject poppler pipewire   # system deps
-uv venv --python /usr/bin/python3 --system-site-packages .venv          # system site-packages for the GTK bindings
-uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu128
-uv pip install --python .venv/bin/python -r requirements.txt
+git clone https://github.com/RM1338/Bonaventure.git
+cd Bonaventure
 ```
 
+On this PR, both desktop shells are included. Until the PR is merged into `main`,
+select its branch after cloning: `git switch feat/macos-picker-startup-fixes`.
+
+### Linux (tested: Arch / Omarchy + Hyprland, RTX 3050 6 GB)
+
+This follows the original Omarchy setup documented at `769bdad`, using `uv` and
+the system Python so GTK bindings remain available. The development environment
+is Python **3.14.7**, created by uv **0.12.22** with
+`include-system-site-packages = true`; its torch/torchvision are
+**2.11.0+cu128 / 0.26.0+cu128**. The requirements filename below is the new
+Linux entry point; it includes the original shared pins plus bitsandbytes.
+
+```bash
+sudo pacman -S --needed webkit2gtk-4.1 python-gobject poppler pipewire
+uv venv --python /usr/bin/python3 --system-site-packages .venv          # system site-packages for the GTK bindings
+uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu128
+uv pip install --python .venv/bin/python -r requirements-linux.txt
+.venv/bin/python scripts/check_setup.py --mock
+```
+
+`uv` and `xdg-open` are already available on the development Omarchy machine.
+If absent on a fresh Arch install, add them with
+`sudo pacman -S --needed uv xdg-utils`. To install exactly the demonstrated
+CUDA wheel versions, replace `torch torchvision` above with
+`torch==2.11.0 torchvision==0.26.0`.
+
+This is the tested Arch/Omarchy setup. Other Linux distributions need equivalent
+GTK/WebKit, Poppler, PipeWire and document-viewer packages. Configure
+`scripts/bonaventure-toggle` as a shortcut or bar action; Super + Alt + B is an
+example binding, not an automatically registered shortcut.
+
+### macOS (Homebrew Python; native verification still required)
+
+Use Gavriel's [PR #7 Homebrew + pip setup](https://github.com/RM1338/Bonaventure/pull/7).
+The commands below follow its explicit Homebrew interpreter selection, rather
+than assuming `python3.12` is on `PATH`. `requirements-macos.txt` includes the
+same shared package pins as the guide's `requirements.txt`; Linux-only
+bitsandbytes is excluded. Install [Homebrew](https://brew.sh/) first, then:
+
+```bash
+brew install git python@3.12 pango poppler ffmpeg
+BONAVENTURE_PYTHON="$(brew --prefix python@3.12)/bin/python3.12"
+"$BONAVENTURE_PYTHON" -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements-macos.txt
+.venv/bin/python --version
+export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
+.venv/bin/python scripts/check_setup.py --mock
+BV_MOCK=1 BV_START=expand ./run.sh
+```
+
+For an existing checkout, keep a working `.venv` and skip creating it. If it
+points to an unavailable Xcode Python shim, rename it as a backup before creating
+one with the explicit Homebrew Python above. Install packages inside the venv;
+avoid system-wide `pip3` and `--break-system-packages`.
+
+The last command checks the UI with synthetic output. Quit that instance before
+starting real inference. Use Option + Command + B, the menu bar icon, or hover
+below the notch. Clicking/typing pins intake open; Escape and the hide button
+hide the launcher while preserving progress. File pickers appear above it.
+
+The pinned PyTorch packages are installed from the default package index on
+macOS ([PyTorch installation](https://pytorch.org/get-started/locally/)); do not
+use the Linux CUDA index. MedGemma selects Apple MPS when available, otherwise
+CPU. MPS uses bfloat16 where supported, otherwise float32, with eager attention;
+CUDA uses four-bit quantization. The unquantized model needs more RAM and time
+than the tested RTX setup. See the startup log for the actual device/dtype.
+Native rendering, microphone permissions, MPS inference and login startup must
+be verified on a Mac; Linux tests cover their logic with mocked platform APIs.
+
+For the optional Finder/login launcher, quit the app and run
+`.venv/bin/python scripts/install_macos.py` (or add `--no-login`). It uses this
+checkout and its `.venv`; keep both in place. Logs are in
+`~/Library/Logs/Bonaventure/bonaventure.log`. Allow microphone access when prompted.
+
 ### Models
+
+Choose the layout for your machine. Clone each external repository once, skipping
+ones already present. The resolver supports both layouts without moving files.
+
+**Linux / Omarchy:** retain the home-directory weights and top-level code layout
+from the original Linux setup:
 
 ```bash
 # model code (cloned into the repo root)
 git clone https://github.com/peterhan91/CLEAR
-git clone https://github.com/rajpurkarlab/CheXzero     # weights → CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt
-git clone https://github.com/bowang-lab/MedSAM         # weights → MedSAM/work_dir/MedSAM/medsam_vit_b.pth
+git clone https://github.com/rajpurkarlab/CheXzero
+git clone https://github.com/bowang-lab/MedSAM
+.venv/bin/python scripts/patch_clear_loader.py
+mkdir -p CheXzero/checkpoints/chexzero_weights MedSAM/work_dir/MedSAM
 
-# weights (MedGemma is gated: accept the licence on Hugging Face and `hf auth login` first)
+# weights (MedGemma is gated: accept its licence on Hugging Face first)
+.venv/bin/hf auth login
 M=~/bonaventure/models
-hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir $M/clear
-hf download google/medgemma-1.5-4b-it --local-dir $M/medgemma-1.5-4b-it
-hf download openai/whisper-base.en  --local-dir $M/whisper-base.en         # dictation (optional)
-hf download openai/whisper-small.en --local-dir $M/whisper-small.en
-hf download sentence-transformers/all-MiniLM-L6-v2 --local-dir $M/minilm  # phrase fallback (optional)
-
-.venv/bin/python -m bonaventure.model_paths   # prints every model path and whether it was found
-.venv/bin/python scripts/check_setup.py       # dependency + weight check without loading the models
+.venv/bin/hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir "$M/clear"
+.venv/bin/hf download google/medgemma-1.5-4b-it --include '*.json' --include '*.model' --include '*.safetensors' --local-dir "$M/medgemma-1.5-4b-it"
 ```
 
-An in-repo layout (`models/CLEAR`, `models/CheXzero`, `models/MedSAM`, `models/MedGemma`) is also found automatically.
+**macOS:** use the repo-local layout from PR #7, under `models/`, not
+`models/Models/`:
+
+```bash
+mkdir -p models/CLEAR
+git clone https://github.com/peterhan91/CLEAR.git models/CLEAR/code
+git clone https://github.com/rajpurkarlab/CheXzero.git models/CheXzero
+git clone https://github.com/bowang-lab/MedSAM.git models/MedSAM
+mkdir -p models/CheXzero/checkpoints/chexzero_weights models/MedSAM/work_dir/MedSAM
+.venv/bin/python scripts/patch_clear_loader.py
+.venv/bin/hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir models/CLEAR
+.venv/bin/hf auth login
+.venv/bin/hf download google/medgemma-1.5-4b-it --include '*.json' --include '*.txt' --include '*.model' --include '*.safetensors' --local-dir models/MedGemma
+```
+
+Accept MedGemma's access terms on its [model page](https://huggingface.co/google/medgemma-1.5-4b-it)
+before downloading, and log in locally with an authorized account.
+
+Download these two checkpoints from the authors' releases; cloning their code
+does **not** download weights:
+
+| Checkpoint | Official download | Linux destination | macOS destination |
+|---|---|---|---|
+| CheXzero | [Authors' checkpoint folder](https://drive.google.com/drive/folders/1makFLiEMbSleYltaRxw81aBhEDMpVwno?usp=sharing), linked in their [README](https://github.com/rajpurkarlab/CheXzero#readme) | `CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt` | `models/CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt` |
+| MedSAM ViT-B | [Authors' checkpoint folder](https://drive.google.com/drive/folders/1ETWmi4AiniJeWOt6HAsYgTjYv_fkgzoN?usp=drive_link), linked in their [README](https://github.com/bowang-lab/MedSAM#readme) | `MedSAM/work_dir/MedSAM/medsam_vit_b.pth` | `models/MedSAM/work_dir/MedSAM/medsam_vit_b.pth` |
+
+Use the named CheXzero checkpoint, not a different ensemble member, to retain the
+demonstrated calibration. For MedSAM use `medsam_vit_b.pth`, not the generic SAM
+checkpoint. An in-repo layout (`models/CLEAR/code`, `models/CLEAR`,
+`models/CheXzero`, `models/MedSAM`, `models/MedGemma`) is also found automatically.
+
+While internet is still available, prepare the DINOv2 Torch Hub source cache as
+in PR #7, without downloading separate DINOv2 weights. Then validate setup after
+all checkpoints are in place:
+
+```bash
+.venv/bin/python -c 'import torch; torch.hub.load("facebookresearch/dinov2:main", "dinov2_vitb14_reg", pretrained=False, trust_repo=True, skip_validation=True)'
+.venv/bin/python -m bonaventure.model_paths
+.venv/bin/python scripts/check_setup.py
+```
+
+The app and reproduction runner set Hugging Face offline mode; complete downloads
+and the DINOv2 source-cache preparation before going offline. The setup checker only
+checks dependencies/files. It does not prove inference or native GUI behaviour.
+
+### Optional dictation and phrase matching
+
+**Linux / Omarchy:** keep the home model paths used on the development machine:
+
+```bash
+.venv/bin/hf download openai/whisper-base.en --local-dir ~/bonaventure/models/whisper-base.en
+.venv/bin/hf download openai/whisper-small.en --local-dir ~/bonaventure/models/whisper-small.en
+.venv/bin/hf download sentence-transformers/all-MiniLM-L6-v2 --local-dir ~/bonaventure/models/minilm
+.venv/bin/python scripts/check_setup.py --mock --voice
+```
+
+**macOS:** PR #7's Whisper downloads keep the processor/configuration files and
+safetensors weights in the repo-local model directory:
+
+```bash
+.venv/bin/hf download openai/whisper-base.en --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/whisper-base.en
+.venv/bin/hf download openai/whisper-small.en --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/whisper-small.en
+.venv/bin/hf download sentence-transformers/all-MiniLM-L6-v2 --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/minilm
+.venv/bin/python scripts/check_setup.py --mock --voice
+```
+
+Existing Whisper copies under `~/bonaventure/models/` are also found. MiniLM's
+default is `~/bonaventure/models/minilm`; for the repo-local download above,
+start with `BV_MINILM="$PWD/models/minilm" ./run.sh`. Dictation uses PipeWire on
+Linux and ffmpeg/AVFoundation on macOS. The most recent recording is kept locally
+in the ignored `models/last_dictation.wav` for debugging.
 
 ## Configure
 
@@ -170,6 +322,8 @@ No configuration is needed for the default layout. Optional environment variable
 | `BV_MEDGEMMA`, `BV_CLEAR_DIR`, `BV_CHEXZERO_DIR`, `BV_MEDSAM_DIR`, `BV_MODELS_DIR` | Point at model folders elsewhere |
 | `BV_WHISPER`, `BV_WHISPER_LIVE`, `BV_MINILM` | Dictation / meaning-fallback model folders |
 | `BV_CLIP_DEVICE=cuda` | Run CLEAR and CheXzero on the GPU (default CPU, which leaves VRAM for MedGemma + MedSAM) |
+| `BV_MEDGEMMA_DEVICE=auto` | Select CUDA, then macOS MPS, then CPU; `cuda`, `mps`, or `cpu` requires that backend |
+| `BV_IMAGE_GENERATION_SECONDS`, `BV_PRESENTATION_SECONDS` | Cooperative generation budgets: image default 180 s CUDA / 600 s MPS / 1800 s CPU; presentation default 30 s |
 | `BV_START=expand` | Open the island expanded at launch |
 
 The Linux shortcut and bar button only need to run `scripts/bonaventure-toggle`. This starts the app, or shows/hides the
@@ -178,12 +332,16 @@ island if it is already running.
 ## Run
 
 ```bash
-./run.sh                    # island launcher; models load in the background (~20 s)
-./run.sh BV-151             # reopen a saved case in the reading room
-scripts/bonaventure-toggle  # show / hide the island
+./run.sh                    # Linux island or macOS notch launcher
+BV_START=expand ./run.sh    # open intake immediately
+./run.sh BV-001             # substitute a case ID created on THIS machine
+scripts/bonaventure-toggle  # Linux only: show / hide the island
 ```
 
 Saved cases are in `cases/BV-xxx/` (inputs, `scan.png`, `result.json`); reports go to `reports/BV-xxx.pdf`.
+These directories are ignored by Git. A fresh clone has no saved BV case IDs;
+generate a case first, then use the ID printed by the runner to reopen it.
+On macOS exported reports open with `open`; Linux uses `xdg-open`.
 
 ---
 
@@ -250,7 +408,8 @@ These are unedited outputs, including the imperfect ones. Of the 12 cases with a
 it: pneumonia (04) appears as consolidation, and the pneumothorax (06) and the devices (12) only as *uncertain*. The lung
 mass (07) is not raised; masses are a known weak spot. Several cases
 also show extra findings. The normal film (13) gets no findings, and the pulmonary-embolism case (14) correctly gets no
-image finding, only the *not assessable on X-ray* advisory. Regenerate with `scripts/run_demo_library.py`.
+image finding, only the *not assessable on X-ray* advisory. Regenerate with the
+commands below; fresh outputs are kept separately from the committed examples.
 
 ### Acceptance cases A–E
 
@@ -261,10 +420,89 @@ X-ray cannot show (D), and records from two different patients (E). Their output
 
 ## Reproduce the demonstrated results
 
+Both suites use files already committed in this repository; no dataset download
+is needed to reproduce them. Complete the OS setup and model downloads above,
+quit any running Bonaventure instance to release model memory, and run commands
+from the repository root. **Real inference is the default.**
+
+List cases or check their inputs without loading models:
+
 ```bash
-PYTHONPATH=. .venv/bin/python scripts/run_demo_cases.py   # demo cases A–E + two normal films, on the real models
-.venv/bin/python -m bonaventure.context && .venv/bin/python -m bonaventure.reconcile && .venv/bin/python -c 'from bonaventure import models; models._selftest()'   # self-tests
+.venv/bin/python scripts/reproduce.py --suite library --list
+.venv/bin/python scripts/reproduce.py --suite acceptance --list
+.venv/bin/python scripts/reproduce.py --suite library --check-inputs
+.venv/bin/python scripts/reproduce.py --suite acceptance --check-inputs
 ```
+
+Reproduce the cardiomegaly example used in the GIFs, with a fresh PDF:
+
+```bash
+.venv/bin/python scripts/reproduce.py --suite library --case 02 --pdf
+```
+
+The terminal prints its new `BV-xxx` ID and output directory. Open that case with
+`./run.sh BV-xxx`. Compare the fresh result to
+[`demo02_cardiomegaly_result.json`](docs/sample_output/demo02_cardiomegaly_result.json)
+and the [committed PDF](docs/sample_output/demo02_cardiomegaly_report.pdf).
+
+Run all 14 library cases, all seven acceptance cases, or just the same-film
+agreement/contradiction pair:
+
+```bash
+.venv/bin/python scripts/reproduce.py --suite library --pdf
+.venv/bin/python scripts/reproduce.py --suite acceptance --pdf
+.venv/bin/python scripts/reproduce.py --suite acceptance --case A --case B --pdf
+```
+
+Each invocation creates a new `cases/demo-runs/<UTC timestamp>/` directory:
+
+```text
+manifest.json           mode, commit, OS, package versions, input SHA-256 hashes,
+                        presentation, model status, BV IDs and finding summaries
+02/result.json          full evidence, confidence, provenance and intermediate outputs
+02/progress.json        case state and stage progress
+02/report.pdf           if --pdf was requested
+02/error.json           if that case or report export failed
+```
+
+Acceptance output folders use `A`, `B`, etc. Full saved cases remain in
+`cases/BV-xxx/` and canonical PDFs in `reports/`. The runner does not replace any
+committed `demo_data/result.txt` or `docs/sample_output/` file. It exits nonzero
+on missing inputs/models, timeout, failed analysis or PDF export. All four image
+models plus the concept bank must load for a real reproduction; the runner
+refuses automatic fallback to mock output.
+
+For a pipeline/report check without model weights, explicitly add `--mock`:
+
+```bash
+.venv/bin/python scripts/reproduce.py --suite library --case 02 --mock --pdf
+```
+
+Its manifest is labelled `mode: mock`; synthetic results are **not** evidence of
+real detection accuracy. Unset `BV_MOCK` before a real run. Runtime varies by
+hardware; the Linux demo timing does not establish Mac latency. Finding scores
+and generation wording can vary across backends, so compare evidence states,
+citations and limitations rather than expecting byte-identical JSON or BV IDs.
+
+The older `scripts/run_demo_cases.py` still runs A–E plus two normals.
+`scripts/run_demo_library.py` overwrites the library's committed summaries;
+use `scripts/reproduce.py` for submission reproduction.
+
+Self-tests and desktop regressions:
+
+```bash
+.venv/bin/python -m bonaventure.context
+.venv/bin/python -m bonaventure.reconcile
+.venv/bin/python -c 'from bonaventure import models; models._selftest()'
+.venv/bin/python -m unittest discover -s tests -v
+node --test tests/*.test.cjs
+```
+
+Node is needed only for JavaScript regression tests (`brew install node` or
+`sudo pacman -S nodejs`), not for the app or demo runner. For per-model runtime
+diagnostics, run `.venv/bin/python scripts/diagnose_models.py`; on slow CPU use
+`--timeout 2400`. Optional Whisper checkpoints must be installed for those voice
+checks. See [`docs/DESKTOP_VERIFICATION.md`](docs/DESKTOP_VERIFICATION.md) for native checks.
 
 | Case | Input | Expected result |
 |---|---|---|
@@ -330,8 +568,8 @@ models, or named by MedGemma unprompted and confirmed by CLEAR; devices need tha
 
 | Minimum viable solution (implemented, demonstrated) | Stretch goals |
 |---|---|
-| Chest X-ray input (PNG/JPEG/DICOM) with a quality gate | **Implemented:** MedSAM segmentation outlines; open-ended "also seen" survey; dictation with live captions; LLM understanding of free-text presentations; patient identity check; "since last report"; clinician challenge + second look; rejected-claims log; lung diagram in the report |
-| Multi-model image reading with calibrated levels and confidence %, localization (box/outline/zone), occlusion heatmap | **Not done:** CT / MRI; OCR for scanned history PDFs; trained (not zero-shot) classifiers; reliable nodule / mass / pneumothorax detection; macOS shell (in progress, separate branch) |
+| Chest X-ray input (PNG/JPEG/DICOM) with a quality gate | **Implemented:** MedSAM segmentation outlines; open-ended "also seen" survey; dictation with live captions; LLM understanding of free-text presentations; patient identity check; "since last report"; clinician challenge + second look; rejected-claims log; lung diagram in the report; separate macOS shell (native runtime verification pending) |
+| Multi-model image reading with calibrated levels and confidence %, localization (box/outline/zone), occlusion heatmap | **Not done:** CT / MRI; OCR for scanned history PDFs; trained (not zero-shot) classifiers; reliable nodule / mass / pneumothorax detection |
 | History parsing with negation, dates and page-level provenance | |
 | Evidence reconciliation → SUPPORTED / UNCERTAIN / CONFLICTING / INSUFFICIENT with reasons | |
 | Desktop review UI and PDF evidence report | |
@@ -351,9 +589,10 @@ models, or named by MedGemma unprompted and confirmed by CLEAR; devices need tha
 
 ```
 bonaventure/
-  app.py            entry point (starts the Linux shell)
+  app.py            entry point (dispatches to the Linux or macOS shell)
   desktop.py        shared UI bridge (intake, analysis, review, challenge, dictation, export)
   linux_app.py      Linux shell: Hyprland island placement, GTK drag-and-drop
+  macos_app.py      macOS shell: notch placement, menu bar, picker and shortcut
   pipeline.py       case orchestration, progress, presentation understanding
   imaging.py        scan loading (PNG/JPEG/DICOM), quality gate, model engine (+ mock)
   models.py         CLEAR, concept bank, CheXzero, MedGemma, MedSAM; image-evidence stage
