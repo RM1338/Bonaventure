@@ -166,8 +166,9 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
                               + ", ".join(f"{s['label'].lower()} denied" for s in key_denied) + ".")
     elif agreement == "concordant":
         # the thesis: pixels alone never make a finding "supported" — the patient has to agree (devices are hardware, exempt)
-        # devices are hardware, exempt from the context rule, but MedGemma (or the CLEAR-verified survey) must also see one
-        status = "SUPPORTED" if support >= 1 or (spec.get("context_free") and mg_sees) else "UNCERTAIN"
+        # devices are hardware, exempt from the context rule, but MedGemma must name one unprompted (and CLEAR agree):
+        # asked "is there a line?", it tends to say yes
+        status = "SUPPORTED" if support >= 1 or (spec.get("context_free") and survey_named) else "UNCERTAIN"
     elif agreement == "partial":
         status = "SUPPORTED" if support >= 2 else "UNCERTAIN"
         if v is not None:
@@ -181,12 +182,14 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
     if concept_cap and status == "SUPPORTED":
         status = "UNCERTAIN"
         notes.append("CLEAR's concept retrieval only weakly backs this" + (f" (best matching phrase ranked #{best_rank})." if best_rank < 10**9 else "."))
+    # bare film (no history, no presentation): only what both image models agree on, or what MedGemma names unprompted and
+    # CLEAR confirms, is shown; a one-reader signal with nothing else behind it goes to the rejected log
+    if (not history_provided and not symptoms and status != "SUPPORTED" and quality["state"] != "poor"
+            and agreement != "concordant" and not survey_named):
+        imaging.setdefault("rejected", []).append(dict(claim=spec["name"], by=" + ".join(x["model"] for x in (primary, verifier) if x),
+            reason=f"image readers {agreement} ({p}/{v or '—'}), no history or presentation supplied, and MedGemma did not name it unprompted"))
+        return None
     if status == "UNCERTAIN" and support == 0:
-        no_context = not history_provided and not symptoms
-        if no_context and mg_sees is not True:
-            imaging.setdefault("rejected", []).append(dict(claim=spec["name"], by=" + ".join(x["model"] for x in (primary, verifier) if x),
-                reason="image signal only: no history or presentation was supplied and MedGemma did not confirm it on the film"))
-            return None
         notes.append("No supporting clinical context identified.")
 
     img_points = {"concordant": 2.5 + 0.5 * (p == v == "strong"), "partial": 1.5, "discordant": 1.0, "weak": 0.5}[agreement]
@@ -426,6 +429,7 @@ if __name__ == "__main__":
     dev = lambda desc: dict(sources=[dict(role="primary", model="P", scores={"SUPPORT_DEVICES": .9}, thresholds=[.45, .55, .65]),
                                      dict(role="verifier", model="V", scores={"SUPPORT_DEVICES": .9}, thresholds=[.45, .55, .65])],
                             localizations={}, descriptions=desc, masks={})
-    assert reconcile(dev({"SUPPORT_DEVICES": ["Visual reasoning model did not identify this finding"]}), q, sym, [], False)[0][0]["status"] == "UNCERTAIN"
-    assert reconcile(dev({"SUPPORT_DEVICES": ["Right-sided central venous catheter"]}), q, sym, [], False)[0][0]["status"] == "SUPPORTED"
+    assert reconcile(dev({"SUPPORT_DEVICES": ["Right-sided central venous catheter"]}), q, sym, [], False)[0][0]["status"] == "UNCERTAIN"  # prompted yes is not enough
+    named = dev({}); named["other_findings"] = [dict(name="Central venous catheter", maps_to="SUPPORT_DEVICES", verified=True)]
+    assert reconcile(named, q, sym, [], False)[0][0]["status"] == "SUPPORTED"
     print("reconcile ok", by)

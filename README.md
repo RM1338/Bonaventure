@@ -43,6 +43,7 @@ not back is listed under *Checked and rejected*.
    * *Since last report* (NEW / KNOWN / NOT SEEN NOW), compared with the patient's prior radiology report.
    * *Not assessable on X-ray*, e.g. pulmonary embolism, with the test that would settle it.
    * *Also seen* (verified observations outside the catalogue) and *Rejected claims*.
+   * A **heatmap** for each finding (where the image reader's score comes from) and an **image confidence %**.
    * **Agree / Disagree**: a clinician who disagrees gets the evidence for and against their read, plus a second look
      from MedGemma; their verdict is recorded.
 6. **PDF evidence report**: annotated film, lung diagram, per-finding evidence with sources, clinician review, rejected
@@ -133,7 +134,7 @@ island if it is already running.
 
 ```bash
 ./run.sh                    # island launcher; models load in the background (~20 s)
-./run.sh BV-108             # reopen a saved case in the reading room
+./run.sh BV-151             # reopen a saved case in the reading room
 scripts/bonaventure-toggle  # show / hide the island
 ```
 
@@ -151,17 +152,21 @@ for 3 days, can't lie flat, waking up breathless at night, ankle swelling. No fe
 
 ![Annotated film, case A](docs/sample_output/case_A_annotated.png)
 
-| Finding | State | Strength | Why |
+| Finding | State | Strength · image confidence | Why |
 |---|---|---|---|
-| Cardiomegaly | **SUPPORTED** | high | CLEAR strong (0.958) + CheXzero strong (0.979); MedGemma: "the heart appears enlarged"; MedSAM outline; history: radiology report p.3 "Cardiomegaly…", CHF (LVEF 30 %), cardiomyopathy; symptoms: breathlessness 3 days, orthopnea, ankle swelling |
-| Pulmonary edema | **SUPPORTED** | high | Both readers strong; closest report phrases "chronic recurrent pulmonary edema" (#3 of 368,294); prior "upper lobe venous diversion"; orthopnea, night-time breathlessness |
-| Consolidation | **CONFLICTING** | moderate | Image signal present, but **fever and cough are denied**; shown as an approximate zone |
+| Cardiomegaly | **SUPPORTED** | high · 90 % | CLEAR strong (0.958) + CheXzero strong (0.979); MedGemma: "the heart appears enlarged"; MedSAM outline; history: radiology report p.3 "Cardiomegaly…", CHF (LVEF 30 %), cardiomyopathy; symptoms: breathlessness 3 days, orthopnea, ankle swelling |
+| Pulmonary edema | **SUPPORTED** | high · 88 % | Both readers strong; closest report phrases "chronic recurrent pulmonary edema" (#3 of 368,294); prior "upper lobe venous diversion"; orthopnea, night-time breathlessness |
+| Consolidation | **CONFLICTING** | moderate · 31 % | Image signal present, but **fever and cough are denied**; shown as an approximate zone |
 
 * Since last report (12 Aug 2026): cardiomegaly KNOWN, edema KNOWN, pleural effusion NOT SEEN NOW.
 * Also seen: interstitial thickening (MedGemma, confirmed by CLEAR 0.965).
 * Checked and rejected (9), for example: "sternal wires" (MedGemma; CLEAR disagrees 0.81 < 0.85) and "pleural effusion"
   (high prompt score, but the best effusion phrase ranks only #354).
-* The case took 20.8 s on an RTX 3050.
+* The case took 25.3 s on an RTX 3050 (about 4 s of that is the heatmap).
+
+Reading room with the heatmap on for pulmonary edema:
+
+![Reading room, case A, heatmap for pulmonary edema](docs/sample_output/case_A_review_heatmap.png)
 
 The full walkthrough of this case is in [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md).
 
@@ -234,7 +239,7 @@ This is the worst case: a bare film with no history and no presentation, where t
 | Minimum viable solution (implemented, demonstrated) | Stretch goals |
 |---|---|
 | Chest X-ray input (PNG/JPEG/DICOM) with a quality gate | **Implemented:** MedSAM segmentation outlines; open-ended "also seen" survey; dictation with live captions; LLM understanding of free-text presentations; patient identity check; "since last report"; clinician challenge + second look; rejected-claims log; lung diagram in the report; macOS shell |
-| Multi-model image reading with calibrated levels, localization (box/outline/zone) | **Not done:** CT / MRI; OCR for scanned history PDFs; percentage confidence; trained (not zero-shot) classifiers; reliable nodule / mass / pneumothorax detection; tested macOS run with the real models |
+| Multi-model image reading with calibrated levels and confidence %, localization (box/outline/zone), occlusion heatmap | **Not done:** CT / MRI; OCR for scanned history PDFs; trained (not zero-shot) classifiers; reliable nodule / mass / pneumothorax detection; tested macOS run with the real models |
 | History parsing with negation, dates and page-level provenance | |
 | Evidence reconciliation → SUPPORTED / UNCERTAIN / CONFLICTING / INSUFFICIENT with reasons | |
 | Desktop review UI and PDF evidence report | |
@@ -242,8 +247,8 @@ This is the worst case: a bare film with no history and no presentation, where t
 ## Limitations
 
 * Chest X-ray only, frontal views. 16 catalogue findings. Nodules, masses and pneumothorax are not reliably detected.
-* Evidence strength is a rule-based summary of agreement, **not a probability**. The calibrated part is each reader's
-  weak / moderate / strong level.
+* Evidence strength is a rule-based summary of agreement. The **image confidence %** is calibrated (Platt scaling) on
+  CheXpert / NIH films, whose prevalence differs from clinical use; it describes the image only.
 * Calibration sets are small: 202 CheXpert validation films (only 7 pneumothoraces) and NIH labels that are NLP-mined.
 * MedGemma boxes are approximate; when a box contradicts its own region text it is discarded and an approximate zone is
   shown instead, labelled as such.

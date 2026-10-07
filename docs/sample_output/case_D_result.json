@@ -1,7 +1,7 @@
 {
-  "case_id": "BV-111",
+  "case_id": "BV-154",
   "state": "REVIEW_READY",
-  "created": "2026-10-07T14:07:22",
+  "created": "2026-10-07T14:34:22",
   "scan": {
     "file": "Chest_Xray_PA_3-8-2010.png",
     "view": "Chest X-ray",
@@ -119,7 +119,7 @@
       "date": "2026-09-19",
       "source": {
         "file": "case_d_history.pdf",
-        "path": "cases/BV-111/inputs/case_d_history.pdf",
+        "path": "cases/BV-154/inputs/case_d_history.pdf",
         "doc_type": "Discharge summary",
         "page": 1,
         "quote": "Procedure: Right total knee replacement on 19/09/2026."
@@ -166,10 +166,10 @@
       }
     ],
     "timing": {
-      "CLEAR": 1.05,
+      "CLEAR": 1.09,
       "CheXzero": 0.09,
-      "CLEAR concepts": 0.1,
-      "MedGemma survey": 2.82
+      "CLEAR concepts": 0.11,
+      "MedGemma survey": 2.83
     },
     "raw_reasoning": [
       "```json\n[\n  {\"name\": \"Right upper lobe mass\", \"region\": \"Right upper lobe\"},\n  {\"name\": \"Left-sided central venous catheter\", \"region\": \"Left side\"}\n]\n```",
@@ -227,7 +227,7 @@
         0.6372
       ]
     ],
-    "total_seconds": 5.99,
+    "total_seconds": 6.08,
     "engine_status": {
       "imaging": "ready",
       "reasoning": "ready"
