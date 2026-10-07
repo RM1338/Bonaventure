@@ -312,8 +312,19 @@ def _serve_toggle(api):
     while True:
         conn, _ = srv.accept()
         with conn:
-            if conn.recv(64).strip() == b"toggle":
-                api.on_shortcut()
+            conn.settimeout(1)
+            try:
+                command = conn.recv(64).strip()
+                if command == b"toggle":
+                    api.on_shortcut()
+                elif command in (b"status", b"show"):
+                    ready = bool(getattr(api, "_launcher_ready", False))
+                    if command == b"show" and ready:
+                        api.show_launcher()
+                    conn.sendall(json.dumps(dict(ready=ready)).encode())
+            except OSError:
+                continue  # a disconnected probe must not stop launcher controls
+
 
 
 def _deliver(api, uris):

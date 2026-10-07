@@ -19,14 +19,15 @@ class InstallerCliTests(unittest.TestCase):
         python = self.root / ".venv/bin/python"
         python.parent.mkdir(parents=True)
         python.write_text("fake Python")
+        (self.root / "run.sh").write_text("fake launch script")
         self.connection = MagicMock()
         self.connection.__enter__.return_value = self.connection
         self.connection.connect.side_effect = OSError("not running")
         self.app = self.home / "Applications/Bonaventure.app"
         self.agent = self.home / "Library/LaunchAgents" / f"{installer.LABEL}.plist"
 
-    def run_installer(self, *args, platform="darwin"):
-        with patch.object(installer, "ROOT", self.root), patch("pathlib.Path.home", return_value=self.home), patch.object(installer.sys, "platform", platform), patch.object(installer.sys, "argv", ["install_macos.py", *args]), patch("socket.socket", return_value=self.connection), patch.object(installer.subprocess, "run") as run, contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    def run_installer(self, *args, platform="darwin", startup_ready=True):
+        with patch.object(installer, "ROOT", self.root), patch("pathlib.Path.home", return_value=self.home), patch.object(installer.sys, "platform", platform), patch.object(installer.sys, "argv", ["install_macos.py", *args]), patch("socket.socket", return_value=self.connection), patch.object(installer.subprocess, "run") as run, patch.object(installer, "wait_for_launcher", return_value=startup_ready), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             installer.main()
         return [call.args[0] for call in run.call_args_list]
 
@@ -68,6 +69,22 @@ class InstallerCliTests(unittest.TestCase):
             self.run_installer()
         self.assertEqual(error.exception.code, 2)
         self.assertFalse(self.app.exists())
+
+    def test_unready_app_does_not_report_successful_start(self):
+        with self.assertRaises(SystemExit) as error:
+            self.run_installer(startup_ready=False)
+        self.assertEqual(error.exception.code, 2)
+        self.assertTrue(self.app.exists())
+
+    def test_documents_checkout_is_allowed(self):
+        self.root = self.home / "Documents/Bonaventure"
+        (self.root / ".venv/bin").mkdir(parents=True)
+        (self.root / ".venv/bin/python").write_text("fake Python")
+        (self.root / "run.sh").write_text("fake launch script")
+        self.run_installer()
+        self.assertTrue(self.app.exists())
+        config = plistlib.loads(self.agent.read_bytes())
+        self.assertEqual(config["WorkingDirectory"], str(self.home))
 
     def test_linux_refuses_installer_without_creating_files(self):
         with self.assertRaises(SystemExit) as error:

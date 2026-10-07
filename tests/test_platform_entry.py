@@ -24,14 +24,18 @@ class PlatformEntryTests(unittest.TestCase):
             app.main()
         launch.assert_called_once_with()
 
-    def test_linux_imports_only_original_desktop(self):
-        self.check_platform("linux", "linux_app", "macos_app")
+    def test_linux_rejected_before_native_import(self):
+        with patch.object(sys, "platform", "linux"), patch("builtins.__import__", side_effect=AssertionError("Native import before rejection")):
+            with self.assertRaisesRegex(SystemExit, "Omarchy/Linux"):
+                app.main()
 
     def test_mac_imports_only_notch_desktop(self):
         self.check_platform("darwin", "macos_app", "linux_app")
 
-    def test_windows_imports_only_windows_desktop(self):
-        self.check_platform("win32", "windows_app", "linux_app")
+    def test_windows_rejected_before_native_import(self):
+        with patch.object(sys, "platform", "win32"), patch("builtins.__import__", side_effect=AssertionError("Native import before rejection")):
+            with self.assertRaisesRegex(SystemExit, "windows branch"):
+                app.main()
 
 
 if __name__ == "__main__":

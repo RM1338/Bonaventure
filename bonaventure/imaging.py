@@ -146,6 +146,6 @@ def _mock_analyze(img, scan_path):
     return dict(
         sources=[dict(role="primary", model="mock-primary", scores=primary, thresholds=[0.45, 0.55, 0.65]),
                  dict(role="verifier", model="mock-verifier", scores=verifier, thresholds=[0.45, 0.55, 0.65])],
-        localizations={f: dict(bbox=boxes[f], region_name=FINDINGS[f]["region"], source="mock") for f in hot},
+        localizations={f: dict(bbox=boxes[f], region_name=FINDINGS[f]["region"], source="mock") for f in hot if f in boxes},
         descriptions={f: [f"Mock observation consistent with {FINDINGS[f]['name'].lower()}"] for f in hot},
         masks={}, timing={"mock": 0.4})

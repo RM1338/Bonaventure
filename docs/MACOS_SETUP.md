@@ -1,11 +1,11 @@
 # macOS setup and evaluation
 
 Adapted from Gavriel’s [PR #7](https://github.com/RM1338/Bonaventure/pull/7), with
-current main setup paths and verified reference/reproduction details. Run commands
+current macOS branch setup paths and verified reference/reproduction details. Run commands
 from the repository root. Native Mac runtime verification remains separate.
 
 This guide provides the macOS setup and evaluation path alongside the
-[main README](../README.md), which contains the original Omarchy setup, current
+[branch README](../README.md), which contains the original Omarchy setup, current
 model evidence, diagrams and reproduction commands. For the current Mac build, use **pip in a virtual environment**; `uv` is not
 required. MedGemma selects MPS on supported Macs, with CPU fallback when MPS is absent.
 The notch launcher uses a centered **up chevron to hide**, rather than quit, and
@@ -52,11 +52,12 @@ free disk space for weights and download caches; setup downloads can be large.
 brew install git python@3.12 pango poppler ffmpeg
 ```
 
-The macOS implementation is merged into `main`. Clone the submission branch
-below; do not substitute an older feature branch.
+Use the `macos` branch for this implementation. `main` is the Omarchy/Linux
+release. Clone `macos` explicitly; for an existing checkout, quit the app and
+run `git switch macos` before installing or starting the Mac build.
 
 ```bash
-git clone https://github.com/RM1338/Bonaventure.git
+git clone --branch macos https://github.com/RM1338/Bonaventure.git
 cd Bonaventure
 
 BONAVENTURE_PYTHON="$(brew --prefix python@3.12)/bin/python3.12"
@@ -208,11 +209,20 @@ then install the macOS wrapper once:
 open "$HOME/Applications/Bonaventure.app"
 ```
 
+The installer waits for launcher readiness and reveals the panel. If startup
+fails, it prints recent logs instead of reporting successful startup.
 The installer already starts the app; the `open` command is also how to launch
 it later from Terminal. Finder/Spotlight can open the same application. Keep this
 checkout and `.venv` in place; the wrapper points to them. `--no-login` disables
 login installation, and `--uninstall` removes the app wrapper/login agent.
 Background logs are at `~/Library/Logs/Bonaventure/bonaventure.log`.
+Terminal uses `run.sh`; Finder/login launch Python directly from a safe working
+directory, with equivalent Homebrew library paths, offline flags and unbuffered
+logs. The checkout can remain in its existing location, including Documents. After pulling this update, quit
+the old instance and rerun the installer to replace the old wrapper. You can
+check native imports without opening a window with `./run.sh --check-runtime`.
+The macOS branch rejects Linux/Windows launches; switch to the platform's branch
+rather than trying to install its native GUI dependencies here.
 
 To validate real models independently, quit the app before running:
 
@@ -373,13 +383,12 @@ node tests/review_outputs.test.cjs
 | Sample input/output | Bundled Case A/B inputs, reference behavior and generated review/JSON/PDF from the demonstrated run |
 | Scope note | Minimum solution, desktop additions and exclusions in the scope table |
 | Live demonstration | Sequence above; use a recording only where the evaluator permits it |
-| Public repository | Submit `https://github.com/RM1338/Bonaventure` after the owner makes the repository public; the implementation and this guide are on main |
+| Public repository | Submit `https://github.com/RM1338/Bonaventure` after the owner makes the repository public; the Mac implementation and this guide are on `macos` |
 
-**Visibility action before submission:** the repository was private when this
-README addition was prepared. An owner must set GitHub Settings → General →
-Danger Zone → Change repository visibility → Public, then verify the URL opens
-while signed out. This README-only branch does not change repository settings.
-The main branch contains the macOS implementation and this guide;
-submit the public repository link before the end of evaluation. Native samples
-and model downloads remain separately identified resources rather than code
-silently bundled into the public repository.
+**Submission branch and visibility:** the repository is currently public. Before
+evaluation, confirm its URL opens while signed out and explicitly identify
+`macos` as the Mac submission branch. `main` is the Omarchy/Linux release;
+it does not contain this Mac launcher. This change does not alter GitHub settings.
+Submit the repository link plus the selected branch before the end of evaluation.
+Native samples and model downloads remain separately identified resources rather
+than code silently bundled into the public repository.

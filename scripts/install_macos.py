@@ -5,6 +5,8 @@ import plistlib
 import shlex
 import subprocess
 import sys
+import json
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -16,7 +18,12 @@ def launcher_script(root, logs):
         "#!/bin/bash", "set -e",
         'export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"',
         f"mkdir -p {shlex.quote(str(logs))}",
-        f"cd {shlex.quote(str(root))}",
+        f"cd {shlex.quote(str(logs))}",
+        'export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1',
+        'if command -v brew >/dev/null 2>&1; then',
+        '  export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"',
+        'fi',
+        f"export PYTHONPATH={shlex.quote(str(root))}${{PYTHONPATH:+:$PYTHONPATH}}",
         f"exec {shlex.quote(str(root / '.venv/bin/python'))} -u -m bonaventure.app "
         f">> {shlex.quote(str(logs / 'bonaventure.log'))} 2>&1", "",
     ))
@@ -44,13 +51,37 @@ def install_files(root, home, login=True):
     agent = home / "Library/LaunchAgents" / f"{LABEL}.plist"
     if login:
         agent.parent.mkdir(parents=True, exist_ok=True)
-        config = dict(Label=LABEL, ProgramArguments=[str(executable)], WorkingDirectory=str(root),
+        config = dict(Label=LABEL, ProgramArguments=[str(executable)], WorkingDirectory=str(home),
                       RunAtLoad=True, KeepAlive=dict(SuccessfulExit=False), ThrottleInterval=10,
                       LimitLoadToSessionType="Aqua", ProcessType="Interactive",
                       StandardOutPath=str(logs / "service.log"), StandardErrorPath=str(logs / "service.log"))
         with agent.open("wb") as stream:
             plistlib.dump(config, stream)
     return app, agent
+
+
+def launcher_message(command):
+    """Ask the app, not just launchctl, whether its native launcher is ready."""
+    import socket
+    path = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "bonaventure.sock"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+        connection.settimeout(0.5)
+        connection.connect(str(path))
+        connection.sendall(command.encode())
+        response = connection.recv(1024)
+    return json.loads(response).get("ready") is True
+
+
+def wait_for_launcher(timeout=20):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            if launcher_message("status"):
+                return launcher_message("show")
+        except (OSError, ValueError):
+            pass
+        time.sleep(0.25)
+    return False
 
 
 def main():
@@ -91,7 +122,9 @@ def main():
     python = ROOT / ".venv/bin/python"
     if not python.exists():
         parser.error("The project's .venv/bin/python is missing")
-    subprocess.run([str(python), "-c", "import webview, AppKit, numpy, PIL, weasyprint"], check=True)
+    if not (ROOT / "run.sh").is_file():
+        parser.error("The project's run.sh is missing")
+    subprocess.run(["/bin/bash", str(ROOT / "run.sh"), "--check-runtime"], check=True)
     app, agent = install_files(ROOT, home, login=not args.no_login)
     subprocess.run(["launchctl", "bootout", service], capture_output=True)
     if args.no_login:
@@ -99,7 +132,18 @@ def main():
         subprocess.run(["open", str(app)], check=True)
     else:
         subprocess.run(["launchctl", "bootstrap", domain, str(agent)], check=True)
-    print(f"Installed: {app}")
+    print("Waiting for the launcher to start…", flush=True)
+    if not wait_for_launcher():
+        logs = home / "Library/Logs/Bonaventure"
+        excerpts = []
+        for name in ("bonaventure.log", "service.log"):
+            path = logs / name
+            if path.is_file():
+                excerpts.append(f"\n{name}:\n" + "\n".join(path.read_text(errors="replace").splitlines()[-20:]))
+        parser.error("App installed, but its launcher did not become ready. "
+                     "Inspect the startup logs below (models may still be loading separately). "
+                     + "".join(excerpts) + f"\nLogs: {logs}")
+    print(f"Installed and launcher opened: {app}")
     print("Runs without Terminal. Login startup: " + ("off" if args.no_login else "on"))
     print(f"Logs: {home / 'Library/Logs/Bonaventure/bonaventure.log'}")
     print("This development app uses the current project folder and .venv; keep both in place.")

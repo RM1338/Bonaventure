@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# Launch Bonaventure. BV_MOCK=1 ./run.sh skips the real models (UI development / no GPU).
-# WebKitGTK renders through NVIDIA's EGL by default on hybrid laptops, which crashed the renderer under VRAM pressure
-# from the models. Keep the UI on the Intel/Mesa GPU and off the DMA-BUF path; torch still uses CUDA directly.
-export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1   # everything is on disk; never touch the network
-case "$(uname -s)" in
-  Linux)
-    export WEBKIT_DISABLE_DMABUF_RENDERER=1
-    export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-    [ -f /usr/share/glvnd/egl_vendor.d/50_mesa.json ] && export __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
-    ;;
-  Darwin)
-    # WeasyPrint needs Homebrew's Pango libraries, including from the app/login wrapper.
-    if command -v brew >/dev/null 2>&1; then
-      export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
-    fi
-    ;;
-esac
-cd "$(dirname "$0")" && exec .venv/bin/python -m bonaventure.app "$@"
+# macOS launch environment shared by Terminal, Finder and the login wrapper.
+if [ "$(uname -s)" != "Darwin" ]; then
+  echo "This is the macOS branch. Use main for Omarchy/Linux or windows for Windows." >&2
+  exit 1
+fi
+export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
+if command -v brew >/dev/null 2>&1; then
+  export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
+fi
+cd "$(dirname "$0")" || exit 1
+if [ ! -x .venv/bin/python ]; then
+  echo "Missing .venv/bin/python. Follow docs/MACOS_SETUP.md to create the Homebrew Python environment." >&2
+  exit 1
+fi
+if [ "${1:-}" = "--check-runtime" ]; then
+  exec .venv/bin/python -c "import webview, AppKit, numpy, PIL, weasyprint"
+fi
+exec .venv/bin/python -m bonaventure.app "$@"
