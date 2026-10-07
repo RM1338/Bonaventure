@@ -6,13 +6,13 @@ interpreter and cannot execute here. Native Mac results remain unverified.
 
 ## Automated results
 
-All **55 Python tests** and the Node launcher checks pass. Context and evidence
+All **63 Python tests** and the Node launcher checks pass. Context and evidence
 reconciliation self-checks also pass. These tests use fake native APIs, clocks,
 recorders, and speech decoders where the real platform or models are unavailable.
 
 | Requested behavior | Evidence | Remaining native check |
 |---|---|---|
-| Separate Linux and Mac launchers | Dispatcher import tests; Linux shell, UI, and shared API unchanged from `feat/platform-split` | Run each GUI on its OS |
+| Separate Linux and Mac launchers | Dispatcher import tests; separate Linux/Mac shells; shared dictation handler and API lifecycle updated on both platforms | Run each GUI on its OS |
 | Full notch coverage and controls below camera | Safe-area/auxiliary-area geometry; screen offsets and selected displays | Check the actual camera cutout, menu bar, Spaces, and fullscreen |
 | Black notch cap with subtle progress-card tint | Mac markup/style review; original Linux stylesheet untouched | Judge rendered appearance |
 | Shortcut from another application | Carbon registration, event-ID filtering, conflict handling; controller toggles | Deliver Option–Command–B while another app is active |
@@ -22,8 +22,8 @@ recorders, and speech decoders where the real platform or models are unavailable
 | Background and login startup | Wrapper execution with spaces, minimal login PATH, microphone plist; mocked install/no-login/uninstall/running-instance flows | Finder launch, login launch, microphone permission |
 | Progress redesign | Stage index, skipped/completed stages, grouped phases, review-ready and reset states | Render real analysis progress |
 | Input preservation | Draft inputs and processing view survive hide/reopen; rapid-toggle races | Verify scan/history attachments with native picker |
-| Voice model locations | Repo/home lookup and environment overrides; optional setup checks | Download both Whisper checkpoints |
-| Voice recording lifecycle | Final/live decoder fallback, typed-text preservation, live captions, final replacement, cancellation, saved WAV, recorder exit race, kill/reap | Real microphone capture and Whisper decoding |
+| Voice model locations | Repo/home lookup and environment overrides; optional setup checks | Load and decode with the real speech models |
+| Voice recording lifecycle | Final/live decoder fallback, typed-text preservation, live captions, final replacement, cancellation, saved WAV, recorder exit race, kill/reap, pending start/stop, serialized restart, stale captions, quit cleanup | Real microphone capture and Whisper decoding |
 | Local imaging setup | Existing source/config/checkpoint file-presence checks pass | Load weights and run inference |
 
 Python syntax, shell syntax, README links/anchors, and `git diff --check` pass.
@@ -32,9 +32,11 @@ assets. Its dependency checks fail under the bare Linux test interpreter, which
 does not have the Mac application's packages. This does not establish a problem
 with the user's Mac virtual environment.
 
-Neither Whisper checkpoint is present in `models/` or the user's legacy
-`~/bonaventure/models/` locations at verification time. Real voice inference is
-therefore not tested. Downloads and microphone setup are in the
+Both Whisper checkpoints are now present in the user's model folders, and the
+user's Mac logs show model loading. The microphone start/stop regression is
+covered with delayed UI bridge responses and mocked recorder/decoder tests;
+real microphone capture and decoding still require the native runtime check.
+Model download commands are in the
 [repository README](../README.md#voice-dictation-optional-offline-english).
 
 ## Reproduce automated checks
@@ -44,6 +46,7 @@ From the repository root with your working virtual environment and Node:
 ```bash
 .venv/bin/python -m unittest discover -s tests -v
 node tests/island_state.test.cjs
+node tests/dictation_state.test.cjs
 .venv/bin/python -m bonaventure.context
 .venv/bin/python -m bonaventure.reconcile
 .venv/bin/python scripts/check_setup.py

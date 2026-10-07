@@ -52,6 +52,7 @@ const context = vm.createContext({ window, pywebview: window.pywebview,
   Event: class { constructor(type) { this.type = type; } },
   requestAnimationFrame: (fn) => frames.push(fn), console
 });
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../bonaventure/ui/dictation.js'), 'utf8'), context);
 vm.runInContext(script, context);
 const state = () => vm.runInContext('view', context);
 async function settle() {
@@ -199,5 +200,18 @@ function advance(delay) {
   Object.assign(layout, { managed: true, top_inset: 38, start_expanded: true });
   await events.pywebviewready(); await settle();
   assert.equal(state(), 'intake');
+  // Sharing mic code must preserve Linux native drops and file selection.
+  const linuxWindow = { ...window };
+  const linuxContext = vm.createContext({ ...context, window: linuxWindow });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../bonaventure/ui/dictation.js'), 'utf8'), linuxContext);
+  const linuxHtml = fs.readFileSync(path.join(__dirname, '../bonaventure/ui/island.html'), 'utf8');
+  vm.runInContext(linuxHtml.split('<script>')[1].split('</script>')[0], linuxContext);
+  const dropped = { ok: true, view: 'PA', dims: '100 × 100', size: '1 KB', quality: 'acceptable', warnings: [] };
+  linuxWindow.onFilesStaged([{ kind: 'scan', items: [dropped] }]);
+  assert.equal(vm.runInContext('view', linuxContext), 'intake');
+  assert.equal(vm.runInContext('scan', linuxContext), dropped);
+  api.pick_scan = async () => dropped;
+  await vm.runInContext("pick('scan')", linuxContext);
+  assert.equal(vm.runInContext('scan', linuxContext), dropped);
   console.log('Launcher bridge checks passed: shell sizing, collapse timing, draft preservation, rapid toggles, analysis view, and reduced motion.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

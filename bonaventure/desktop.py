@@ -41,6 +41,7 @@ class Api:
     """Everything here is callable from the UI as window.pywebview.api.<name>(...)."""
 
     def __init__(self):
+        self._dictation_lock = threading.RLock()
         self._engine = imaging.ImagingEngine()
         self._cases = {}
         self._scan = None
@@ -204,22 +205,27 @@ class Api:
 
     # ----- dictation (offline Whisper) -----
     def start_dictation(self):
-        if not hasattr(self, "_dictation"):
-            from .dictation import Dictation
-            self._dictation = Dictation()
-        if not self._dictation.available():
-            return dict(error="Speech model or microphone recorder not installed (see README).")
-        self._dictation.start()
-        return dict(ok=True)
+        with self._dictation_lock:
+            try:
+                if not hasattr(self, "_dictation"):
+                    from .dictation import Dictation
+                    self._dictation = Dictation()
+                if not self._dictation.available():
+                    return dict(error="Speech model or microphone recorder not installed (see README).")
+                self._dictation.start()
+                return dict(ok=True)
+            except Exception as error:
+                return dict(error=f"Could not start microphone: {error}")
 
     def dictation_partial(self):
         return self._dictation.partial() if hasattr(self, "_dictation") else dict(text="", recording=False, seconds=0)
 
     def stop_dictation(self):
-        try:
-            return dict(text=self._dictation.stop())
-        except Exception as e:
-            return dict(error=f"Could not transcribe: {e}")
+        with self._dictation_lock:
+            try:
+                return dict(text=self._dictation.stop() if hasattr(self, "_dictation") else "")
+            except Exception as e:
+                return dict(error=f"Could not transcribe: {e}")
 
     # ----- clinician challenges a finding -----
     def challenge(self, case_id, finding_id, verdict, note):
@@ -262,6 +268,9 @@ class Api:
             _open(path)
 
     def quit(self):
+        with self._dictation_lock:
+            if hasattr(self, "_dictation"):
+                self._dictation.stop(final=False)
         for w in list(webview.windows):
             w.destroy()
 

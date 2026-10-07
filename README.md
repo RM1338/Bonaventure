@@ -194,8 +194,8 @@ From the repository root, download only the processor/configuration files and
 safetensors weights to avoid duplicate PyTorch/TensorFlow/Flax weight downloads:
 
 ```bash
-.venv/bin/hf download openai/whisper-base.en --include '*.json' '*.txt' '*.safetensors' --local-dir models/whisper-base.en
-.venv/bin/hf download openai/whisper-small.en --include '*.json' '*.txt' '*.safetensors' --local-dir models/whisper-small.en
+.venv/bin/hf download openai/whisper-base.en --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/whisper-base.en
+.venv/bin/hf download openai/whisper-small.en --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/whisper-small.en
 .venv/bin/python scripts/check_setup.py --mock --voice
 ```
 
@@ -209,6 +209,9 @@ transcription, but install both for the intended speed/accuracy balance.
 macOS records through `ffmpeg`/AVFoundation (`brew install ffmpeg`); Linux uses
 PipeWire's `pw-record`. Restart the app after downloading models, click the
 presentation microphone, speak, and click it again for the final transcript.
+While final transcription runs, the microphone is off and the button is busy;
+extra clicks cannot start another recording. A click during startup queues a stop.
+Both launchers and the reading room use the same dictation handler.
 The latest recording is kept locally at `models/last_dictation.wav` (or under
 `BV_MODELS_DIR`) for debugging; the model directory is ignored by Git.
 
