@@ -239,13 +239,19 @@ the original wording, lists unmatched phrases, and adds a review warning. Long
 phrases (over 500 characters) and phrases beyond the first 12 eligible unmatched
 phrases remain available for review without a model rewrite.
 
-MedGemma image calls have a 180-second generation budget; exceeding it fails
-analysis rather than accepting partial reasoning. These budgets are checked
+MedGemma image calls use a generation budget of 180 seconds on CUDA, 600 seconds
+on Apple MPS and 1800 seconds on CPU; exceeding it fails analysis rather than
+accepting partial reasoning. These budgets are checked
 between decoding steps, so a slow CPU step can exceed the limit. Override with
 `BV_PRESENTATION_SECONDS` or `BV_IMAGE_GENERATION_SECONDS` when starting the app.
-Currently MedGemma and MedSAM use CUDA when available and CPU otherwise,
-including on Macs; Apple MPS acceleration is not configured. The RTX timing
-below is not an estimate for a Mac.
+MedGemma automatically selects CUDA, then Apple MPS on supported Macs, then CPU.
+MPS loads float16 weights with eager attention; CUDA retains four-bit weights.
+The startup log prints the actual device, dtype and image-generation budget.
+Set `BV_MEDGEMMA_DEVICE=cpu` to force CPU, or `mps`/`cuda` to require that backend;
+an unavailable explicit backend reports a loading error. MPS needs sufficient
+unified memory for the unquantized 4B model plus the other models. MedSAM retains
+its CUDA/CPU selection, and both image readers retain their configured device.
+The RTX timing below is not an estimate for a Mac.
 
 Terminal output reports stage starts and elapsed times. Each case writes
 `cases/BV-XXX/progress.json`; successful results also include stage timings in
@@ -270,7 +276,7 @@ read. Missing optional MiniLM is reported as skipped.
 
 Models run sequentially in separate processes to release RAM between checks.
 The hard limit per process is 600 seconds including loading; use `--timeout 1200`
-for a slower machine or `--only MedGemma-text` to isolate Stage 3. The report is
+for a slower machine (`--timeout 2400` for CPU image checks) or `--only MedGemma-text` to isolate Stage 3. The report is
 saved locally at `cases/model-health.json`; a failed/timed-out required check
 returns a nonzero exit status. Hugging Face loads are offline and need complete
 local checkpoints. CLEAR's DINOv2 source also needs its existing Torch Hub cache.

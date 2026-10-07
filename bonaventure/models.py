@@ -19,6 +19,7 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")  # 
 import torch  # noqa: E402
 
 from .generation import generate_with_budget
+from .model_runtime import image_generation_seconds, load_medgemma
 from .knowledge import FINDINGS, SUPPRESSED_BY
 from .model_paths import CHEXZERO_CKPT, CHEXZERO_DIR, CLEAR_CKPT, CLEAR_CODE, CLEAR_DIR, MEDGEMMA_ID, MEDSAM_CKPT, MEDSAM_DIR
 
@@ -278,10 +279,7 @@ class MedGemma:
     def __init__(self):
         from transformers import AutoModelForImageTextToText, AutoProcessor, BitsAndBytesConfig
         self.processor = AutoProcessor.from_pretrained(MEDGEMMA_ID)
-        self.model = AutoModelForImageTextToText.from_pretrained(
-            MEDGEMMA_ID, device_map={"": 0} if DEVICE == "cuda" else None, dtype=torch.bfloat16,
-            quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16) if DEVICE == "cuda" else None)
-        self.model.eval()
+        self.model = load_medgemma(torch, AutoModelForImageTextToText, BitsAndBytesConfig, MEDGEMMA_ID)
 
     DESCRIBE = (
         "You are assisting a radiologist reviewing a frontal chest X-ray. For each candidate finding listed, decide whether it is "
@@ -300,9 +298,9 @@ class MedGemma:
     def _ask(self, img, text, max_new_tokens):
         messages = [{"role": "user", "content": [{"type": "image", "image": img.convert("RGB")}, {"type": "text", "text": text}]}]
         inputs = self.processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_dict=True,
-                                                    return_tensors="pt").to(self.model.device, dtype=torch.bfloat16)
+                                                    return_tensors="pt").to(self.model.device, dtype=self.model.dtype)
         out = generate_with_budget(self.model, inputs, max_new_tokens,
-                                   os.environ.get("BV_IMAGE_GENERATION_SECONDS", "180"), "MedGemma image")
+                                   image_generation_seconds(self.model.device.type), "MedGemma image")
         return self.processor.decode(out[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
 
     @torch.inference_mode()

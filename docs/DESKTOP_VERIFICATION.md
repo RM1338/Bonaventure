@@ -6,7 +6,7 @@ interpreter and cannot execute here. Native Mac results remain unverified.
 
 ## Automated results
 
-All **85 Python tests** and the Node launcher checks pass. Context and evidence
+All **92 Python tests** and the Node launcher checks pass. Context and evidence
 reconciliation self-checks also pass. These tests use fake native APIs, clocks,
 recorders, and speech decoders where the real platform or models are unavailable.
 
@@ -79,8 +79,19 @@ A Stage 3 run now records stage boundaries in Terminal and
 `cases/BV-XXX/progress.json`. Rewriting uses a cooperative generation budget,
 so a single slow forward pass can exceed it. Timed-out text rewriting falls back
 to original phrases with warnings; image generation fails instead of accepting
-partial output. Mac MedGemma remains on CPU, and the full application's combined
+partial output. MedGemma now selects Apple MPS on supported Macs, with a longer CPU budget
+otherwise. Backend selection, MPS dtype/attention configuration, CUDA
+quantization preservation and budget overrides have mocked regression coverage.
+Actual MPS loading/inference remains unverified here. The full application's combined
 memory pressure is not reproduced by sequential model checks.
+
+The user's BV-003 technical record confirms the earlier failure occurred in
+MedGemma's initial image survey when the 180-second CPU generation budget was
+exceeded. This is distinct from an image-reading failure. New defaults are
+600 seconds for MPS and 1800 seconds for CPU; CUDA retains 180 seconds. Verify
+`[models] MedGemma device=...` on startup before retrying. For slow CPU diagnostic
+runs, set `--timeout 2400` so the diagnostic process limit exceeds the generation
+budget plus model loading.
 
 ## Mac runtime checks
 
