@@ -147,13 +147,26 @@ select its branch after cloning: `git switch feat/macos-picker-startup-fixes`.
 
 ### Linux (tested: Arch / Omarchy + Hyprland, RTX 3050 6 GB)
 
+This follows the original Omarchy setup documented at `769bdad`, using `uv` and
+the system Python so GTK bindings remain available. The development environment
+is Python **3.14.7**, created by uv **0.12.22** with
+`include-system-site-packages = true`; its torch/torchvision are
+**2.11.0+cu128 / 0.26.0+cu128**. The requirements filename below is the new
+Linux entry point; it includes the original shared pins plus bitsandbytes.
+
 ```bash
-sudo pacman -S --needed uv webkit2gtk-4.1 python-gobject poppler pipewire xdg-utils
+sudo pacman -S --needed webkit2gtk-4.1 python-gobject poppler pipewire
 uv venv --python /usr/bin/python3 --system-site-packages .venv          # system site-packages for the GTK bindings
-uv pip install --python .venv/bin/python torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
+uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu128
 uv pip install --python .venv/bin/python -r requirements-linux.txt
 .venv/bin/python scripts/check_setup.py --mock
 ```
+
+`uv` and `xdg-open` are already available on the development Omarchy machine.
+If absent on a fresh Arch install, add them with
+`sudo pacman -S --needed uv xdg-utils`. To install exactly the demonstrated
+CUDA wheel versions, replace `torch torchvision` above with
+`torch==2.11.0 torchvision==0.26.0`.
 
 This is the tested Arch/Omarchy setup. Other Linux distributions need equivalent
 GTK/WebKit, Poppler, PipeWire and document-viewer packages. Configure
@@ -162,17 +175,28 @@ example binding, not an automatically registered shortcut.
 
 ### macOS (Homebrew Python; native verification still required)
 
-Install [Homebrew](https://brew.sh/) first, then:
+Use Gavriel's [PR #7 Homebrew + pip setup](https://github.com/RM1338/Bonaventure/pull/7).
+The commands below follow its explicit Homebrew interpreter selection, rather
+than assuming `python3.12` is on `PATH`. `requirements-macos.txt` includes the
+same shared package pins as the guide's `requirements.txt`; Linux-only
+bitsandbytes is excluded. Install [Homebrew](https://brew.sh/) first, then:
 
 ```bash
-brew install python@3.12 pango poppler ffmpeg
-python3.12 -m venv .venv
+brew install git python@3.12 pango poppler ffmpeg
+BONAVENTURE_PYTHON="$(brew --prefix python@3.12)/bin/python3.12"
+"$BONAVENTURE_PYTHON" -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -r requirements-macos.txt
+.venv/bin/python --version
 export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
 .venv/bin/python scripts/check_setup.py --mock
 BV_MOCK=1 BV_START=expand ./run.sh
 ```
+
+For an existing checkout, keep a working `.venv` and skip creating it. If it
+points to an unavailable Xcode Python shim, rename it as a backup before creating
+one with the explicit Homebrew Python above. Install packages inside the venv;
+avoid system-wide `pip3` and `--break-system-packages`.
 
 The last command checks the UI with synthetic output. Quit that instance before
 starting real inference. Use Option + Command + B, the menu bar icon, or hover
@@ -195,6 +219,12 @@ checkout and its `.venv`; keep both in place. Logs are in
 
 ### Models
 
+Choose the layout for your machine. Clone each external repository once, skipping
+ones already present. The resolver supports both layouts without moving files.
+
+**Linux / Omarchy:** retain the home-directory weights and top-level code layout
+from the original Linux setup:
+
 ```bash
 # model code (cloned into the repo root)
 git clone https://github.com/peterhan91/CLEAR
@@ -210,33 +240,64 @@ M=~/bonaventure/models
 .venv/bin/hf download google/medgemma-1.5-4b-it --include '*.json' --include '*.model' --include '*.safetensors' --local-dir "$M/medgemma-1.5-4b-it"
 ```
 
+**macOS:** use the repo-local layout from PR #7, under `models/`, not
+`models/Models/`:
+
+```bash
+mkdir -p models/CLEAR
+git clone https://github.com/peterhan91/CLEAR.git models/CLEAR/code
+git clone https://github.com/rajpurkarlab/CheXzero.git models/CheXzero
+git clone https://github.com/bowang-lab/MedSAM.git models/MedSAM
+mkdir -p models/CheXzero/checkpoints/chexzero_weights models/MedSAM/work_dir/MedSAM
+.venv/bin/python scripts/patch_clear_loader.py
+.venv/bin/hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir models/CLEAR
+.venv/bin/hf auth login
+.venv/bin/hf download google/medgemma-1.5-4b-it --include '*.json' --include '*.txt' --include '*.model' --include '*.safetensors' --local-dir models/MedGemma
+```
+
+Accept MedGemma's access terms on its [model page](https://huggingface.co/google/medgemma-1.5-4b-it)
+before downloading, and log in locally with an authorized account.
+
 Download these two checkpoints from the authors' releases; cloning their code
 does **not** download weights:
 
-| Checkpoint | Official download | Save exactly as |
-|---|---|---|
-| CheXzero | [Authors' checkpoint folder](https://drive.google.com/drive/folders/1makFLiEMbSleYltaRxw81aBhEDMpVwno?usp=sharing), linked in their [README](https://github.com/rajpurkarlab/CheXzero#pre-trained-models) | `CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt` |
-| MedSAM ViT-B | [Authors' checkpoint folder](https://drive.google.com/drive/folders/1ETWmi4AiniJeWOt6HAsYgTjYv_fkgzoN?usp=drive_link), linked in their [README](https://github.com/bowang-lab/MedSAM#installation) | `MedSAM/work_dir/MedSAM/medsam_vit_b.pth` |
+| Checkpoint | Official download | Linux destination | macOS destination |
+|---|---|---|---|
+| CheXzero | [Authors' checkpoint folder](https://drive.google.com/drive/folders/1makFLiEMbSleYltaRxw81aBhEDMpVwno?usp=sharing), linked in their [README](https://github.com/rajpurkarlab/CheXzero#readme) | `CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt` | `models/CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt` |
+| MedSAM ViT-B | [Authors' checkpoint folder](https://drive.google.com/drive/folders/1ETWmi4AiniJeWOt6HAsYgTjYv_fkgzoN?usp=drive_link), linked in their [README](https://github.com/bowang-lab/MedSAM#readme) | `MedSAM/work_dir/MedSAM/medsam_vit_b.pth` | `models/MedSAM/work_dir/MedSAM/medsam_vit_b.pth` |
 
 Use the named CheXzero checkpoint, not a different ensemble member, to retain the
 demonstrated calibration. For MedSAM use `medsam_vit_b.pth`, not the generic SAM
 checkpoint. An in-repo layout (`models/CLEAR/code`, `models/CLEAR`,
 `models/CheXzero`, `models/MedSAM`, `models/MedGemma`) is also found automatically.
 
-Once every checkpoint is in place, while internet is still available, initialize
-CLEAR once to cache the DINOv2 code used by its loader. Then validate setup:
+While internet is still available, prepare the DINOv2 Torch Hub source cache as
+in PR #7, without downloading separate DINOv2 weights. Then validate setup after
+all checkpoints are in place:
 
 ```bash
-.venv/bin/python -c 'from bonaventure.models import load_clear; load_clear()'
+.venv/bin/python -c 'import torch; torch.hub.load("facebookresearch/dinov2:main", "dinov2_vitb14_reg", pretrained=False, trust_repo=True, skip_validation=True)'
 .venv/bin/python -m bonaventure.model_paths
 .venv/bin/python scripts/check_setup.py
 ```
 
 The app and reproduction runner set Hugging Face offline mode; complete downloads
-and the first CLEAR initialization before going offline. The setup checker only
+and the DINOv2 source-cache preparation before going offline. The setup checker only
 checks dependencies/files. It does not prove inference or native GUI behaviour.
 
 ### Optional dictation and phrase matching
+
+**Linux / Omarchy:** keep the home model paths used on the development machine:
+
+```bash
+.venv/bin/hf download openai/whisper-base.en --local-dir ~/bonaventure/models/whisper-base.en
+.venv/bin/hf download openai/whisper-small.en --local-dir ~/bonaventure/models/whisper-small.en
+.venv/bin/hf download sentence-transformers/all-MiniLM-L6-v2 --local-dir ~/bonaventure/models/minilm
+.venv/bin/python scripts/check_setup.py --mock --voice
+```
+
+**macOS:** PR #7's Whisper downloads keep the processor/configuration files and
+safetensors weights in the repo-local model directory:
 
 ```bash
 .venv/bin/hf download openai/whisper-base.en --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/whisper-base.en

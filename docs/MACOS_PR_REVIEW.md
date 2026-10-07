@@ -6,6 +6,34 @@ Gavriel Stephen Elijah (`gavriel953`), at original head
 Integrated current main `769bdad` into that same branch. No replacement PR was
 created and no original commit was squashed or re-authored.
 
+## Setup comparison with PR #7 and the Omarchy machine
+
+Compared Gavriel's [macOS guide PR #7](https://github.com/RM1338/Bonaventure/pull/7)
+at `076320f5ac29bba8f56e48919c31dc246e5e4397` with the current instructions.
+The Mac setup now uses that guide's exact Homebrew package list, explicit
+`$(brew --prefix python@3.12)/bin/python3.12` interpreter, virtual-environment
+pip workflow, repo-local model folders, filtered downloads and DINOv2 cache
+preparation. The only dependency-file adaptation is `requirements-macos.txt`,
+whose active package pins match the guide's original requirements on Darwin.
+The guide's older documentation-branch clone is replaced by the updated PR #4
+branch, which also contains current main and the reproduction runner.
+
+Linux instructions follow the original README at `769bdad`: Arch packages,
+`uv venv --python /usr/bin/python3 --system-site-packages`, CUDA 12.8 wheels and
+the original home/top-level model layout. The local `pyvenv.cfg` confirms uv
+0.12.22, Python 3.14.7 and system-site-packages; installed torch/torchvision are
+2.11.0+cu128 and 0.26.0+cu128. Package logs and shell history confirm native
+dependencies, but do not record every virtual-environment installation command;
+the command sequence is sourced from the original project documentation. The
+Linux entry point includes the same active package pins as those original
+requirements, including bitsandbytes. No environment or installed package was
+changed by this documentation follow-up.
+
+Both platform-specific dependency sets match their source after evaluating OS
+markers. All 15 current README bash blocks pass syntax checks; the local
+dependency/Whisper/recorder check passes. Native installation on a new Mac has
+not been executed here. PR #7 was used as a reference, not merged or rewritten.
+
 ## Findings and fixes
 
 | Finding | Evidence | Resolution |
@@ -14,7 +42,7 @@ created and no original commit was squashed or re-authored.
 | Mac README incorrectly says MPS is disabled | `model_runtime.medgemma_device` selects MPS on supported Macs, and `load_medgemma` chooses bfloat16/float32 | README now describes CUDA, MPS and CPU behavior and their different memory/timing requirements |
 | Installation uses one requirements entry point, with Linux-specific guidance | Linux needs CUDA wheels, bitsandbytes, WebKitGTK/GTK and PipeWire; macOS needs standard torch wheels, PyObjC, Homebrew Pango/Poppler and ffmpeg | Shared pinned versions remain in `requirements.txt`; separate `requirements-linux.txt` and `requirements-macos.txt` and complete OS commands are documented |
 | Homebrew Pango may not be discoverable when launching the installed Mac app | `run.sh` previously only configured Linux graphics paths | The Darwin launch path sets `DYLD_FALLBACK_LIBRARY_PATH` from the installed Homebrew prefix; Linux retains its existing WebKit/Mesa setup |
-| Fresh clones lack explicit checkpoint acquisition and initialization steps | Cloning CheXzero/MedSAM does not download their weights; CLEAR's DINOv2 loader needs a code cache | README includes official checkpoint folders, exact destination filenames, CLEAR patch/first initialization, and gated MedGemma download steps |
+| Fresh clones lack explicit checkpoint acquisition and initialization steps | Cloning CheXzero/MedSAM does not download their weights; CLEAR's DINOv2 loader needs a code cache | README includes official checkpoint folders, exact destination filenames, CLEAR patch/DINOv2 cache preparation, and gated MedGemma download steps |
 | Demo scripts are unsuitable as the sole reproducibility entry point | The library runner rewrites committed result summaries; legacy runners do not reliably signal failed analysis with nonzero exit; neither offers case selection and a run manifest | Add `scripts/reproduce.py` with selected/all library or acceptance cases, input checks, SHA-256 provenance, fresh JSON/progress/PDF outputs and nonzero failure exits. Real runs require all models and reject automatic mock fallback |
 | Saved BV IDs in examples are machine-specific | `cases/` is excluded from Git | README tells evaluators to use the newly generated case ID, with commands for reopening it |
 
