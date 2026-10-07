@@ -72,6 +72,13 @@ class FilePanelTests(unittest.TestCase):
         self.assertTrue(self.controls.file_dialog_open)
         self.assertIs(self.controls.file_picker, self.panel)
 
+    def test_cleanup_error_still_restores_native_level_and_releases_worker(self):
+        self.complete(0)
+        self.panel.orderOut_.side_effect = RuntimeError("closing panel failed")
+        with self.assertRaisesRegex(RuntimeError, "closing panel failed"):
+            choose_files(self.api, False, ["png"])
+        self.assert_released()
+
 
 if __name__ == "__main__":
     unittest.main()

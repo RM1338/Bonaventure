@@ -6,6 +6,8 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../bonaventure/ui/island_macos.html'), 'utf8');
 const script = html.split('<script>')[1].split('</script>')[0];
 const elements = new Map(), events = {}, timers = [], frames = [], calls = [];
+const intervals = new Map();
+let intervalId = 0;
 let shellAnimations = [];
 function element(id) {
   if (!elements.has(id)) {
@@ -18,7 +20,7 @@ function element(id) {
         add: (key) => classes.add(key), remove: (key) => classes.delete(key),
         contains: (key) => classes.has(key)
       }, getBoundingClientRect() { return { height: this.offsetHeight }; },
-      getAnimations: () => shellAnimations, focus() {}, blur() {}
+      getAnimations: () => shellAnimations, focus() {}, blur() {}, dispatchEvent() {}
     });
   }
   return elements.get(id);
@@ -45,6 +47,9 @@ const context = vm.createContext({ window, pywebview: window.pywebview,
     querySelectorAll: (query) => query === '.view' ? views : []
   },
   setTimeout: (fn, delay) => timers.push({ fn, delay }),
+  setInterval: fn => { intervals.set(++intervalId, fn); return intervalId; },
+  clearInterval: id => intervals.delete(id),
+  Event: class { constructor(type) { this.type = type; } },
   requestAnimationFrame: (fn) => frames.push(fn), console
 });
 vm.runInContext(script, context);
@@ -147,5 +152,52 @@ function advance(delay) {
   api.pick_scan = async () => { pickerCalls++; return null; };
   await vm.runInContext("pick('scan')", context);
   assert.equal(pickerCalls, 2);
+  const progress = {
+    state: 'ANALYZING',
+    steps: ['scan', 'history', 'symptoms', 'image', 'localize', 'reconcile', 'review'].map((key, index) => ({
+      key, label: key === 'image' ? 'Evaluating image findings' : key,
+      state: index === 1 ? 'skipped' : index < 3 ? 'complete' : index === 3 ? 'running' : 'pending'
+    }))
+  };
+  context.progressFixture = progress;
+  vm.runInContext('renderProgress(progressFixture)', context);
+  assert.equal(element('procCount').textContent, 'Stage 4 / 7');
+  assert.equal(element('procStep').textContent, 'Evaluating image findings');
+  assert.match(element('procDescription').textContent, /candidate findings/);
+  assert.equal((element('procTrack').innerHTML.match(/class="done"/g) || []).length, 3);
+  assert.match(element('procPhases').innerHTML, /class="done">Patient context/);
+  assert.match(element('procPhases').innerHTML, /class="run">Image findings/);
+  progress.steps.forEach(step => { step.state = 'complete'; });
+  progress.state = 'REVIEW_READY';
+  vm.runInContext('renderProgress(progressFixture)', context);
+  assert.equal(element('procStep').textContent, 'Review ready');
+  assert.equal(element('procCount').textContent, '7 stages complete');
+  assert(element('proc').classList.contains('ready'));
+  vm.runInContext("renderProgress({ state: 'PREPARING', steps: [] })", context);
+  assert.equal(element('procCount').textContent, 'Preparing');
+  assert(!element('proc').classList.contains('ready'));
+  // Live dictation must preserve typed text and replace captions with final text.
+  element('symptoms').value = 'Short of breath.';
+  api.start_dictation = async () => ({ ok: true });
+  api.dictation_partial = async () => ({ text: 'for three days', recording: true });
+  api.stop_dictation = async () => ({ text: 'For three days, worse when lying flat.' });
+  await vm.runInContext("toggleMic($('mic'), 'symptoms')", context);
+  assert(element('mic').classList.contains('rec'));
+  assert.equal(intervals.size, 1);
+  for (const tick of intervals.values()) await tick();
+  assert.equal(element('symptoms').value, 'Short of breath. for three days');
+  await vm.runInContext("toggleMic($('mic'), 'symptoms')", context);
+  assert.equal(element('symptoms').value, 'Short of breath. For three days, worse when lying flat.');
+  assert.equal(intervals.size, 0);
+  assert(!element('mic').classList.contains('rec'));
+  assert(!element('mic').classList.contains('busy'));
+  api.start_dictation = async () => ({ error: 'Recorder not installed' });
+  await vm.runInContext("toggleMic($('mic'), 'symptoms')", context);
+  assert.equal(element('mic').title, 'Recorder not installed');
+  assert.equal(intervals.size, 0);
+  // Expanded startup must honor BV_START as reported by the native layout.
+  Object.assign(layout, { managed: true, top_inset: 38, start_expanded: true });
+  await events.pywebviewready(); await settle();
+  assert.equal(state(), 'intake');
   console.log('Launcher bridge checks passed: shell sizing, collapse timing, draft preservation, rapid toggles, analysis view, and reduced motion.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

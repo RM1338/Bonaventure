@@ -33,6 +33,9 @@ keeps the launcher open. Escape closes intake. File pickers open in front of the
 launcher, pause its hover/shortcut behavior, and restore focus after selection
 or cancellation. Closing animates the HTML shell without shrinking the native
 window; the invisible idle area passes clicks through to the desktop.
+The macOS progress view uses a charcoal card with a current-stage explanation
+and a segmented track grouped into patient context, image findings, and evidence
+review. The camera cap remains black.
 
 ## How it works
 
@@ -243,6 +246,8 @@ CLEAR, its concept bank and CheXzero run on the CPU (~1.3 s). `run.sh` keeps Web
 (`__EGL_VENDOR_LIBRARY_FILENAMES`, `WEBKIT_DISABLE_DMABUF_RENDERER`) — rendering through NVIDIA's EGL under VRAM pressure crashed it.
 
 Self-checks: `python -m bonaventure.context`, `python -m bonaventure.reconcile`.
+See [Desktop verification](docs/DESKTOP_VERIFICATION.md) for the full automated
+test commands, coverage, and remaining native GUI/inference checks.
 
 ## Repository
 

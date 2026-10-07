@@ -66,13 +66,14 @@ def main():
     domain = f"gui/{os.getuid()}"
     if args.uninstall:
         import shutil
-        subprocess.run(["launchctl", "bootout", service], capture_output=True)
-        agent.unlink(missing_ok=True)
         app = home / "Applications/Bonaventure.app"
         if app.exists():
             with (app / "Contents/Info.plist").open("rb") as stream:
                 if plistlib.load(stream).get("CFBundleIdentifier") != LABEL:
                     raise RuntimeError("App identifier differs; no app files removed")
+        subprocess.run(["launchctl", "bootout", service], capture_output=True)
+        agent.unlink(missing_ok=True)
+        if app.exists():
             shutil.rmtree(app)
         print("Removed Bonaventure app wrapper and login startup. Project and models remain in place.")
         return

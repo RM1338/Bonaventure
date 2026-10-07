@@ -28,14 +28,18 @@ def choose_files(api, multiple, extensions):
                 errors.append(failure)
             finally:
                 try:
+                    actions = []
                     if panel is not None:
-                        panel.orderOut_(None)
+                        actions.append(lambda: panel.orderOut_(None))
                     if original_level is not None:
-                        native.setLevel_(original_level)
+                        actions.append(lambda: native.setLevel_(original_level))
                     if controls.expanded and not controls.stopped:
-                        native.makeKeyAndOrderFront_(None)
-                except Exception as failure:
-                    errors.append(failure)
+                        actions.append(lambda: native.makeKeyAndOrderFront_(None))
+                    for action in actions:
+                        try:
+                            action()
+                        except Exception as failure:
+                            errors.append(failure)
                 finally:
                     controls.file_dialog_open = False
                     controls.file_picker = None

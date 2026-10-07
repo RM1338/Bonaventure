@@ -114,11 +114,16 @@ class Dictation:
         self._recording = False
         if not self._proc:
             return ""
-        self._proc.send_signal(signal.SIGINT)
+        if self._proc.poll() is None:
+            try:
+                self._proc.send_signal(signal.SIGINT)
+            except ProcessLookupError:
+                pass  # Recorder exited between poll() and signal delivery.
         try:
             self._proc.wait(timeout=3)
         except subprocess.TimeoutExpired:
             self._proc.kill()
+            self._proc.wait(timeout=3)
         self._proc = None
         time.sleep(0.15)
         if not final:

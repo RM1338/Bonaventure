@@ -18,6 +18,8 @@ picker. The macOS app/login installer is not used on Linux. Voice dictation uses
 final transcript, with ffmpeg on Mac and PipeWire on Linux.
 Follow the executable setup instructions in the repository README; the numbered
 documents below are product specifications and implementation plans.
+See [Desktop verification](DESKTOP_VERIFICATION.md) for automated coverage,
+actual test limitations, and the remaining Mac/Linux runtime checks.
 
 ## Documentation Index
 
