@@ -91,6 +91,10 @@ disagree MedGemma breaks the tie (2–1 → UNCERTAIN). Both normal sample films
 
 ## Install (Linux, tested on Arch/Omarchy + Hyprland, RTX 3050 6 GB)
 
+`./run.sh` automatically selects the original Linux desktop implementation
+(`linux_app.py` and `ui/island_linux.html`). The macOS notch launcher uses a
+separate implementation and is never imported on Linux. Model setup is shared.
+
 ```bash
 sudo pacman -S --needed webkit2gtk-4.1 python-gobject poppler      # system deps
 uv venv --python /usr/bin/python3 --system-site-packages .venv      # system site-packages for GTK bindings
