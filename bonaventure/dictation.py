@@ -1,25 +1,21 @@
 """Offline dictation with live captions.
 
 The microphone is streamed as raw 16 kHz mono PCM (PipeWire on Linux, ffmpeg/AVFoundation on macOS). While the clinician speaks, a small Whisper (base.en) keeps
-re-reading the audio so far and publishes a live caption; when they stop, a more accurate model (distil-small.en) reads the
-whole recording once for the final text (small.en; distilled models loop when primed). Both are primed with clinical vocabulary so terms like "orthopnoea" or
+re-reading the audio so far and publishes a live caption; when they stop, a more accurate model (small.en) reads the
+whole recording once for the final text. Distilled models loop when primed. Both are primed with clinical vocabulary so terms like "orthopnoea" or
 "haemoptysis" are not misheard as everyday words. Everything runs on the CPU; the GPU stays with the imaging models.
 """
-import os
 import shutil
 import signal
 import subprocess
 import sys
 import threading
 import time
-from pathlib import Path
 
 import numpy as np
+from .model_paths import MODELS_DIR, WHISPER_LIVE_DIR as LIVE_DIR, WHISPER_FINAL_DIR as FINAL_DIR
 
-MODELS = Path.home() / "bonaventure/models"
-LIVE_DIR = Path(os.environ.get("BV_WHISPER_LIVE", MODELS / "whisper-base.en"))
-FINAL_DIR = Path(os.environ.get("BV_WHISPER", MODELS / "whisper-small.en"))
-LAST_WAV = MODELS.parent / "last_dictation.wav"   # the latest recording, kept so transcription errors can be reproduced
+LAST_WAV = MODELS_DIR / "last_dictation.wav"  # latest recording; kept locally for debugging, inside the ignored model directory
 RATE = 16000
 # raw 16 kHz mono s16 PCM on stdout: PipeWire on Linux, ffmpeg's AVFoundation input on macOS (`brew install ffmpeg`)
 RECORDER = (["ffmpeg", "-loglevel", "quiet", "-f", "avfoundation", "-i", ":default", "-ac", "1", "-ar", str(RATE), "-f", "s16le", "-"]
@@ -60,6 +56,10 @@ class _Whisper:
 
 class Dictation:
     def __init__(self):
+        self._lifecycle_lock = threading.RLock()
+        self._load_lock = threading.Lock()
+        self._generation = 0
+        self._reader_thread = None
         self._live = self._final = None
         self._proc = None
         self._buf = bytearray()
@@ -71,63 +71,89 @@ class Dictation:
         return (LIVE_DIR.exists() or FINAL_DIR.exists()) and shutil.which(RECORDER[0]) is not None
 
     def _load(self):
-        if self._live is None and LIVE_DIR.exists():
-            self._live = _Whisper(LIVE_DIR)
-        if self._final is None and FINAL_DIR.exists():
-            self._final = _Whisper(FINAL_DIR)
+        with self._load_lock:
+            if self._live is None and LIVE_DIR.exists():
+                self._live = _Whisper(LIVE_DIR)
+            if self._final is None and FINAL_DIR.exists():
+                self._final = _Whisper(FINAL_DIR)
 
-    def _audio(self, start=0, end=None):
-        pcm = bytes(self._buf[start * 2:(end * 2 if end else None)])
+    def _audio(self, start=0, end=None, buffer=None):
+        buffer = self._buf if buffer is None else buffer
+        pcm = bytes(buffer[start * 2:(end * 2 if end else None)])
         return np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
 
     def start(self):
+        with self._lifecycle_lock:
+            self._start()
+
+    def _start(self):
         self.stop(final=False)
         self._buf, self._caption, self._frozen, self._frozen_upto = bytearray(), "", "", 0
         self._proc = subprocess.Popen(RECORDER, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
         self._recording = True
-        threading.Thread(target=self._read, daemon=True).start()
-        threading.Thread(target=self._caption_loop, daemon=True).start()
+        self._reader_thread = threading.Thread(target=self._read, args=(self._proc, self._buf, self._generation), daemon=True)
+        self._reader_thread.start()
+        threading.Thread(target=self._caption_loop, args=(self._buf, self._generation), daemon=True).start()
 
-    def _read(self):
-        proc = self._proc
-        while proc and proc.poll() is None:
+    def _read(self, proc, buffer, generation):
+        while generation == self._generation and proc.poll() is None:
             chunk = proc.stdout.read(3200)          # 0.1 s
             if not chunk:
                 break
-            self._buf += chunk
+            buffer += chunk
+        if generation == self._generation:
+            self._recording = False
 
-    def _caption_loop(self):
-        while self._recording:
+    def _caption_loop(self, buffer, generation):
+        frozen, frozen_upto = "", 0
+        while self._recording and generation == self._generation:
             time.sleep(0.9)
+            if not self._recording or generation != self._generation:
+                return
             live = self._live or self._final
             if live is None:
                 continue
-            n = len(self._buf) // 2
-            if n - self._frozen_upto > RATE * CHUNK_S:           # long dictation: freeze a finished chunk, keep captions fast
-                cut = self._frozen_upto + RATE * CHUNK_S
-                self._frozen = (self._frozen + " " + live(self._audio(self._frozen_upto, cut))).strip()
-                self._frozen_upto = cut
-            tail = live(self._audio(self._frozen_upto, n))
-            self._caption = (self._frozen + " " + tail).strip()
+            n = len(buffer) // 2
+            if n - frozen_upto > RATE * CHUNK_S:           # long dictation: freeze a finished chunk, keep captions fast
+                cut = frozen_upto + RATE * CHUNK_S
+                frozen = (frozen + " " + live(self._audio(frozen_upto, cut, buffer))).strip()
+                frozen_upto = cut
+            tail = live(self._audio(frozen_upto, n, buffer))
+            with self._lifecycle_lock:
+                if self._recording and generation == self._generation:
+                    self._caption = (frozen + " " + tail).strip()
 
     def partial(self):
         return dict(text=self._caption, recording=self._recording, seconds=round(len(self._buf) / 2 / RATE, 1))
 
     def stop(self, final=True):
         """Stop recording; return the final transcript from the accurate model."""
+        with self._lifecycle_lock:
+            return self._stop(final)
+
+    def _stop(self, final):
         self._recording = False
+        self._generation += 1
         if not self._proc:
             return ""
-        self._proc.send_signal(signal.SIGINT)
+        if self._proc.poll() is None:
+            try:
+                self._proc.send_signal(signal.SIGINT)
+            except ProcessLookupError:
+                pass  # Recorder exited between poll() and signal delivery.
         try:
             self._proc.wait(timeout=3)
         except subprocess.TimeoutExpired:
             self._proc.kill()
+            self._proc.wait(timeout=3)
         self._proc = None
-        time.sleep(0.15)
+        if self._reader_thread is not None:
+            self._reader_thread.join(timeout=1)
+            self._reader_thread = None
         if not final:
             return ""
         import wave
+        LAST_WAV.parent.mkdir(parents=True, exist_ok=True)
         with wave.open(str(LAST_WAV), "wb") as w:
             w.setnchannels(1), w.setsampwidth(2), w.setframerate(RATE), w.writeframes(bytes(self._buf))
         self._load()

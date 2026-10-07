@@ -1,0 +1,7 @@
+BV-230
+Widened mediastinum: CONFLICTING (low, image confidence 45 %)
+Consolidation: UNCERTAIN (moderate, image confidence 20 %)
+Lines & devices: UNCERTAIN (low, image confidence 32 %)
+Atelectasis: UNCERTAIN (moderate, image confidence 43 %)
+Also seen: Right upper lobe opacity
+Also seen: Right lower lobe opacity

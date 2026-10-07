@@ -1,0 +1,3 @@
+BV-228
+Atelectasis: SUPPORTED (high, image confidence 86 %)
+Widened mediastinum: CONFLICTING (low, image confidence 52 %)

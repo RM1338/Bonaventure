@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import uuid
 from pathlib import Path
@@ -41,6 +42,7 @@ class Api:
     """Everything here is callable from the UI as window.pywebview.api.<name>(...)."""
 
     def __init__(self):
+        self._dictation_lock = threading.RLock()
         self._engine = imaging.ImagingEngine()
         self._cases = {}
         self._scan = None
@@ -204,22 +206,27 @@ class Api:
 
     # ----- dictation (offline Whisper) -----
     def start_dictation(self):
-        if not hasattr(self, "_dictation"):
-            from .dictation import Dictation
-            self._dictation = Dictation()
-        if not self._dictation.available():
-            return dict(error="Speech model or microphone recorder not installed (see README).")
-        self._dictation.start()
-        return dict(ok=True)
+        with self._dictation_lock:
+            try:
+                if not hasattr(self, "_dictation"):
+                    from .dictation import Dictation
+                    self._dictation = Dictation()
+                if not self._dictation.available():
+                    return dict(error="Speech model or microphone recorder not installed (see README).")
+                self._dictation.start()
+                return dict(ok=True)
+            except Exception as error:
+                return dict(error=f"Could not start microphone: {error}")
 
     def dictation_partial(self):
         return self._dictation.partial() if hasattr(self, "_dictation") else dict(text="", recording=False, seconds=0)
 
     def stop_dictation(self):
-        try:
-            return dict(text=self._dictation.stop())
-        except Exception as e:
-            return dict(error=f"Could not transcribe: {e}")
+        with self._dictation_lock:
+            try:
+                return dict(text=self._dictation.stop() if hasattr(self, "_dictation") else "")
+            except Exception as e:
+                return dict(error=f"Could not transcribe: {e}")
 
     # ----- clinician challenges a finding -----
     def challenge(self, case_id, finding_id, verdict, note):
@@ -254,14 +261,22 @@ class Api:
             path = report.generate(self.get_case(case_id))
         except Exception as e:
             return dict(error="The evidence report could not be generated.", details=repr(e))
-        _open(path)
-        return dict(path=str(path.relative_to(pipeline.ROOT)))
+        result = dict(path=str(path.relative_to(pipeline.ROOT)))
+        try:
+            _open(path)
+            result["opened"] = True
+        except Exception as e:
+            result.update(opened=False, warning="Report saved, but could not open it in the default PDF viewer.", details=repr(e))
+        return result
 
     def open_source(self, path):
         if Path(path).exists():
             _open(path)
 
     def quit(self):
+        with self._dictation_lock:
+            if hasattr(self, "_dictation"):
+                self._dictation.stop(final=False)
         for w in list(webview.windows):
             w.destroy()
 
@@ -272,9 +287,14 @@ def _size(path):
 
 
 def _open(path):
-    opener = shutil.which("xdg-open")
-    if opener:
-        subprocess.Popen([opener, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    path = str(Path(path).resolve())
+    if sys.platform == "win32":
+        os.startfile(path)
+        return
+    opener = "/usr/bin/open" if sys.platform == "darwin" else shutil.which("xdg-open")
+    if not opener:
+        raise RuntimeError("No default document opener found (install xdg-utils on Linux)")
+    subprocess.run([opener, path], check=True, timeout=15, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 SOCKET = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "bonaventure.sock"

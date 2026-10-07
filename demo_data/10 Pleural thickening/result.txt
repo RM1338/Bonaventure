@@ -1,0 +1,9 @@
+BV-233
+Pleural thickening: SUPPORTED (high, image confidence 44 %)
+Pleural effusion: SUPPORTED (high, image confidence 98 %)
+Atelectasis: SUPPORTED (high, image confidence 59 %)
+Cardiomegaly: SUPPORTED (high, image confidence 38 %)
+Consolidation: CONFLICTING (moderate, image confidence 54 %)
+Pulmonary edema: UNCERTAIN (low, image confidence 22 %)
+Also seen: Right lung opacity
+Also seen: Elevated right hemidiaphragm

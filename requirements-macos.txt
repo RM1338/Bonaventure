@@ -1,0 +1,3 @@
+# Install from the default package index: macOS uses MPS/CPU, not CUDA/bitsandbytes.
+# pywebview automatically installs its macOS PyObjC/Cocoa/Quartz/WebKit dependencies.
+-r requirements.txt

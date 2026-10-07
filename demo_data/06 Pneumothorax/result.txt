@@ -1,0 +1,6 @@
+BV-229
+Cardiomegaly: SUPPORTED (high, image confidence 32 %)
+Lines & devices: UNCERTAIN (low, image confidence 38 %)
+Pneumothorax: UNCERTAIN (moderate, image confidence 53 %)
+Atelectasis: UNCERTAIN (moderate, image confidence 75 %)
+Pleural effusion: UNCERTAIN (moderate, image confidence 64 %)
