@@ -5,14 +5,13 @@
 <title>Bonaventure</title>
 <link rel="stylesheet" href="base.css">
 <style>
-  html { background: transparent; overflow: hidden; }
-  body {
-    color: #fff; overflow: hidden; border-radius: 20px;
-    background: #000;
-  }
-  #islandShell { position: absolute; inset: 0; background: #000; border-radius: inherit; overflow: hidden; }
+  html, body { background: var(--island); overflow: hidden; }
+  body { color: #fff; }
+  html.managed { background: transparent; }
+  #islandShell { position: absolute; inset: 0; background: var(--island); overflow: hidden; }
   body.managed { background: transparent; border-radius: 0; }
   .managed #islandShell {
+    background: #000;
     inset: auto; top: 0; left: 50%; transform: translateX(-50%);
     width: var(--shell-width); height: var(--shell-height);
     border-radius: 0 0 26px 26px;
@@ -97,8 +96,8 @@
   .eacts { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
   .link { background: none; border: 0; color: #64B5FF; font-size: 12px; padding: 0; margin-top: 6px; text-align: left; }
   @media (prefers-reduced-motion: reduce) {
-    .view, .managed .view, .managed .view.show, .managed #islandShell, .managed.idle #islandShell, .tile, .bar i { transition: none; }
-    .glyph.busy, .dot.loading { animation: none; }
+    .managed .view, .managed .view.show, .managed #islandShell, .managed.idle #islandShell, .managed .tile, .managed .bar i { transition: none; }
+    .managed .glyph.busy, .managed .dot.loading { animation: none; }
   }
 </style>
 </head>
@@ -164,6 +163,7 @@ let managed = false, layout = {}, retainedView = "intake", motionEpoch = 0;
 async function refreshLayout() {
   layout = await pywebview.api.launcher_layout();
   managed = !!layout.managed;
+  document.documentElement.classList.toggle("managed", managed);
   document.body.classList.toggle("managed", managed);
   document.body.classList.toggle("notch-attached", layout.notched);
   document.documentElement.style.setProperty("--notch-inset", `${layout.top_inset}px`);
@@ -175,6 +175,13 @@ function show(v) {
   view = v;
   const epoch = ++motionEpoch;
   const classes = () => document.querySelectorAll(".view").forEach((el) => el.classList.toggle("show", el.id === v));
+  if (!managed) {
+    classes();
+    const [w, h] = SIZES[v];
+    pywebview.api.island(w, h || Math.ceil($(v).getBoundingClientRect().height));
+    if (v === "intake") setTimeout(() => $("symptoms").focus(), 250);
+    return;
+  }
   const shell = $("islandShell");
   if (managed && v === "idle") {
     document.activeElement?.blur();

@@ -16,7 +16,7 @@ function element(id) {
         toggle: (key, on) => on ? classes.add(key) : classes.delete(key),
         add: (key) => classes.add(key), remove: (key) => classes.delete(key),
         contains: (key) => classes.has(key)
-      }, focus() {}, blur() {}
+      }, getBoundingClientRect() { return { height: this.offsetHeight }; }, focus() {}, blur() {}
     });
   }
   return elements.get(id);
@@ -92,5 +92,22 @@ function advance(delay) {
   reducedMotion = true;
   window.dismissIsland(); advance(0);
   assert.deepEqual(calls.at(-1), [380, 0, 'idle']);
+  // Non-macOS keeps the original pill, direct resize, and toggle behavior.
+  Object.assign(layout, { managed: false, notched: false, top_inset: 0, min_width: 340 });
+  await vm.runInContext('refreshLayout()', context);
+  calls.length = 0; timers.length = 0; frames.length = 0;
+  vm.runInContext("show('pill')", context);
+  assert.equal(state(), 'pill');
+  assert(!element('body').classList.contains('managed'));
+  assert(!element('root').classList.contains('managed'));
+  assert.deepEqual(calls.at(-1), [340, 40]);
+  window.toggleIsland();
+  assert.equal(state(), 'intake');
+  assert.deepEqual(calls.at(-1), [660, 222]);
+  assert(timers.some(timer => timer.delay === 250));
+  window.toggleIsland();
+  assert.equal(state(), 'pill');
+  assert.deepEqual(calls.at(-1), [340, 40]);
+  assert.equal(frames.length, 0);
   console.log('Launcher bridge checks passed: shell sizing, collapse timing, draft preservation, rapid toggles, analysis view, and reduced motion.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
