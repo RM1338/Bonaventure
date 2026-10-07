@@ -156,13 +156,13 @@ def render_html(case):
         f"<br><span class='src'>{escape(', '.join(ZONE_NAMES[z] for z in (f['localization'] or {}).get('zones', [])) or (f['localization'] or {}).get('region_name', '—'))}"
         f"{' · approximate zone' if (f['localization'] or {}).get('type') == 'zone' else ' · model outline'}</span></p>"
         for i, f in enumerate(findings, 1) if f.get('localization') and f['status'] != 'INSUFFICIENT_EVIDENCE') or '<p class="none">No localized findings.</p>'}</div></div>
-    <h2>Chest X-ray assessment</h2>
+    <h2>Medical image assessment</h2>
     {'<p class="warn"><b>Image quality: ' + q['state'] + '.</b> ' + escape(' '.join(q['warnings'])) + '</p>' if q['warnings'] else ''}
     <div class="scan"><img src="{img}"></div>
     <p><b>{case['summary']['total']}</b> candidate finding(s): {', '.join(f"{n} {STATUS_LABEL[s].lower()}" for s, n in case['summary']['counts'].items() if n) or 'none'}.
        Overall evidence quality: <b>{case['summary']['overall_quality'].upper()}</b>.</p>
     {''.join(blocks) or '<p class="none">' + escape(case['summary']['message'] or '') + '</p>'}
-    {('<h2>Not assessable on a chest X-ray</h2>' + ''.join(f"<p><b>{escape(n['name'])}</b> — raised by {escape(', '.join(n['because']).lower())}. {escape(n['advice'])}</p>" for n in case.get('not_assessable', []))) if case.get('not_assessable') else ''}
+    {('<h2>Not assessable on this image</h2>' + ''.join(f"<p><b>{escape(n['name'])}</b> — raised by {escape(', '.join(n['because']).lower())}. {escape(n['advice'])}</p>" for n in case.get('not_assessable', []))) if case.get('not_assessable') else ''}
     {('<h2>Other observations (single reader, unverified)</h2><ul>' + ''.join(f"<li>{escape(o['name'])}{' — ' + escape(o['region']) if o.get('region') else ''} <span class='src'>{escape(o['source'])}</span></li>" for o in case.get('other_observations', [])) + '</ul>') if case.get('other_observations') else ''}
     {('<p class="warn"><b>Identity mismatch.</b> ' + escape(case['identity']['message']) + ' The history was not used.</p>') if case.get('identity', {}).get('status') == 'mismatch' else ''}
     {('<h2>Since last report (' + escape(case['interval']['compared_to']) + ')</h2><ul>' + ''.join(f"<li><b>{escape(r['change'])}</b> — {escape(r['finding'])}. Prior: “{escape(r['prior_quote'])}” <span class='src'>{escape(r['prior_file'])} p.{r['prior_page']}</span></li>" for r in case['interval']['rows']) + '</ul>') if case.get('interval', {}).get('rows') else ''}

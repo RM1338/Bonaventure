@@ -19,7 +19,7 @@ class InvalidScan(Exception):
 def load_scan(path):
     """Any supported file -> (8-bit grayscale PIL image, metadata dict)."""
     path = Path(path)
-    meta = {"file": path.name, "view": "Chest X-ray"}
+    meta = {"file": path.name, "view": "Medical image"}
     try:
         if path.suffix.lower() in (".dcm", ".dicom"):
             import pydicom
@@ -32,7 +32,7 @@ def load_scan(path):
             meta["patient_name"] = str(getattr(ds, "PatientName", "") or "").strip() or None
             meta["patient_id"] = str(getattr(ds, "PatientID", "") or "").strip() or None
             view = str(getattr(ds, "ViewPosition", "") or "").upper()
-            meta["view"] = f"{view} Chest X-ray" if view in ("PA", "AP", "LL", "LATERAL") else "Chest X-ray"
+            meta["view"] = f"{view} medical image" if view in ("PA", "AP", "LL", "LATERAL") else "Medical image"
         else:
             img = ImageOps.exif_transpose(Image.open(path))
             meta["color"] = _colorfulness(img)

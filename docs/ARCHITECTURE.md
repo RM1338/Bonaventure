@@ -21,7 +21,13 @@ hand-drawn marks, and exported as a PDF evidence report.
 
 ---
 
-## 2. Component view
+## 2. Overview diagrams
+
+![System architecture](diagrams/system_architecture.png)
+
+![Image evidence pipeline](diagrams/image_evidence_pipeline.png)
+
+## 2b. Component view
 
 ```mermaid
 flowchart LR
@@ -182,8 +188,9 @@ flowchart TB
     CC -- "otherwise" --> UNC3["UNCERTAIN / INSUFFICIENT"]
 ```
 
-Then: with no history **and** no presentation, an UNCERTAIN item MedGemma did not confirm is moved to the rejected
-log; devices (exempt from the context rule) need MedGemma to see them before SUPPORTED. A weak concept-bank rank caps SUPPORTED at UNCERTAIN; findings read only by the concept bank (emphysema, fibrosis)
+Then: with no history **and** no presentation, a finding is shown only if both image models agree or MedGemma named it
+unprompted (survey) and CLEAR confirmed it; otherwise it goes to the rejected log. Devices (exempt from the context rule)
+need that same unprompted, CLEAR-confirmed evidence before SUPPORTED. A weak concept-bank rank caps SUPPORTED at UNCERTAIN; findings read only by the concept bank (emphysema, fibrosis)
 need MedGemma to see them **and** a supporting history item. **Evidence strength** (high / moderate / low) is a points
 score — image agreement + 0.5 per supporting context item − 0.5 per contradicting item − 0.5 for limited quality — and
 *high* additionally requires SUPPORTED with at least one context item. It is a rule-based summary, **not** a probability;

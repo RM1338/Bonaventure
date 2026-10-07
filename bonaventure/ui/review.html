@@ -216,7 +216,7 @@
 
   <div class="qbar" id="qbar"></div>
   <div class="idbar" id="idbar"></div>
-  <div class="stagewrap" id="wrap"><div class="stage" id="stage"><img id="img" alt="Chest X-ray"><canvas id="heat" width="8" height="8"></canvas><svg id="ov"></svg></div></div>
+  <div class="stagewrap" id="wrap"><div class="stage" id="stage"><img id="img" alt="Medical image"><canvas id="heat" width="8" height="8"></canvas><svg id="ov"></svg></div></div>
   <div class="ctl">
     <button onclick="toggleCtx()" id="ctxBtn">Context</button><span class="sep"></span>
     <button id="wlBtn" onclick="openWL(event)">Window</button>
@@ -281,7 +281,7 @@ window.addEventListener("pywebviewready", async () => {
   const other = C.other_observations || [];
   if (other.length) $("flist").innerHTML += `<div class="sub-h">Also seen · single reader, unverified</div>` + other.map((o) => `<div class="fr other" title="Raised by ${esc(o.source)} only — not confirmed by a second reader">
       <span class="n">·</span><span class="nm">${esc(o.name)}</span><span class="st"><i class="dot" style="background:#636366"></i>${esc(o.region || "")}</span></div>`).join("");
-  $("naSlot").innerHTML = (C.not_assessable || []).map((n) => `<div class="tile na"><div class="k">Not assessable on a chest X-ray</div><h3>${esc(n.name)}</h3>
+  $("naSlot").innerHTML = (C.not_assessable || []).map((n) => `<div class="tile na"><div class="k">Not assessable on this image</div><h3>${esc(n.name)}</h3>
       <div class="why">Raised by: ${esc(n.because.join(", ").toLowerCase() || "the clinical context")}</div><p>${esc(n.advice)}</p></div>`).join("");
   $("imp").innerHTML = impression();
   const anyModelOutline = C.findings.some((f) => f.localization && f.localization.type !== "zone");

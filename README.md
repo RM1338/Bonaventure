@@ -49,6 +49,24 @@ not back is listed under *Checked and rejected*.
 6. **PDF evidence report**: annotated film, lung diagram, per-finding evidence with sources, clinician review, rejected
    claims and limitations.
 
+## System architecture
+
+Five layers: inputs → desktop app → analysis core → reasoning → outputs. Everything runs locally, and the analysis core
+is identical on Linux and macOS (only the window code differs).
+
+![System architecture](docs/diagrams/system_architecture.png)
+
+### Image-evidence pipeline and its hallucination checks
+
+Every model claim has to pass an independent check. A claim that fails is not silently dropped: it goes to the
+*Checked and rejected* log that the clinician can open, with who made the claim and why it was rejected.
+
+![Image evidence pipeline](docs/diagrams/image_evidence_pipeline.png)
+
+Diagrams made in Lucidchart ([architecture](https://lucid.app/lucidchart/cf2d15b1-38cf-405c-a665-dcd14d363c2a/view),
+[pipeline](https://lucid.app/lucidchart/b0a9129b-89d2-4667-a56d-17d0a5b11067/view)). Module-level detail, the reconciliation
+decision tree and the `result.json` contract are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Technologies, libraries and models
 
 | Layer | Used |
@@ -231,6 +249,10 @@ history):
 | Model claims removed by the cross-checks | 193 (all listed per case under *Checked and rejected*) |
 
 This is the worst case: a bare film with no history and no presentation, where the context rule cannot help.
+These numbers are from before the final bare-film rule (a finding on a film with no context must be seen by both image
+models, or named by MedGemma unprompted and confirmed by CLEAR; devices need that same evidence). A re-check of the same
+12 normal films after it: **no SUPPORTED and no CONFLICTING item on any of them**, 5 / 12 completely clean. The full
+36-film audit was not re-run after that change; demo cases A–E were, with identical results.
 
 ---
 

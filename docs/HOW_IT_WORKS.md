@@ -259,8 +259,8 @@ clinician.
 
 | Rule | Prevents |
 |---|---|
-| SUPPORTED needs ≥ 1 context item (devices exempt, but MedGemma must also see the device) | A bare film with no history being called "supported" by pixels alone; a phantom "line" on a normal film |
-| No history and no presentation: an UNCERTAIN item MedGemma did not confirm is rejected, not shown | Noise on bare normal films being read as findings |
+| SUPPORTED needs ≥ 1 context item (devices exempt, but MedGemma must name the device unprompted and CLEAR confirm it) | A bare film with no history being called "supported" by pixels alone; a phantom "line" on a normal film |
+| No history and no presentation: shown only if both image models agree, or MedGemma named it unprompted and CLEAR confirmed it | Noise on bare normal films being read as findings |
 | Records against + nothing for → CONFLICTING | Ignoring a recent report that says "normal heart size" (case B) |
 | 2–1 reader split → UNCERTAIN, not CONFLICTING | Over-alarming when MedGemma sides with one image model |
 | Concept-only findings need MedGemma + a supporting history item | Emphysema / fibrosis being raised on normal films by language retrieval alone |
