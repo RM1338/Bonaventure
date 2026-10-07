@@ -9,13 +9,36 @@ showing exactly where on the film, which history fact (document + page + quote) 
 
 ## What it looks like
 
-- **Island launcher** — a Dynamic-Island-style pill at the top of the screen (`Super + Alt + B` or the bar icon).
+- **Island launcher** — the original floating pill on Linux; a black notch extension with a menu bar icon on macOS.
   Drop the X-ray, the history PDFs, type the presentation, *Analyse*. Progress is shown inside the island.
 - **Reading room** — the result opens in a dark reading room: the film on a wall viewbox with grease-pencil marks traced
   along MedSAM's outline, a patient-context panel (complaint, symptoms, dated history with sources) and an evidence panel
   with each finding's state, an evidence triangle (image · history · presentation), what each of the four models said,
   CLEAR's matching concepts and the impression.
 - **Evidence report** — a printable PDF with the annotated film, per-finding evidence, sources and limitations.
+
+## Desktop platforms
+
+The same `./run.sh` command chooses the desktop implementation automatically:
+
+| Platform | Launcher | Activation |
+|---|---|---|
+| Linux | Original launcher (`bonaventure/linux_app.py`, `bonaventure/ui/island_linux.html`) | Click the pill or configure `scripts/bonaventure-toggle` in your desktop's shortcuts/bar |
+| macOS | Notch launcher (`bonaventure/macos_app.py`, `bonaventure/ui/island.html`) | Option + Command + B, menu bar icon, or hover below the notch |
+
+`bonaventure/app.py` selects the implementation before importing desktop code.
+Linux does not import the macOS launcher, AppKit controls, or global hotkey code,
+and does not load the macOS launcher HTML. Its launcher and UI are preserved from
+the original Linux version. On Hyprland, its existing placement and window rules
+still apply; other Linux desktops use ordinary pywebview window resizing.
+`Super + Alt + B` is a suggested Linux binding, not an automatically registered shortcut.
+
+Both platforms share the reading room, analysis pipeline, reports, Python
+requirements, and model paths under `models/` (not `models/Models/`). The macOS
+background installer is macOS-only and refuses to run on Linux.
+The original Linux setup was tested on Arch/Omarchy with Hyprland; Ubuntu and
+other desktop environments still need runtime verification. Platform-routing
+tests do not replace native GUI and inference checks.
 
 ## How it works
 
@@ -100,7 +123,16 @@ sudo pacman -S --needed webkit2gtk-4.1 python-gobject poppler      # system deps
 uv venv --python /usr/bin/python3 --system-site-packages .venv      # system site-packages for GTK bindings
 uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu128
 uv pip install --python .venv/bin/python -r requirements.txt
+```
 
+These system-package commands are for Arch/Omarchy. On Ubuntu or another distro,
+install the corresponding WebKitGTK 4.1, PyGObject/GTK, Python virtual-environment,
+Poppler, and WeasyPrint native dependencies through that distro's package manager.
+Use a virtual environment with access to the system GTK bindings, as above.
+
+## Models (both platforms)
+
+```bash
 # model code + weights (see docs/13_MODEL_RESOURCE_REGISTER.md)
 mkdir -p models/CLEAR
 git clone https://github.com/peterhan91/CLEAR models/CLEAR/code
@@ -148,7 +180,7 @@ models/
 
 `BV_MEDGEMMA=/path/to/medgemma` points at a local copy; `BV_MOCK=1` runs the UI without models (clearly labelled demo mode).
 
-### macOS
+## Install (macOS)
 
 Install native dependencies with Homebrew, then Python packages in the project's
 virtual environment:
@@ -163,6 +195,19 @@ uv pip install --python .venv/bin/python -r requirements.txt
 .venv/bin/python scripts/check_setup.py
 BV_MOCK=1 BV_START=expand ./run.sh
 ```
+
+If you already have a working Homebrew Python, pip is also supported:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python scripts/check_setup.py
+```
+
+Use the project virtual environment rather than system-wide `pip3 install`.
+If an existing `.venv` points at Apple's unavailable Xcode Python, recreate it
+with the uv commands above. Install the shared model files described in
+[Models (both platforms)](#models-both-platforms) before running real inference.
 
 Then close the mock app and run `BV_START=expand ./run.sh` for real inference.
 On macOS, `./run.sh` starts with a black cap covering the notch and a Bonaventure
@@ -211,10 +256,19 @@ PyTorch's GitHub API lookup failing with `KeyError('Authorization')`.
 ## Run
 
 ```bash
-./run.sh                    # island launcher (models load in the background, ~20 s)
+./run.sh                    # original Linux launcher or macOS notch launcher
+BV_START=expand ./run.sh    # start with intake open
+BV_MOCK=1 BV_START=expand ./run.sh  # UI demo without loading models
 ./run.sh BV-001             # reopen a saved case in the reading room
-scripts/bonaventure-toggle  # show/hide the island (bind it to a key; starts the app if needed)
+scripts/bonaventure-toggle  # Linux: show/hide the pill; starts the app if needed
 ```
+
+Run these commands from the repository root with `.venv` installed. The Linux
+toggle script uses `readlink -f` and `setsid`; on macOS use the menu bar icon or
+Option + Command + B instead.
+Models load asynchronously; startup and inference time depend on the hardware.
+For macOS startup without Terminal, use the installer described above. Linux
+retains its original startup workflow; no login service is installed there.
 
 Reproduce the three acceptance demo cases (docs/11) on the real models:
 
@@ -240,7 +294,10 @@ Self-checks: `python -m bonaventure.context`, `python -m bonaventure.reconcile`.
 
 ```
 bonaventure/
-  app.py          desktop client: island + reading room windows, Hyprland integration, toggle socket
+  app.py          platform dispatcher; selects the desktop before importing it
+  linux_app.py    original Linux desktop, Hyprland integration, toggle socket
+  macos_app.py    macOS notch desktop and reading room windows
+  macos_*.py      AppKit panel, menu bar/hover controls, Carbon global hotkey
   pipeline.py     case orchestration, progress states, failure capture
   imaging.py      scan loading (PNG/JPEG/DICOM), quality gate, model engine (+ mock)
   models.py       CLEAR (+ concept bank), CheXzero, MedGemma, MedSAM adapters
@@ -248,8 +305,8 @@ bonaventure/
   knowledge.py    clinical vocabulary and finding ↔ evidence map
   reconcile.py    evidence reconciliation engine
   report.py       PDF evidence report
-  ui/             island.html, review.html (reading room), base.css, bundled fonts
-scripts/          demo cases, sample history generator, toggle script
+  ui/             island_linux.html (original), island.html (macOS), shared reading room/styles/fonts
+scripts/          setup checker, macOS background installer, demo cases, toggle script
 sample_data/      CC0 demo films, synthetic histories
 docs/             PRD, SRS, architecture, pipeline, UX, report spec, model register …
 ```

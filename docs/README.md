@@ -4,6 +4,35 @@ Bonaventure is a clinician-facing chest X-ray evidence reconciliation assistant 
 
 This documentation set is organized to support implementation, evaluation, team coordination, and the final public repository.
 
+## Running the current application
+
+See the [repository README](../README.md) for current installation commands,
+[platform selection](../README.md#desktop-platforms),
+[shared model layout](../README.md#models-both-platforms),
+[macOS setup and background startup](../README.md#install-macos), and
+[launch commands](../README.md#run).
+
+`./run.sh` selects the original Linux desktop (`bonaventure/linux_app.py` and
+`bonaventure/ui/island_linux.html`) on Linux, and the edited notch desktop
+(`bonaventure/macos_app.py` and `bonaventure/ui/island.html`) on macOS. Linux never
+imports the macOS desktop implementation or loads its launcher HTML.
+The notch panel, menu bar icon, Option + Command + B shortcut, hover activation,
+and app/login installer apply only to macOS. Linux keeps its original pill,
+Hyprland integration, and optional toggle-script shortcut/bar configuration.
+
+The reading room, inference pipeline, reports, and model setup are shared.
+Put model assets directly under `models/`, not `models/Models/`, and run
+`.venv/bin/python scripts/check_setup.py` before real inference. Use
+`BV_MOCK=1 BV_START=expand ./run.sh` for a UI demo without model loading.
+The setup checker verifies dependencies and file presence; native GUI behavior
+and successful model inference require separate runtime checks on each platform.
+The original Linux runtime was tested on Arch/Omarchy with Hyprland; other
+distros and desktop environments are not confirmed by that result.
+
+The numbered documents below contain product specifications and implementation
+plans. Use the repository README for the current executable file layout and
+platform-specific operating instructions.
+
 ## Documentation Index
 
 1. `01_PRD.md` — Product Requirements Document
