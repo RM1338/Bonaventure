@@ -4,7 +4,18 @@ Bonaventure is a clinician-facing chest X-ray evidence reconciliation assistant 
 
 This documentation set is organized to support implementation, evaluation, team coordination, and the final public repository.
 
-## Documentation Index
+## Start here (as built)
+
+* [`ARCHITECTURE.md`](ARCHITECTURE.md): the system as implemented, with component, data-pipeline, model and reconciliation diagrams
+* [`HOW_IT_WORKS.md`](HOW_IT_WORKS.md): a step-by-step walkthrough of one real case from input to report, plus likely judge questions
+* [`PS05_CHECKLIST.md`](PS05_CHECKLIST.md): every PS05 requirement and submission guideline, mapped to where it is met
+* [`sample_output/`](sample_output/): real outputs of demo cases A–E and a normal film (result JSON, PDF report, annotated film)
+* [`13_MODEL_RESOURCE_REGISTER.md`](13_MODEL_RESOURCE_REGISTER.md): every external model, dataset and library
+
+## Planning documents (written before implementation)
+
+These were written before the build. Where they differ from the code, `ARCHITECTURE.md` is authoritative.
+
 
 1. `01_PRD.md` — Product Requirements Document
 2. `02_SRS.md` — Software Requirements Specification

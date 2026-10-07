@@ -1,0 +1,236 @@
+{
+  "case_id": "BV-111",
+  "state": "REVIEW_READY",
+  "created": "2026-10-07T14:07:22",
+  "scan": {
+    "file": "Chest_Xray_PA_3-8-2010.png",
+    "view": "Chest X-ray",
+    "color": 0.0,
+    "width": 2412,
+    "height": 1956
+  },
+  "quality": {
+    "state": "acceptable",
+    "warnings": [],
+    "metrics": {
+      "min_side": 1956,
+      "mean": 113.13,
+      "contrast": 47.69,
+      "sharpness": 44.55,
+      "color": 0.0
+    }
+  },
+  "history_files": [
+    {
+      "name": "case_d_history.pdf",
+      "pages": 2
+    }
+  ],
+  "history_provided": true,
+  "warnings": [],
+  "identity": {
+    "status": "consistent",
+    "sources": [
+      {
+        "file": "case_d_history.pdf",
+        "name": "S. Iyer",
+        "mrn": "0051930"
+      }
+    ],
+    "message": null
+  },
+  "interval": {
+    "status": "ok",
+    "reason": null,
+    "rows": [],
+    "compared_to": "2026-09-18"
+  },
+  "rejected": [
+    {
+      "claim": "Right upper lobe mass",
+      "by": "MedGemma 1.5",
+      "reason": "CLEAR, reading the same phrase against the film, disagrees (0.20 < 0.85)"
+    },
+    {
+      "claim": "Left-sided central venous catheter",
+      "by": "MedGemma 1.5",
+      "reason": "CLEAR, reading the same phrase against the film, disagrees (0.53 < 0.85)"
+    }
+  ],
+  "unrecognised": [],
+  "understanding_flags": [],
+  "presentation_text": "Sudden pleuritic chest pain and breathlessness since this morning, heart racing, right calf swelling.",
+  "symptoms": [
+    {
+      "concept": "sudden_onset",
+      "label": "Sudden onset",
+      "state": "present",
+      "duration": "since this morning",
+      "text": "Sudden pleuritic chest pain",
+      "source": "\u201cSudden pleuritic chest pain\u201d \u2192 Sudden pleuritic chest pain (MedGemma agrees)"
+    },
+    {
+      "concept": "pleuritic_pain",
+      "label": "Pleuritic chest pain",
+      "state": "present",
+      "duration": "since this morning",
+      "text": "Sudden pleuritic chest pain",
+      "source": "\u201cSudden pleuritic chest pain\u201d \u2192 Sudden pleuritic chest pain (MedGemma agrees)"
+    },
+    {
+      "concept": "chest_pain",
+      "label": "Chest pain",
+      "state": "present",
+      "duration": "since this morning",
+      "text": "Sudden pleuritic chest pain",
+      "source": "\u201cSudden pleuritic chest pain\u201d \u2192 Sudden pleuritic chest pain (MedGemma agrees)"
+    },
+    {
+      "concept": "dyspnea",
+      "label": "Shortness of breath",
+      "state": "present",
+      "duration": "since this morning",
+      "text": "breathlessness since this morning",
+      "source": "\u201cbreathlessness since this morning\u201d \u2192 Shortness of breath since this morning (MedGemma agrees)"
+    },
+    {
+      "concept": "tachycardia",
+      "label": "Fast heart rate",
+      "state": "present",
+      "duration": null,
+      "text": "heart racing",
+      "source": "\u201cheart racing\u201d \u2192 Palpitations, racing heart (MedGemma agrees)"
+    },
+    {
+      "concept": "calf_swelling",
+      "label": "Calf pain / swelling",
+      "state": "present",
+      "duration": null,
+      "text": "right calf swelling",
+      "source": "\u201cright calf swelling\u201d \u2192 Right calf swelling (MedGemma agrees)"
+    }
+  ],
+  "timeline": [
+    {
+      "concept": "recent_surgery",
+      "label": "Recent surgery",
+      "category": "Procedure",
+      "state": "present",
+      "date": "2026-09-19",
+      "source": {
+        "file": "case_d_history.pdf",
+        "path": "cases/BV-111/inputs/case_d_history.pdf",
+        "doc_type": "Discharge summary",
+        "page": 1,
+        "quote": "Procedure: Right total knee replacement on 19/09/2026."
+      }
+    }
+  ],
+  "findings": [],
+  "summary": {
+    "total": 0,
+    "counts": {
+      "SUPPORTED": 0,
+      "CONFLICTING": 0,
+      "UNCERTAIN": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    },
+    "critical": 0,
+    "overall_quality": "high",
+    "message": "No sufficiently supported finding was identified from the supplied evidence."
+  },
+  "not_assessable": [
+    {
+      "id": "PULMONARY_EMBOLISM",
+      "name": "Pulmonary embolism",
+      "because": [
+        "Pleuritic chest pain",
+        "Fast heart rate",
+        "Calf pain / swelling",
+        "Sudden onset",
+        "Recent surgery"
+      ],
+      "advice": "A chest X-ray can neither confirm nor exclude pulmonary embolism \u2014 most PE films are normal or non-specific. Consider a validated pre-test score (Wells / PERC), D-dimer and CT pulmonary angiography."
+    }
+  ],
+  "other_observations": [],
+  "technical": {
+    "models": [
+      {
+        "role": "primary",
+        "model": "CLEAR"
+      },
+      {
+        "role": "verifier",
+        "model": "CheXzero"
+      }
+    ],
+    "timing": {
+      "CLEAR": 1.05,
+      "CheXzero": 0.09,
+      "CLEAR concepts": 0.1,
+      "MedGemma survey": 2.82
+    },
+    "raw_reasoning": [
+      "```json\n[\n  {\"name\": \"Right upper lobe mass\", \"region\": \"Right upper lobe\"},\n  {\"name\": \"Left-sided central venous catheter\", \"region\": \"Left side\"}\n]\n```",
+      "[natural-language understanding] 1. Sudden pleuritic chest pain\n2. Shortness of breath since this morning\n3. Palpitations, racing heart\n4. Right calf swelling"
+    ],
+    "top_concepts": [
+      [
+        "minimal increase in density at the left lung base, notably in the peribronchial areas, combined to vary subtle nodularity",
+        1,
+        0.6758
+      ],
+      [
+        "calcified granulomas are noted within the left lung base",
+        2,
+        0.6597
+      ],
+      [
+        "minimal lingular opacity",
+        3,
+        0.6528
+      ],
+      [
+        "linear hyper density projecting over the lingula",
+        4,
+        0.6523
+      ],
+      [
+        "subtle lingular increase in radiodensity",
+        5,
+        0.6479
+      ],
+      [
+        "similar abnormality at the left base has cleared",
+        6,
+        0.646
+      ],
+      [
+        "small lingular component",
+        7,
+        0.6426
+      ],
+      [
+        "minimal streaky opacity in the lingula",
+        8,
+        0.6392
+      ],
+      [
+        "linear density in the left mid to lower lung consistent with scarring",
+        9,
+        0.6392
+      ],
+      [
+        "left lingular pulmonary nodule measuring approximately 2.1 cm",
+        10,
+        0.6372
+      ]
+    ],
+    "total_seconds": 5.99,
+    "engine_status": {
+      "imaging": "ready",
+      "reasoning": "ready"
+    }
+  }
+}
