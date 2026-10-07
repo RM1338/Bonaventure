@@ -230,7 +230,7 @@ BV_START=expand ./run.sh    # open intake immediately
 scripts/bonaventure-toggle  # Linux only: toggle/start the pill using a key or bar binding
 ```
 
-The macOS progress panel has an × button and supports Escape to hide it without
+The macOS progress panel has an up-chevron Hide launcher button and supports Escape to hide it without
 canceling analysis. Reopening preserves case progress. When ready, Open review
 reopens the reading room directly. Automatic hover dismissal still stays
 disabled during analysis.

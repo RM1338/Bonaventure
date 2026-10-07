@@ -44,10 +44,12 @@
 
   /* ---- expanded common ---- */
   .panel { flex-direction: column; padding: 14px 16px 14px; bottom: auto; }
-  .hdr { display: flex; align-items: center; gap: 8px; height: 22px; }
+  .hdr { display: flex; align-items: center; gap: 8px; height: 24px; }
   .hdr .name { font-weight: 600; font-size: 13px; }
   .hdr .right { margin-left: auto; display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.45); font-size: 11.5px; }
-  .chev { width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(255,255,255,.1); color: rgba(255,255,255,.75); display: grid; place-items: center; }
+  .chev { width: 24px; height: 24px; padding: 0; flex: none; line-height: 0; border-radius: 50%; border: 0; background: rgba(255,255,255,.08); color: rgba(255,255,255,.75); display: grid; place-items: center; transition: background .15s, color .15s; }
+  .chev svg { display: block; width: 12px; height: 12px; margin: 0; stroke-linecap: round; stroke-linejoin: round; }
+  .chev:focus-visible { outline: 2px solid #68B8FA; outline-offset: 3px; }
   .chev:hover { background: rgba(255,255,255,.18); color: #fff; }
 
   /* ---- intake ---- */
@@ -89,7 +91,7 @@
 
   /* ---- processing ---- */
   #proc { padding: 16px 18px 18px; }
-  .proc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .proc-head { display: flex; align-items: center; justify-content: space-between; min-height: 24px; margin-bottom: 14px; }
   .proc-brand { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #ddd; }
   .proc-brand::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #68B8FA; }
   .proc-actions { display: flex; align-items: center; gap: 12px; }
@@ -141,7 +143,7 @@
 <!-- intake -->
 <div class="view panel" id="intake">
   <div class="hdr"><span class="glyph"></span><span class="name">Bonaventure</span>
-    <span class="right"><span>Drop a scan or records anywhere</span><button class="chev" onclick="collapse()" title="Collapse (Esc)"><svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 10l4-4 4 4"/></svg></button></span></div>
+    <span class="right"><span>Drop a scan or records anywhere</span><button class="chev" onclick="collapse()" title="Hide launcher (Esc)" aria-label="Hide launcher"><svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 10l4-4 4 4"/></svg></button></span></div>
   <div class="tiles">
     <div class="tile drop" id="scanTile" data-kind="scan"></div>
     <div class="tile drop" id="histTile" data-kind="history"></div>
@@ -160,7 +162,7 @@
 
 <!-- processing -->
 <div class="view panel" id="proc">
-  <div class="proc-head"><span class="proc-brand">Bonaventure</span><span class="proc-actions"><span class="proc-case" id="procCase">Case</span><button class="chev" onclick="collapse()" title="Close launcher (Esc)" aria-label="Close launcher"><svg class="i" viewBox="0 0 16 16" style="width:14px;height:14px"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></span></div>
+  <div class="proc-head"><span class="proc-brand">Bonaventure</span><span class="proc-actions"><span class="proc-case" id="procCase">Case</span><button class="chev" onclick="collapse()" title="Hide launcher (Esc)" aria-label="Hide launcher"><svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 10l4-4 4 4"/></svg></button></span></div>
   <div class="proc-card">
     <div class="proc-caption"><span>Chest X-ray analysis</span><span class="proc-count" id="procCount">Preparing</span></div>
     <div class="proc-current">
