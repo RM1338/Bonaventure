@@ -70,6 +70,12 @@ including model warm-up.
 Five layers: inputs → desktop app → analysis core → reasoning → outputs. Everything runs locally, and the analysis core
 lives apart from the window code (`desktop.Api` + `pipeline`), so only the shell is OS-specific.
 
+The figures below document the Linux/CUDA configuration and shared reasoning.
+macOS uses its own AppKit shell and ffmpeg recorder; MedGemma can use MPS/CPU.
+The current presentation parser rewrites only unmatched phrases. Historical
+timings in the figures are from earlier Linux runs. See the
+[diagram notes](docs/DIAGRAM_NOTES.md) for these implementation details.
+
 ![System architecture](docs/diagrams/system_architecture.png)
 
 ### Image-evidence pipeline and its hallucination checks
@@ -79,8 +85,15 @@ Every model claim has to pass an independent check. A claim that fails is not si
 
 ![Image evidence pipeline](docs/diagrams/image_evidence_pipeline.png)
 
-Diagrams made in Lucidchart ([architecture](https://lucid.app/lucidchart/e5b63320-38d0-43b9-97ed-96ebaa596446/view),
-[pipeline](https://lucid.app/lucidchart/b0a9129b-89d2-4667-a56d-17d0a5b11067/view)). Module-level detail, the reconciliation
+### Patient context and presentation understanding
+
+![Patient context](docs/diagrams/patient_context.png)
+
+### Reconciliation logic
+
+![Reconciliation logic](docs/diagrams/reconciliation_logic.png)
+
+Diagrams made in [Lucidchart](https://lucid.app/lucidchart/8c67717a-b926-4130-91e5-c5ecbcc7dcfd/view). Module-level detail, the reconciliation
 decision tree and the `result.json` contract are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Models
