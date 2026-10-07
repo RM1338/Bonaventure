@@ -2,7 +2,7 @@
 
 The microphone is streamed from PipeWire (raw 16 kHz mono PCM). While the clinician speaks, a small Whisper (base.en) keeps
 re-reading the audio so far and publishes a live caption; when they stop, a more accurate model (distil-small.en) reads the
-whole recording once for the final text. Both are primed with clinical vocabulary so terms like "orthopnoea" or
+whole recording once for the final text (small.en; distilled models loop when primed). Both are primed with clinical vocabulary so terms like "orthopnoea" or
 "haemoptysis" are not misheard as everyday words. Everything runs on the CPU; the GPU stays with the imaging models.
 """
 import os
@@ -16,14 +16,17 @@ import numpy as np
 
 MODELS = Path.home() / "bonaventure/models"
 LIVE_DIR = Path(os.environ.get("BV_WHISPER_LIVE", MODELS / "whisper-base.en"))
-FINAL_DIR = Path(os.environ.get("BV_WHISPER", MODELS / "whisper-distil-small.en"))
+FINAL_DIR = Path(os.environ.get("BV_WHISPER", MODELS / "whisper-small.en"))
+LAST_WAV = MODELS.parent / "last_dictation.wav"   # the latest recording, kept so transcription errors can be reproduced
 RATE = 16000
 CHUNK_S = 20          # live captions re-read at most this many seconds; older audio is frozen into finished text
 # Primes Whisper towards clinical spelling (it biases decoding; it never inserts these words by itself)
 MEDICAL_PROMPT = ("Clinical presentation: dyspnoea, dyspnea, shortness of breath, orthopnoea, orthopnea, paroxysmal nocturnal dyspnoea, "
                   "haemoptysis, hemoptysis, pleuritic chest pain, productive cough, sputum, wheeze, pyrexia, febrile, rigors, tachycardia, "
                   "palpitations, syncope, peripheral oedema, pedal edema, COPD, CHF, heart failure, pneumonia, pneumothorax, pleural effusion, "
-                  "pulmonary embolism, DVT, furosemide, warfarin, apixaban, salbutamol, hemicolectomy, thoracentesis.")
+                  "pulmonary embolism, DVT, furosemide, warfarin, apixaban, salbutamol, hemicolectomy, thoracentesis. "
+                  "Coughs up phlegm, bringing up green sputum, winded walking, propped up on pillows, burning up, shaking chills, "
+                  "sharp pain when he breathes in, these days, for three days.")
 
 
 class _Whisper:
@@ -32,7 +35,6 @@ class _Whisper:
         from transformers import WhisperForConditionalGeneration, WhisperProcessor
         self.processor = WhisperProcessor.from_pretrained(path)
         self.model = WhisperForConditionalGeneration.from_pretrained(path, dtype=torch.float32).eval()
-        # distilled checkpoints collapse into repetition when prompted, so only the full model is primed
         self.prompt = self.processor.get_prompt_ids(MEDICAL_PROMPT, return_tensors="pt") if prime else None
         self.lock = threading.Lock()
 
@@ -67,7 +69,7 @@ class Dictation:
         if self._live is None and LIVE_DIR.exists():
             self._live = _Whisper(LIVE_DIR)
         if self._final is None and FINAL_DIR.exists():
-            self._final = _Whisper(FINAL_DIR, prime=False)
+            self._final = _Whisper(FINAL_DIR)
 
     def _audio(self, start=0, end=None):
         pcm = bytes(self._buf[start * 2:(end * 2 if end else None)])
@@ -121,6 +123,9 @@ class Dictation:
         time.sleep(0.15)
         if not final:
             return ""
+        import wave
+        with wave.open(str(LAST_WAV), "wb") as w:
+            w.setnchannels(1), w.setsampwidth(2), w.setframerate(RATE), w.writeframes(bytes(self._buf))
         self._load()
         model = self._final or self._live
         return model(self._audio()) if model else self._caption
