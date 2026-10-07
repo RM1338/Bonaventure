@@ -1,25 +1,21 @@
 """Offline dictation with live captions.
 
 The microphone is streamed as raw 16 kHz mono PCM (PipeWire on Linux, ffmpeg/AVFoundation on macOS). While the clinician speaks, a small Whisper (base.en) keeps
-re-reading the audio so far and publishes a live caption; when they stop, a more accurate model (distil-small.en) reads the
-whole recording once for the final text (small.en; distilled models loop when primed). Both are primed with clinical vocabulary so terms like "orthopnoea" or
+re-reading the audio so far and publishes a live caption; when they stop, a more accurate model (small.en) reads the
+whole recording once for the final text. Distilled models loop when primed. Both are primed with clinical vocabulary so terms like "orthopnoea" or
 "haemoptysis" are not misheard as everyday words. Everything runs on the CPU; the GPU stays with the imaging models.
 """
-import os
 import shutil
 import signal
 import subprocess
 import sys
 import threading
 import time
-from pathlib import Path
 
 import numpy as np
+from .model_paths import MODELS_DIR, WHISPER_LIVE_DIR as LIVE_DIR, WHISPER_FINAL_DIR as FINAL_DIR
 
-MODELS = Path.home() / "bonaventure/models"
-LIVE_DIR = Path(os.environ.get("BV_WHISPER_LIVE", MODELS / "whisper-base.en"))
-FINAL_DIR = Path(os.environ.get("BV_WHISPER", MODELS / "whisper-small.en"))
-LAST_WAV = MODELS.parent / "last_dictation.wav"   # the latest recording, kept so transcription errors can be reproduced
+LAST_WAV = MODELS_DIR / "last_dictation.wav"  # latest recording; kept locally for debugging, inside the ignored model directory
 RATE = 16000
 # raw 16 kHz mono s16 PCM on stdout: PipeWire on Linux, ffmpeg's AVFoundation input on macOS (`brew install ffmpeg`)
 RECORDER = (["ffmpeg", "-loglevel", "quiet", "-f", "avfoundation", "-i", ":default", "-ac", "1", "-ar", str(RATE), "-f", "s16le", "-"]
@@ -128,6 +124,7 @@ class Dictation:
         if not final:
             return ""
         import wave
+        LAST_WAV.parent.mkdir(parents=True, exist_ok=True)
         with wave.open(str(LAST_WAV), "wb") as w:
             w.setnchannels(1), w.setsampwidth(2), w.setframerate(RATE), w.writeframes(bytes(self._buf))
         self._load()

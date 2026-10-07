@@ -9,13 +9,30 @@ showing exactly where on the film, which history fact (document + page + quote) 
 
 ## What it looks like
 
-- **Island launcher** — a Dynamic-Island-style pill at the top of the screen (`Super + Alt + B` or the bar icon).
+- **Island launcher** — a floating pill on Linux and a notch extension on macOS.
   Drop the X-ray, the history PDFs, type the presentation, *Analyse*. Progress is shown inside the island.
 - **Reading room** — the result opens in a dark reading room: the film on a wall viewbox with grease-pencil marks traced
   along MedSAM's outline, a patient-context panel (complaint, symptoms, dated history with sources) and an evidence panel
   with each finding's state, an evidence triangle (image · history · presentation), what each of the four models said,
   CLEAR's matching concepts and the impression.
 - **Evidence report** — a printable PDF with the annotated film, per-finding evidence, sources and limitations.
+
+## Desktop platforms
+
+`./run.sh` selects the platform before importing its GUI shell. Linux uses
+`bonaventure/linux_app.py` and `bonaventure/ui/island.html`; macOS uses
+`bonaventure/macos_app.py` and `bonaventure/ui/island_macos.html`. Both use
+`desktop.Api` for application logic, including your inputs, dictation, and the
+reading room. Mac-specific controls and picker changes do not affect the Linux UI.
+
+On Linux, configure `scripts/bonaventure-toggle` as a key binding or bar action
+(for example Super + Alt + B). It is not an automatically registered shortcut.
+On macOS, use **Option + Command + B**, the menu bar icon, or hover below the notch
+for 0.2 seconds. Hover-only opening closes after you move away; clicking or typing
+keeps the launcher open. Escape closes intake. File pickers open in front of the
+launcher, pause its hover/shortcut behavior, and restore focus after selection
+or cancellation. Closing animates the HTML shell without shrinking the native
+window; the invisible idle area passes clicks through to the desktop.
 
 ## How it works
 
@@ -107,12 +124,104 @@ hf download google/medgemma-1.5-4b-it                   # gated: accept the lice
 
 `BV_MEDGEMMA=/path/to/medgemma` points at a local copy; `BV_MOCK=1` runs the UI without models (clearly labelled demo mode).
 
+## Install and run on macOS
+
+From the checkout, using a working Homebrew Python rather than Apple's Xcode shim:
+
+```bash
+brew install pango poppler ffmpeg
+python3 -m venv .venv                       # if the project venv is not already installed
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python scripts/check_setup.py
+BV_MOCK=1 BV_START=expand ./run.sh           # UI demo without imaging models
+```
+
+Use the venv for pip instead of system-wide `pip3 install`. If you already have a
+working `.venv`, keep it and install the current requirements there. If its Python
+points at an unavailable Xcode installation, recreate it with your Homebrew Python
+or `uv venv --python 3.12 --clear .venv` before installing dependencies.
+
+The model resolver supports both layouts: repository-local `models/CLEAR/code`,
+`models/CLEAR` (weights/concepts), `models/CheXzero`, `models/MedSAM`, and
+`models/MedGemma`; or the existing Linux home-directory/top-level layout above.
+Put new assets under `models/`, not `models/Models/`. `BV_MODELS_DIR` overrides
+that root, and individual `BV_CLEAR_DIR`, `BV_CLEAR_CODE`, `BV_CLEAR_CKPT`,
+`BV_CHEXZERO_DIR`, `BV_CHEXZERO_CKPT`, `BV_MEDSAM_DIR`, `BV_MEDSAM_CKPT`, and
+`BV_MEDGEMMA` overrides are supported. Run `scripts/patch_clear_loader.py` using
+`.venv/bin/python` after a fresh CLEAR clone. Once setup passes, quit the demo and
+run `BV_START=expand ./run.sh` for real inference. Apple MPS is not enabled;
+inference uses CPU on Macs and needs more RAM/time than the tested CUDA setup.
+
+### Start without Terminal and at login
+
+Quit any running Bonaventure instance from its menu bar menu, then run once:
+
+```bash
+.venv/bin/python scripts/install_macos.py
+```
+
+This creates `~/Applications/Bonaventure.app`, installs a login LaunchAgent, and
+starts the app. Open it from Finder or Spotlight after manually quitting it.
+The wrapper uses this checkout and its `.venv`, so keep both in place. It includes
+Homebrew's executable paths for `ffmpeg` and microphone usage information.
+Allow microphone access when macOS prompts; if access was denied, check System
+Settings → Privacy & Security → Microphone. Actual microphone access must be
+verified on your Mac; the plist declaration alone does not grant permission.
+
+```bash
+.venv/bin/python scripts/install_macos.py --no-login   # app wrapper without login startup
+.venv/bin/python scripts/install_macos.py --uninstall  # remove wrapper and login agent
+```
+
+Quit the current app before reinstalling. Logs are at
+`~/Library/Logs/Bonaventure/bonaventure.log`. The installer is macOS-only.
+
+## Voice dictation (optional, offline English)
+
+The source uses the standard Hugging Face Transformers Whisper checkpoints:
+
+| Purpose | Download | Default folder |
+|---|---|---|
+| Live captions while speaking | `openai/whisper-base.en` | `models/whisper-base.en` |
+| Final transcript when you stop | `openai/whisper-small.en` | `models/whisper-small.en` |
+
+Use **small.en**, not a distilled checkpoint. The decoder primes both models
+with medical vocabulary; the old `distil-small.en` comment was stale.
+From the repository root, download only the processor/configuration files and
+safetensors weights to avoid duplicate PyTorch/TensorFlow/Flax weight downloads:
+
+```bash
+.venv/bin/hf download openai/whisper-base.en --include '*.json' '*.txt' '*.safetensors' --local-dir models/whisper-base.en
+.venv/bin/hf download openai/whisper-small.en --include '*.json' '*.txt' '*.safetensors' --local-dir models/whisper-small.en
+.venv/bin/python scripts/check_setup.py --mock --voice
+```
+
+The `--mock --voice` check validates the UI dependencies, both voice models, and
+the recorder without checking/loading the imaging weights. Existing copies at
+`~/bonaventure/models/whisper-base.en` and `~/bonaventure/models/whisper-small.en`
+are also found; `BV_WHISPER_LIVE` and `BV_WHISPER` override each location.
+Models run on CPU. With only one installed, it handles both live and final
+transcription, but install both for the intended speed/accuracy balance.
+
+macOS records through `ffmpeg`/AVFoundation (`brew install ffmpeg`); Linux uses
+PipeWire's `pw-record`. Restart the app after downloading models, click the
+presentation microphone, speak, and click it again for the final transcript.
+The latest recording is kept locally at `models/last_dictation.wav` (or under
+`BV_MODELS_DIR`) for debugging; the model directory is ignored by Git.
+
+The setup checker confirms packages and files, not GUI rendering, microphone
+permission, valid checkpoint contents, or successful inference. Native Mac
+picker/collapse/login behavior still needs runtime verification. The original
+Linux runtime was tested on Arch/Omarchy with Hyprland; other distros need their
+own native dependency setup and runtime checks.
+
 ## Run
 
 ```bash
-./run.sh                    # island launcher (models load in the background, ~20 s)
+./run.sh                    # Linux pill or macOS notch launcher
+BV_START=expand ./run.sh    # open intake immediately
 ./run.sh BV-001             # reopen a saved case in the reading room
-scripts/bonaventure-toggle  # show/hide the island (bind it to a key; starts the app if needed)
+scripts/bonaventure-toggle  # Linux only: toggle/start the pill using a key or bar binding
 ```
 
 Reproduce the three acceptance demo cases (docs/11) on the real models:
@@ -139,7 +248,11 @@ Self-checks: `python -m bonaventure.context`, `python -m bonaventure.reconcile`.
 
 ```
 bonaventure/
-  app.py          desktop client: island + reading room windows, Hyprland integration, toggle socket
+  app.py          platform dispatcher
+  desktop.py      shared application logic, reading room, dictation bridge, toggle socket
+  linux_app.py    Linux/Hyprland shell
+  macos_app.py    macOS shell; macos_*.py implement placement, picker, menu, hotkey
+  dictation.py    offline Whisper live captions and final transcript
   pipeline.py     case orchestration, progress states, failure capture
   imaging.py      scan loading (PNG/JPEG/DICOM), quality gate, model engine (+ mock)
   models.py       CLEAR (+ concept bank), CheXzero, MedGemma, MedSAM adapters
@@ -147,8 +260,8 @@ bonaventure/
   knowledge.py    clinical vocabulary and finding ↔ evidence map
   reconcile.py    evidence reconciliation engine
   report.py       PDF evidence report
-  ui/             island.html, review.html (reading room), base.css, bundled fonts
-scripts/          demo cases, sample history generator, toggle script
+  ui/             island.html (Linux), island_macos.html (Mac), shared review/styles/fonts
+scripts/          setup checks, macOS installer, demo cases, sample histories, Linux toggle
 sample_data/      CC0 demo films, synthetic histories
 docs/             PRD, SRS, architecture, pipeline, UX, report spec, model register …
 ```

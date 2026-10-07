@@ -27,6 +27,8 @@ class MenuBarController(AppKit.NSObject):
         self.commands = Queue()
         threading.Thread(target=self.command_worker, daemon=True).start()
         self.stopped = False
+        self.file_dialog_open = False
+        self.file_picker = None
         self.item = AppKit.NSStatusBar.systemStatusBar().statusItemWithLength_(AppKit.NSVariableStatusItemLength)
         button = self.item.button()
         image = AppKit.NSImage.imageWithSystemSymbolName_accessibilityDescription_("waveform.path.ecg", "Bonaventure")
@@ -90,6 +92,8 @@ class MenuBarController(AppKit.NSObject):
 
     @objc.python_method
     def reveal(self, pinned=False):
+        if self.file_dialog_open:
+            return
         self.pinned = pinned
         self.expanded = True
         native = self.api._launcher.native
@@ -102,11 +106,14 @@ class MenuBarController(AppKit.NSObject):
 
     @objc.python_method
     def hide(self):
+        if self.file_dialog_open:
+            return
         self.pinned = False
         self.expanded = False
         self.suppressed = True
         self.intent = HoverIntent()
-        self.api._launcher.native.resignKeyWindow()
+        # Release focus after the shell has finished closing, rather than
+        # triggering a menu-bar focus repaint in the middle of its animation.
         self.javascript("window.dismissIsland && dismissIsland()")
         self.update_menu()
 
@@ -123,6 +130,8 @@ class MenuBarController(AppKit.NSObject):
 
     @objc.python_method
     def local_event(self, event):
+        if self.file_dialog_open:
+            return event
         if event.window() == self.api._launcher.native:
             if event.type() == AppKit.NSEventTypeLeftMouseDown:
                 self.pinned = True
@@ -148,7 +157,7 @@ class MenuBarController(AppKit.NSObject):
         self.pollHover_(None)
 
     def pollHover_(self, timer):
-        if self.stopped or not self.api._launcher_ready:
+        if self.stopped or self.file_dialog_open or not self.api._launcher_ready:
             return
         native = self.api._launcher.native
         mouse = AppKit.NSEvent.mouseLocation()
@@ -185,6 +194,8 @@ class MenuBarController(AppKit.NSObject):
             if self.stopped:
                 return
             self.stopped = True
+            if self.file_picker is not None:
+                self.file_picker.cancel_(None)
             self.timer.invalidate()
             AppKit.NSEvent.removeMonitor_(self.monitor)
             if self.mouse_monitor:

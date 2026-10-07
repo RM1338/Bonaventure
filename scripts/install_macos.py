@@ -14,6 +14,7 @@ LABEL = "org.bonaventure.desktop"
 def launcher_script(root, logs):
     return "\n".join((
         "#!/bin/bash", "set -e",
+        'export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"',
         f"mkdir -p {shlex.quote(str(logs))}",
         f"cd {shlex.quote(str(root))}",
         f"exec {shlex.quote(str(root / '.venv/bin/python'))} -u -m bonaventure.app "
@@ -36,7 +37,8 @@ def install_files(root, home, login=True):
     executable.chmod(0o755)
     info = dict(CFBundleIdentifier=LABEL, CFBundleName="Bonaventure", CFBundleDisplayName="Bonaventure",
                 CFBundleExecutable="Bonaventure", CFBundlePackageType="APPL", CFBundleVersion="1",
-                CFBundleShortVersionString="0.1", LSUIElement=True, NSHighResolutionCapable=True)
+                CFBundleShortVersionString="0.1", LSUIElement=True, NSHighResolutionCapable=True,
+                NSMicrophoneUsageDescription="Bonaventure uses the microphone to dictate the current presentation locally.")
     with (contents / "Info.plist").open("wb") as stream:
         plistlib.dump(info, stream)
     agent = home / "Library/LaunchAgents" / f"{LABEL}.plist"

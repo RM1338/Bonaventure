@@ -27,6 +27,10 @@ class Native:
     def __init__(self, screen, visible=True):
         self.display, self.visible = screen, visible
         self.animated = False
+        self.frame_changes = 0
+        self.ignores_mouse = False
+        self.key = False
+        self.focus_releases = 0
 
     def screen(self):
         return self.display
@@ -35,8 +39,19 @@ class Native:
         return self.visible
 
     def setFrame_display_(self, rect, display):
+        self.frame_changes += 1
         self.rect = rect
         self.animated = False
+
+    def setIgnoresMouseEvents_(self, ignores):
+        self.ignores_mouse = ignores
+
+    def isKeyWindow(self):
+        return self.key
+
+    def resignKeyWindow(self):
+        self.key = False
+        self.focus_releases += 1
 
     def setFrame_display_animate_(self, rect, display, animate):
         self.rect = rect
@@ -68,6 +83,27 @@ class PlacementTests(unittest.TestCase):
         self.place(native, 340, 0, view="idle")
         self.assertEqual(native.rect[1] + native.rect[3], 982)
         self.assertGreaterEqual(native.rect[3], 38 + 24)
+        self.assertTrue(native.ignores_mouse)
+
+    def test_collapse_keeps_native_surface_stable_and_passes_clicks_through(self):
+        native = Native(Screen())
+        self.place(native, 660, 240, view="intake")
+        expanded_frame = native.rect
+        self.assertFalse(native.ignores_mouse)
+        native.key = True
+        self.place(native, 380, 0, view="idle")
+        self.assertEqual(native.rect, expanded_frame)
+        self.assertEqual(native.frame_changes, 1)
+        self.assertTrue(native.ignores_mouse)
+        self.assertEqual(native.focus_releases, 1)
+        self.place(native, 660, 240, view="intake")
+        self.assertFalse(native.ignores_mouse)
+
+    def test_repeated_idle_notifications_never_resize_native_surface(self):
+        native = Native(Screen())
+        self.place(native, 380, 0, view="idle")
+        self.place(native, 380, 0, view="idle")
+        self.assertEqual(native.frame_changes, 1)
 
     def test_auxiliary_screen_areas_detect_notch_when_safe_insets_are_zero(self):
         screen = Screen(safe=0)

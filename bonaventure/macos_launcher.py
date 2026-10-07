@@ -56,11 +56,20 @@ def launcher_layout(window):
 
 def _place(native, width, height, gap, animate=False, view=None):
     import AppKit
+    idle = view == "idle"
+    if idle and getattr(native, "_bv_placed", False):
+        # Resizing a transparent window above the menu bar damages its backing
+        # surface and can flash the menu underneath. Keep the surface stable;
+        # only the HTML shell contracts. Pass desktop clicks through when idle.
+        native.setIgnoresMouseEvents_(True)
+        if native.isKeyWindow():
+            native.resignKeyWindow()
+        return
     screen = _screen(native)
     frame, visible = screen.frame(), screen.visibleFrame()
     layout = _notch_layout(screen)
     top = frame.origin.y + frame.size.height if layout["notched"] else visible.origin.y + visible.size.height
-    if view == "idle":
+    if idle:
         width, height = layout["hit_width"], layout["idle_height"] + 24
     else:
         width = max(width, layout["min_width"])
@@ -69,8 +78,10 @@ def _place(native, width, height, gap, animate=False, view=None):
     height = min(height, top - visible.origin.y - gap)
     x = layout["center_x"] - width / 2
     native.setFrame_display_(AppKit.NSMakeRect(x, top - height, width, height), True)
-    # WebKit animates only the black shell, avoiding live layout reflow while
-    # resizing the window. On collapse the window shrinks after the shell.
+    native._bv_placed = True
+    native.setIgnoresMouseEvents_(idle)
+    # Hover activation uses global monitoring/polling even when clicks pass
+    # through. Expanded placement restores input and handles display changes.
 
 
 def resize_launcher(window, width, height, gap=8, view=None):

@@ -4,6 +4,21 @@ Bonaventure is a clinician-facing chest X-ray evidence reconciliation assistant 
 
 This documentation set is organized to support implementation, evaluation, team coordination, and the final public repository.
 
+## Current desktop setup
+
+Use the [repository README](../README.md) for the current
+[platform selection](../README.md#desktop-platforms),
+[macOS setup and background installer](../README.md#install-and-run-on-macos),
+and [voice-model downloads](../README.md#voice-dictation-optional-offline-english).
+
+The platform shells share `desktop.Api`. Linux loads `ui/island.html`; macOS loads
+`ui/island_macos.html` with native notch/menu controls and a foreground file
+picker. The macOS app/login installer is not used on Linux. Voice dictation uses
+`openai/whisper-base.en` for live captions and `openai/whisper-small.en` for the
+final transcript, with ffmpeg on Mac and PipeWire on Linux.
+Follow the executable setup instructions in the repository README; the numbered
+documents below are product specifications and implementation plans.
+
 ## Documentation Index
 
 1. `01_PRD.md` — Product Requirements Document

@@ -15,7 +15,7 @@
     inset: auto; top: 0; left: 50%; transform: translateX(-50%);
     width: var(--shell-width); height: var(--shell-height);
     border-radius: 0 0 26px 26px;
-    transition: width .32s cubic-bezier(.22,.8,.2,1), height .32s cubic-bezier(.22,.8,.2,1);
+    transition: width .32s cubic-bezier(.22,.8,.2,1), height .32s cubic-bezier(.22,.8,.2,1), border-radius .32s cubic-bezier(.22,.8,.2,1);
     will-change: width, height;
   }
   .managed.idle #islandShell { border-radius: 0 0 9px 9px; transition-duration: .22s; transition-delay: .05s; }
@@ -180,6 +180,18 @@ async function refreshLayout() {
   SIZES.pill[0] = Math.max(SIZES.pill[0], layout.min_width);
 }
 
+async function finishCollapse(shell, epoch) {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduced) {
+    shell.getBoundingClientRect();
+    const animations = shell.getAnimations();
+    await Promise.all(animations.map(animation => animation.finished.catch(() => {})));
+    if (epoch !== motionEpoch || view !== "idle") return;
+    if (animations.length) await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+  if (epoch === motionEpoch && view === "idle") pywebview.api.island(layout.hit_width, 0, "idle");
+}
+
 function show(v) {
   if (managed && v === "pill") v = "idle";
   view = v;
@@ -198,10 +210,7 @@ function show(v) {
     classes(); document.body.classList.add("idle");
     shell.style.setProperty("--shell-width", `${layout.idle_width}px`);
     shell.style.setProperty("--shell-height", `${layout.idle_height}px`);
-    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 290;
-    setTimeout(() => {
-      if (epoch === motionEpoch && view === "idle") pywebview.api.island(layout.hit_width, 0, "idle");
-    }, delay);
+    finishCollapse(shell, epoch);
     return;
   }
   retainedView = v;
@@ -283,10 +292,19 @@ function bindDrops() {
   });
 }
 
+let pickerBusy = false;
 async function pick(kind) {
-  if (kind === "scan") { const s = await pywebview.api.pick_scan(); if (s) scan = s; }
-  else histories.push(...(await pywebview.api.pick_history()));
-  render();
+  if (pickerBusy) return;
+  pickerBusy = true;
+  try {
+    if (kind === "scan") { const s = await pywebview.api.pick_scan(); if (s) scan = s; }
+    else histories.push(...(await pywebview.api.pick_history()));
+    render();
+  } catch (error) {
+    $("hint").textContent = "Could not open the file picker. Please try again.";
+  } finally {
+    pickerBusy = false;
+  }
 }
 // ---------- dictation: live captions while speaking, accurate final text when stopped (offline Whisper) ----------
 let micTimer = null, micBase = "";

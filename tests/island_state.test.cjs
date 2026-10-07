@@ -6,6 +6,7 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../bonaventure/ui/island_macos.html'), 'utf8');
 const script = html.split('<script>')[1].split('</script>')[0];
 const elements = new Map(), events = {}, timers = [], frames = [], calls = [];
+let shellAnimations = [];
 function element(id) {
   if (!elements.has(id)) {
     const classes = new Set(), properties = {};
@@ -16,7 +17,8 @@ function element(id) {
         toggle: (key, on) => on ? classes.add(key) : classes.delete(key),
         add: (key) => classes.add(key), remove: (key) => classes.delete(key),
         contains: (key) => classes.has(key)
-      }, getBoundingClientRect() { return { height: this.offsetHeight }; }, focus() {}, blur() {}
+      }, getBoundingClientRect() { return { height: this.offsetHeight }; },
+      getAnimations: () => shellAnimations, focus() {}, blur() {}
     });
   }
   return elements.get(id);
@@ -60,7 +62,7 @@ function advance(delay) {
 (async () => {
   await events.pywebviewready();
   assert.equal(state(), 'idle');
-  advance(290);
+  await settle();
   assert.deepEqual(calls.at(-1), [380, 0, 'idle']);
   await window.revealIsland(); await settle();
   assert.equal(state(), 'intake');
@@ -68,13 +70,30 @@ function advance(delay) {
   assert.equal(element('islandShell').style.properties['--shell-height'], '260px');
   assert(element('intake').classList.contains('show'));
   element('symptoms').value = 'Breathless for three days';
+  let finishAnimation;
+  shellAnimations = [{ finished: new Promise(resolve => { finishAnimation = resolve; }) }];
+  const callsBeforeClose = calls.length;
   window.dismissIsland();
   assert.equal(state(), 'idle');
   assert(!element('intake').classList.contains('show'));
   assert.equal(element('symptoms').value, 'Breathless for three days');
-  advance(290);
+  advance(290); await settle();
+  assert.equal(calls.length, callsBeforeClose, 'native surface must not shrink before CSS completes');
+  finishAnimation(); await settle();
+  assert.deepEqual(calls.at(-1), [380, 0, 'idle']);
+  shellAnimations = [];
   await window.revealIsland(); await settle();
   assert.equal(element('symptoms').value, 'Breathless for three days');
+  // Reopening must invalidate an unfinished collapse, including cancellation.
+  let cancelAnimation;
+  shellAnimations = [{ finished: new Promise((resolve, reject) => { cancelAnimation = reject; }) }];
+  window.dismissIsland();
+  await window.revealIsland(); await settle();
+  const callsAfterReopen = calls.length;
+  cancelAnimation(new Error('transition cancelled')); await settle();
+  assert.equal(calls.length, callsAfterReopen);
+  assert.equal(state(), 'intake');
+  shellAnimations = [];
   // A delayed screen-layout response must not reopen a dismissed panel.
   const pending = window.revealIsland();
   window.dismissIsland();
@@ -90,7 +109,9 @@ function advance(delay) {
   await window.revealIsland(); await settle();
   assert.equal(state(), 'intake');
   reducedMotion = true;
-  window.dismissIsland(); advance(0);
+  // Reduce Motion must not wait even if a previous animation is unfinished.
+  shellAnimations = [{ finished: new Promise(() => {}) }];
+  window.dismissIsland();
   assert.deepEqual(calls.at(-1), [380, 0, 'idle']);
   // Non-macOS keeps the original pill, direct resize, and toggle behavior.
   Object.assign(layout, { managed: false, notched: false, top_inset: 0, min_width: 340 });
@@ -109,5 +130,22 @@ function advance(delay) {
   assert.equal(state(), 'pill');
   assert.deepEqual(calls.at(-1), [340, 40]);
   assert.equal(frames.length, 0);
+  // Double-clicking must open one picker; cancellation/errors must permit retry.
+  let pickerCalls = 0, cancelPicker;
+  api.pick_scan = () => {
+    pickerCalls++;
+    return new Promise(resolve => { cancelPicker = resolve; });
+  };
+  const picking = vm.runInContext("pick('scan')", context);
+  await vm.runInContext("pick('scan')", context);
+  assert.equal(pickerCalls, 1);
+  cancelPicker(null); await picking;
+  api.pick_scan = async () => { throw new Error('picker failed'); };
+  await vm.runInContext("pick('scan')", context);
+  assert.equal(vm.runInContext('pickerBusy', context), false);
+  assert.match(element('hint').textContent, /try again/);
+  api.pick_scan = async () => { pickerCalls++; return null; };
+  await vm.runInContext("pick('scan')", context);
+  assert.equal(pickerCalls, 2);
   console.log('Launcher bridge checks passed: shell sizing, collapse timing, draft preservation, rapid toggles, analysis view, and reduced motion.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -7,7 +7,7 @@ import threading
 import webview
 
 from . import pipeline
-from .desktop import Api, ISLAND_TITLE, ISLAND_TOP, UI, _already_running, _review_window, _serve_toggle
+from .desktop import Api, HISTORY_TYPES, SCAN_TYPES, ISLAND_TITLE, ISLAND_TOP, UI, _already_running, _review_window, _serve_toggle
 
 
 class MacApi(Api):
@@ -24,6 +24,13 @@ class MacApi(Api):
         if self._mac_controls is not None:
             from PyObjCTools import AppHelper
             AppHelper.callAfter(self._mac_controls.hide)
+
+    def _dialog(self, multiple, filt):
+        if self._mac_controls is None:
+            return super()._dialog(multiple, filt)
+        from .macos_files import choose_files
+        extensions = HISTORY_TYPES if multiple else SCAN_TYPES
+        return choose_files(self, multiple, [ext.lstrip(".") for ext in extensions])
 
     def _place_island(self, w, h, view):
         """Resize the island, keeping it centred and joined to the Mac's notch."""
