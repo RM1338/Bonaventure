@@ -5,6 +5,8 @@ import plistlib
 import shlex
 import subprocess
 import sys
+import json
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,6 +55,40 @@ def install_files(root, home, login=True):
     return app, agent
 
 
+def protected_project_directory(root, home):
+    """LaunchAgents cannot reliably read macOS privacy-protected user folders."""
+    resolved = root.resolve()
+    for name in ("Documents", "Desktop", "Downloads", "Library/Mobile Documents"):
+        directory = (home / name).resolve()
+        if resolved == directory or directory in resolved.parents:
+            return name
+    return None
+
+
+def launcher_message(command):
+    """Ask the app, not just launchctl, whether its native launcher is ready."""
+    import socket
+    path = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "bonaventure.sock"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+        connection.settimeout(0.5)
+        connection.connect(str(path))
+        connection.sendall(command.encode())
+        response = connection.recv(1024)
+    return json.loads(response).get("ready") is True
+
+
+def wait_for_launcher(timeout=20):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            if launcher_message("status"):
+                return launcher_message("show")
+        except (OSError, ValueError):
+            pass
+        time.sleep(0.25)
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-login", action="store_true", help="install the app without enabling login startup")
@@ -77,6 +113,14 @@ def main():
             shutil.rmtree(app)
         print("Removed Bonaventure app wrapper and login startup. Project and models remain in place.")
         return
+    protected = protected_project_directory(ROOT, home)
+    if protected:
+        # The existing owned job may otherwise keep retrying the denied path.
+        subprocess.run(["launchctl", "bootout", service], capture_output=True)
+        parser.error(f"Project is inside macOS privacy-protected {protected}. "
+                     "Background startup can be denied even when Terminal launch works. "
+                     f"Move the entire checkout, including models and .venv, to {home / 'Developer/Bonaventure'}, "
+                     "then run this installer there. Stopped the login job; project files were not moved or removed.")
     # Detect the old instance rather than launching a service that immediately
     # exits after toggling an existing Terminal-owned process.
     import socket
@@ -101,7 +145,18 @@ def main():
         subprocess.run(["open", str(app)], check=True)
     else:
         subprocess.run(["launchctl", "bootstrap", domain, str(agent)], check=True)
-    print(f"Installed: {app}")
+    print("Waiting for the launcher to start…", flush=True)
+    if not wait_for_launcher():
+        logs = home / "Library/Logs/Bonaventure"
+        excerpts = []
+        for name in ("bonaventure.log", "service.log"):
+            path = logs / name
+            if path.is_file():
+                excerpts.append(f"\n{name}:\n" + "\n".join(path.read_text(errors="replace").splitlines()[-20:]))
+        parser.error("App installed, but its launcher did not become ready. "
+                     "Inspect the startup logs below (models may still be loading separately). "
+                     + "".join(excerpts) + f"\nLogs: {logs}")
+    print(f"Installed and launcher opened: {app}")
     print("Runs without Terminal. Login startup: " + ("off" if args.no_login else "on"))
     print(f"Logs: {home / 'Library/Logs/Bonaventure/bonaventure.log'}")
     print("This development app uses the current project folder and .venv; keep both in place.")

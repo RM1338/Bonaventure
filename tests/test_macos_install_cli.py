@@ -26,8 +26,8 @@ class InstallerCliTests(unittest.TestCase):
         self.app = self.home / "Applications/Bonaventure.app"
         self.agent = self.home / "Library/LaunchAgents" / f"{installer.LABEL}.plist"
 
-    def run_installer(self, *args, platform="darwin"):
-        with patch.object(installer, "ROOT", self.root), patch("pathlib.Path.home", return_value=self.home), patch.object(installer.sys, "platform", platform), patch.object(installer.sys, "argv", ["install_macos.py", *args]), patch("socket.socket", return_value=self.connection), patch.object(installer.subprocess, "run") as run, contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    def run_installer(self, *args, platform="darwin", startup_ready=True):
+        with patch.object(installer, "ROOT", self.root), patch("pathlib.Path.home", return_value=self.home), patch.object(installer.sys, "platform", platform), patch.object(installer.sys, "argv", ["install_macos.py", *args]), patch("socket.socket", return_value=self.connection), patch.object(installer.subprocess, "run") as run, patch.object(installer, "wait_for_launcher", return_value=startup_ready), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             installer.main()
         return [call.args[0] for call in run.call_args_list]
 
@@ -69,6 +69,21 @@ class InstallerCliTests(unittest.TestCase):
             self.run_installer()
         self.assertEqual(error.exception.code, 2)
         self.assertFalse(self.app.exists())
+
+    def test_unready_app_does_not_report_successful_start(self):
+        with self.assertRaises(SystemExit) as error:
+            self.run_installer(startup_ready=False)
+        self.assertEqual(error.exception.code, 2)
+        self.assertTrue(self.app.exists())
+
+    def test_protected_checkout_stops_job_and_reports_move_without_installing(self):
+        self.root = self.home / "Documents/Bonaventure"
+        self.root.mkdir(parents=True)
+        with self.assertRaises(SystemExit) as error:
+            self.run_installer()
+        self.assertEqual(error.exception.code, 2)
+        self.assertFalse(self.app.exists())
+        self.assertTrue(self.root.exists())
 
     def test_linux_refuses_installer_without_creating_files(self):
         with self.assertRaises(SystemExit) as error:

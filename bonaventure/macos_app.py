@@ -43,6 +43,12 @@ class MacApi(Api):
         resize_launcher(self._launcher, w, h, ISLAND_TOP, view)
         self._launcher_ready = True
 
+    def show_launcher(self):
+        """Reveal idempotently after installation, rather than toggling visibility."""
+        if self._mac_controls is not None:
+            from PyObjCTools import AppHelper
+            AppHelper.callAfter(self._mac_controls.reveal, True)
+
     def on_shortcut(self):
         if self._mac_controls is not None:
             from PyObjCTools import AppHelper

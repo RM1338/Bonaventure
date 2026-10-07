@@ -24,9 +24,19 @@ This audit and fix branch is based on `macos`. No changes target `main`.
   demo bounding box. It now retains that synthetic finding without inventing an
   outline. Real inference paths are unchanged.
 
+- The installer previously treated LaunchAgent registration as successful app
+  startup and did not open the initially hidden panel. It now checks launcher
+  readiness and sends an idempotent reveal request. Failure prints recent logs.
+- User Mac logs identify the background failure as privacy denial of a checkout
+  inside Documents (`Operation not permitted`). The installer now rejects
+  protected checkout locations and stops the retrying login job. Use
+  `~/Developer/Bonaventure` and reinstall; project/model files are not moved by
+  the installer. Those logs also show MPS bfloat16 inference completing a case,
+  which is separate from verification of the corrected background startup.
+
 ## Validation
 
-All **118 Python tests**, all **three Node UI suites**, context/reconciliation
+All **125 Python tests**, all **three Node UI suites**, context/reconciliation
 self-checks, shell syntax and `git diff --check` pass. New launch tests execute the
 actual shell script and installed wrapper with fake Darwin/Homebrew/Python
 executables, including paths with spaces and shell metacharacters. They verify
