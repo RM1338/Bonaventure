@@ -102,12 +102,9 @@ class ImagingEngine:
             from . import models  # heavy: torch + checkpoints
             self.models = models.load_all(self.status)
         except Exception as e:
-            print(f"[imaging] real models unavailable: {e!r}", flush=True)
-            self.load_error = repr(e)
-            for key in self.status:
-                if self.status[key] == "loading":
-                    self.status[key] = "unavailable"
-            self.status["imaging"] = "unavailable"
+            print(f"[imaging] real models unavailable, using mock: {e!r}")
+            self.mock = True
+            self.status = {"imaging": "mock", "reasoning": "mock"}
         finally:
             self._loaded.set()
 
@@ -119,8 +116,6 @@ class ImagingEngine:
         with self._lock:  # one GPU, one case at a time
             if self.mock:
                 return _mock_analyze(img, scan_path)
-            if getattr(self, "load_error", None):
-                raise RuntimeError(f"Real model loading failed: {self.load_error}")
             from . import models
             result = models.analyze(self.models, img)
             if not result["sources"]:

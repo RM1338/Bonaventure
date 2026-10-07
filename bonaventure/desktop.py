@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import threading
 import uuid
 from pathlib import Path
@@ -42,7 +41,6 @@ class Api:
     """Everything here is callable from the UI as window.pywebview.api.<name>(...)."""
 
     def __init__(self):
-        self._dictation_lock = threading.RLock()
         self._engine = imaging.ImagingEngine()
         self._cases = {}
         self._scan = None
@@ -157,8 +155,8 @@ class Api:
             return dict(ok=False, name=name, error="Unsupported document. Use PDF or text.")
         try:
             pages = context.read_pages(path)
-        except context.HistoryParseError as e:
-            return dict(ok=False, name=name, error=str(e))
+        except context.HistoryParseError:
+            return dict(ok=False, name=name, error="This document could not be read.")
         has_text = any(p.strip() for p in pages)
         entry = dict(id=uuid.uuid4().hex[:8], path=str(path), name=name, source=str(Path(path).resolve()))
         self._histories.append(entry)
@@ -178,17 +176,15 @@ class Api:
         return self._cases[case_id].progress()
 
     def open_review(self, case_id):
+        self._scan, self._histories = None, []
         self._current = case_id
         self._before_review()
         if self._review is None:
             self._review = _review_window(self, case_id)
         else:
-            # WebView2 can skip navigation to the same URL. Force a fresh case load.
-            review_url = self._review.real_url.split("?", 1)[0]
-            self._review.load_url(f"{review_url}?case={case_id}")
+            self._review.load_url(str(UI / "review.html"))
             self._review.set_title(REVIEW_TITLE.format(case_id))
             self._review.show()
-        self._scan, self._histories = None, []
 
     def _on_review_closed(self):
         self._review = None
@@ -208,27 +204,22 @@ class Api:
 
     # ----- dictation (offline Whisper) -----
     def start_dictation(self):
-        with self._dictation_lock:
-            try:
-                if not hasattr(self, "_dictation"):
-                    from .dictation import Dictation
-                    self._dictation = Dictation()
-                if not self._dictation.available():
-                    return dict(error="Speech model or microphone recorder not installed (see README).")
-                self._dictation.start()
-                return dict(ok=True)
-            except Exception as error:
-                return dict(error=f"Could not start microphone: {error}")
+        if not hasattr(self, "_dictation"):
+            from .dictation import Dictation
+            self._dictation = Dictation()
+        if not self._dictation.available():
+            return dict(error="Speech model or microphone recorder not installed (see README).")
+        self._dictation.start()
+        return dict(ok=True)
 
     def dictation_partial(self):
         return self._dictation.partial() if hasattr(self, "_dictation") else dict(text="", recording=False, seconds=0)
 
     def stop_dictation(self):
-        with self._dictation_lock:
-            try:
-                return dict(text=self._dictation.stop() if hasattr(self, "_dictation") else "")
-            except Exception as e:
-                return dict(error=f"Could not transcribe: {e}")
+        try:
+            return dict(text=self._dictation.stop())
+        except Exception as e:
+            return dict(error=f"Could not transcribe: {e}")
 
     # ----- clinician challenges a finding -----
     def challenge(self, case_id, finding_id, verdict, note):
@@ -263,22 +254,14 @@ class Api:
             path = report.generate(self.get_case(case_id))
         except Exception as e:
             return dict(error="The evidence report could not be generated.", details=repr(e))
-        result = dict(path=str(path.relative_to(pipeline.ROOT)))
-        try:
-            _open(path)
-            result["opened"] = True
-        except Exception as e:
-            result.update(opened=False, warning="Report saved, but could not open it in the default PDF viewer.", details=repr(e))
-        return result
+        _open(path)
+        return dict(path=str(path.relative_to(pipeline.ROOT)))
 
     def open_source(self, path):
         if Path(path).exists():
             _open(path)
 
     def quit(self):
-        with self._dictation_lock:
-            if hasattr(self, "_dictation"):
-                self._dictation.stop(final=False)
         for w in list(webview.windows):
             w.destroy()
 
@@ -289,14 +272,9 @@ def _size(path):
 
 
 def _open(path):
-    path = str(Path(path).resolve())
-    if sys.platform == "win32":
-        os.startfile(path)
-        return
-    opener = "/usr/bin/open" if sys.platform == "darwin" else shutil.which("xdg-open")
-    if not opener:
-        raise RuntimeError("No default document opener found (install xdg-utils on Linux)")
-    subprocess.run([opener, path], check=True, timeout=15, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    opener = shutil.which("xdg-open")
+    if opener:
+        subprocess.Popen([opener, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 SOCKET = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "bonaventure.sock"
@@ -323,18 +301,8 @@ def _deliver(api, uris):
 
 
 def _review_window(api, case_id):
-    width, height, position = 1600, 960, {}
-    if sys.platform == "win32":
-        screen = api._launcher_screen or webview.screens[0]
-        area = screen.frame
-        left, top = (area.X, area.Y) if area else (screen.x, screen.y)
-        available_w, available_h = (area.Width, area.Height) if area else (screen.width, screen.height)
-        width, height = min(width, available_w - 32), min(height, available_h - 32)
-        position = dict(x=left + (available_w - width) // 2,
-                        y=top + (available_h - height) // 2, screen=screen)
-    w = webview.create_window(REVIEW_TITLE.format(case_id), str(UI / "review.html"), js_api=api, width=width, height=height,
-                              min_size=(min(1200, width), min(720, height)), background_color="#000000", frameless=True,
-                              easy_drag=False, **position)
+    w = webview.create_window(REVIEW_TITLE.format(case_id), str(UI / "review.html"), js_api=api, width=1600, height=960,
+                              min_size=(1200, 720), background_color="#000000", frameless=True, easy_drag=False)
     w.events.closed += api._on_review_closed
     return w
 

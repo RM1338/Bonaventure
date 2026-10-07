@@ -13,7 +13,6 @@ from bonaventure import model_paths as paths
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mock", action="store_true", help="check only dependencies needed for mock mode")
-    parser.add_argument("--voice", action="store_true", help="also check the optional Whisper models and microphone recorder")
     args = parser.parse_args()
     missing = []
 
@@ -36,22 +35,10 @@ def main():
             "torch", "torchvision", "transformers", "accelerate", "huggingface_hub",
             "pandas", "ftfy", "regex", "scipy", "sklearn", "h5py", "tqdm", "pydicom",
         )})
-    if args.voice:
-        deps.update(torch="torch", transformers="transformers")
     print(f"Python: {sys.executable}")
     for label, module in deps.items():
         check(f"Python package {label}", importlib.util.find_spec(module) is not None)
     check("pdftotext (install poppler for history PDFs)", shutil.which("pdftotext") is not None)
-    if args.voice:
-        recorder = "ffmpeg" if sys.platform == "darwin" else "pw-record"
-        check(f"Microphone recorder {recorder}", shutil.which(recorder) is not None)
-        for label, directory in (("Whisper live captions (base.en)", paths.WHISPER_LIVE_DIR),
-                                 ("Whisper final transcript (small.en)", paths.WHISPER_FINAL_DIR)):
-            for name in ("config.json", "preprocessor_config.json", "tokenizer_config.json", "vocab.json", "merges.txt"):
-                file(label, directory / name)
-            weights = next((directory / name for name in ("model.safetensors", "pytorch_model.bin")
-                            if (directory / name).is_file()), directory / "model.safetensors")
-            file(f"{label} weights", weights)
 
     if not args.mock:
         file("CLEAR source", paths.CLEAR_CODE / "src/clear/hub.py")

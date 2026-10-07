@@ -11,11 +11,6 @@ This documentation set is organized to support implementation, evaluation, team 
 * [`PS05_CHECKLIST.md`](PS05_CHECKLIST.md): every PS05 requirement and submission guideline, mapped to where it is met
 * [`sample_output/`](sample_output/): real outputs of demo cases A–E and a normal film (result JSON, PDF report, annotated film)
 * [`13_MODEL_RESOURCE_REGISTER.md`](13_MODEL_RESOURCE_REGISTER.md): every external model, dataset and library
-* [`DESKTOP_VERIFICATION.md`](DESKTOP_VERIFICATION.md): desktop regressions and native macOS/Linux checks
-* [`MACOS_SETUP.md`](MACOS_SETUP.md): Gavriel’s complete Mac setup, troubleshooting and evaluation guide
-* [`DIAGRAM_NOTES.md`](DIAGRAM_NOTES.md): platform scope and current processing details for the Lucidchart figures
-* [`WINDOWS_SETUP.md`](WINDOWS_SETUP.md): Windows setup, recorded dependencies and native UI verification
-* [`MACOS_PR_REVIEW.md`](MACOS_PR_REVIEW.md): review and integration of Gavriel's existing macOS PR
 
 ## Planning documents (written before implementation)
 

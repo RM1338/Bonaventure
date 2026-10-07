@@ -64,7 +64,7 @@ Legend: ✅ met · ⚠️ partly met (gap stated) · ❌ not met / still to do
 | Evidence & explanation (citations, timestamps, confidence scores, intermediate outputs, code) | ✅ | `result.json` holds every citation (file, page, quote), dates, reader scores and cut-offs, raw MedGemma output, per-model timing and the rejected log; `docs/sample_output/` |
 | Sample input & output | ✅ | README "Sample input and output"; `docs/sample_output/case_A_*` |
 | Scope note (MVP vs stretch) | ✅ | README "Scope note" |
-| Live demonstration | ⚠️ prepared | README includes committed intake/analysis and reading-room GIFs. Rehearse cases A → B → D → E, dictation and a Disagree challenge; perform the live evaluation demo and verify Mac native behavior |
+| Live demonstration | ❌ **to do** | Rehearse cases A → B → D → E, plus one dictated presentation and one Disagree challenge. Record a backup video in case the live demo fails |
 
 ## 6. How to submit (p.3)
 
@@ -93,7 +93,7 @@ Legend: ✅ met · ⚠️ partly met (gap stated) · ❌ not met / still to do
 ## 8. Open gaps, in priority order
 
 1. **Make the repository public** and submit the form link. Without this the submission does not count.
-2. **Rehearse the live demo**; committed GIFs provide recorded evidence, and Mac native verification is still pending.
+2. **Rehearse and record the demo** as a backup.
 3. ~~UNCERTAIN noise on bare films~~ **fixed**: with no history and no presentation, a finding is shown only if both image models agree, or MedGemma named it unprompted in its survey and CLEAR confirmed it. Anything else goes to the rejected log. (MedGemma's *prompted* "yes" was tried first and did not help: asked about a candidate, it tends to agree.) Re-check of the same 12 audit normal films after the fix: **0 SUPPORTED and 0 CONFLICTING items** (before: 1 and 3 films); 5 / 12 completely clean, the rest show only UNCERTAIN items both image models agreed on. The full 36-film audit has not been re-run since this fix.
 4. ~~Lines & devices on a normal film~~ **fixed**: devices are still exempt from the history rule, but MedGemma must name the device unprompted and CLEAR must confirm it before it is SUPPORTED.
 5. ~~Confidence as a number~~ and ~~heatmap~~ **done** (§1 row 7, §4).

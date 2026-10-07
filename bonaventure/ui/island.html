@@ -62,6 +62,7 @@
   .mic.rec { background: #FF453A; color: #fff; animation: pulse 1.2s ease-in-out infinite; }
   .mic.busy { opacity: .5; pointer-events: none; }
   .mic svg { width: 15px; height: 15px; }
+  @keyframes pulse { 50% { opacity: .7; } }
   textarea.live { color: rgba(255,255,255,.62); }
   /* ---- processing ---- */
   .step { margin-top: 14px; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
@@ -88,13 +89,13 @@
 <!-- collapsed -->
 <div class="view show" id="pill" onclick="expand()">
   <span class="glyph" id="glyph"></span><span class="name">Bonaventure</span>
-  <span class="sub" id="pillSub"><span id="pillLabel">New case</span><svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 6l4 4 4-4"/></svg></span>
+  <span class="sub" id="pillSub">New case <svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 6l4 4 4-4"/></svg></span>
 </div>
 
 <!-- intake -->
 <div class="view panel" id="intake">
   <div class="hdr"><span class="glyph"></span><span class="name">Bonaventure</span>
-    <span class="right"><span id="hotkeyHint" hidden>Ctrl+Alt+B · show/hide</span><span>Drop a scan or records anywhere</span><button class="chev" onclick="collapse()" title="Collapse (Esc)"><svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 10l4-4 4 4"/></svg></button></span></div>
+    <span class="right"><span>Drop a scan or records anywhere</span><button class="chev" onclick="collapse()" title="Collapse (Esc)"><svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 10l4-4 4 4"/></svg></button></span></div>
   <div class="tiles">
     <div class="tile drop" id="scanTile" data-kind="scan"></div>
     <div class="tile drop" id="histTile" data-kind="history"></div>
@@ -106,7 +107,7 @@
   </div>
   <div class="foot">
     <div class="status"><span><i class="dot" id="dImg"></i><span id="tImg">Imaging</span></span><span><i class="dot" id="dRsn"></i><span id="tRsn">Reasoning</span></span></div>
-    <span class="hint" id="hint" role="status" aria-live="polite"></span>
+    <span class="hint" id="hint"></span>
     <button class="go" id="go" disabled onclick="analyse()">Analyse</button>
   </div>
 </div>
@@ -130,7 +131,6 @@
   <div class="eacts"><button class="pb" onclick="resetLauncher(); expand()">Start over</button><button class="go" onclick="analyse()">Retry</button></div>
 </div>
 
-<script src="dictation.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -140,7 +140,6 @@ const ICON = {
   doc: '<svg class="i" viewBox="0 0 16 16"><path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3M6 8.5h4M6 11h4"/></svg>',
 };
 let view = "pill", scan = null, histories = [], lastSymptoms = "", currentCase = null;
-let pendingUploads = 0, inputError = "", dropQueue = Promise.resolve();
 
 function show(v) {
   view = v;
@@ -160,26 +159,26 @@ function render() {
   const st = $("scanTile");
   st.classList.toggle("filled", !!(scan && scan.ok));
   st.innerHTML = !scan
-    ? `<div class="ic">${ICON.scan}</div><div class="t">Medical image</div><div class="s">No image attached · click or drop</div>`
+    ? `<div class="ic">${ICON.scan}</div><div class="t">Medical image</div><div class="s">Drop or click · PNG, JPEG, DICOM</div>`
     : scan.ok
       ? `<div class="bg" style="background-image:url('${scan.thumb}')"></div><button class="x" onclick="event.stopPropagation(); clearScan()">×</button>
-         <div class="ic">${ICON.scan}</div><div class="t" title="${esc(scan.name)}">${esc(scan.name)}</div><div class="s">${esc(scan.dims)} · ${esc(scan.size)}</div>
-         <div class="s ${scan.quality === "acceptable" ? "ok" : "warn"}">${scan.quality === "acceptable" ? "✓ Image attached" : "⚠ " + esc(scan.warnings[0] || "Quality limited")}</div>`
+         <div class="ic">${ICON.scan}</div><div class="t">${esc(scan.view)}</div><div class="s">${esc(scan.dims)} · ${esc(scan.size)}</div>
+         <div class="s ${scan.quality === "acceptable" ? "ok" : "warn"}">${scan.quality === "acceptable" ? "✓ Ready" : "⚠ " + esc(scan.warnings[0] || "Quality limited")}</div>`
       : `<div class="ic">${ICON.scan}</div><div class="t">${esc(scan.name)}</div><div class="s err">${esc(scan.error)}</div>`;
   st.onclick = () => pick("scan");
 
   const ht = $("histTile"), ok = histories.filter((h) => h.ok);
   ht.classList.toggle("filled", histories.length > 0);
   ht.innerHTML = !histories.length
-    ? `<div class="ic">${ICON.doc}</div><div class="t">Patient history</div><div class="s">No history attached · optional</div>`
+    ? `<div class="ic">${ICON.doc}</div><div class="t">Patient history</div><div class="s">PDF or text · optional</div>`
     : `<div class="ic">${ICON.doc}</div><button class="x" onclick="event.stopPropagation(); clearHistory()">×</button>
-       <div class="docs">${histories.slice(0, 3).map((h) => `<div title="${esc(h.error || h.name)}">${h.ok ? (h.has_text ? "✓" : "⚠") : "✕"} ${esc(h.name)}${h.ok ? ` · ${h.pages}p` : " · could not read"}</div>`).join("")}${histories.length > 3 ? `<div>+${histories.length - 3} more</div>` : ""}</div>
+       <div class="docs">${histories.slice(0, 3).map((h) => `<div>${h.ok ? (h.has_text ? "✓" : "⚠") : "✕"} ${esc(h.name)}${h.ok ? ` · ${h.pages}p` : ""}</div>`).join("")}${histories.length > 3 ? `<div>+${histories.length - 3} more</div>` : ""}</div>
        <div class="t">${ok.length} document${ok.length === 1 ? "" : "s"}</div><div class="s">${ok.reduce((a, h) => a + h.pages, 0)} pages · click to add</div>`;
   ht.onclick = () => pick("history");
 
   const ready = scan && scan.ok;
-  $("go").disabled = !ready || pendingUploads > 0;
-  $("hint").textContent = pendingUploads ? "Attaching files…" : inputError || (!ready ? "Add a medical image to begin" : ok.length ? `${ok.length} history document(s) attached` : "No history attached");
+  $("go").disabled = !ready;
+  $("hint").textContent = !ready ? "Add a medical image to begin" : ok.length ? "" : "No history — context support limited";
 }
 
 function bindDrops() {
@@ -192,40 +191,38 @@ function bindDrops() {
   document.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; document.body.classList.add("dragging"); });
   document.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("dragging"); } });
   document.addEventListener("dragover", (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; });
-  // Linux uses the native GTK URI handler; Windows reads browser File objects.
+  // files are delivered by Python (pywebview reads the real path); the page only shows the drop target
   document.addEventListener("drop", (e) => {
     e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragging");
     document.querySelectorAll(".tile.over").forEach((t) => t.classList.remove("over"));
-    if (!navigator.userAgent.includes("Windows")) return;
-    const files = Array.from(e.dataTransfer?.files || []);
-    expand();
-    if (!files.length) { inputError = "No file received. Click a tile to select it."; render(); return; }
-    pendingUploads++; inputError = ""; render();
-    dropQueue = dropQueue.then(async () => {
-      for (const file of files) {
-        try {
-          const data = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
-            reader.readAsDataURL(file);
-          });
-          const kind = /\.(pdf|txt|md)$/i.test(file.name) ? "history" : "scan";
-          const result = await pywebview.api.drop_file(kind, file.name, data);
-          const items = kind === "scan" ? [result] : result;
-          onFilesStaged([{kind, items}]);
-          if (items.some(item => !item.ok)) inputError = "A file could not be attached. Check its tile.";
-        } catch (err) {
-          inputError = `Could not attach ${file.name}. Try the file picker.`;
-          console.error(err);
-        }
-      }
-    }).finally(() => { pendingUploads--; render(); });
+    // the files themselves arrive natively (app.py reads the drop's URI list); nothing to do here
   });
 }
 
 
 // ---------- dictation: live captions while speaking, accurate final text when stopped (offline Whisper) ----------
+let micTimer = null, micBase = "";
+async function toggleMic(btn, target) {
+  const t = document.getElementById(target);
+  if (btn.classList.contains("rec")) {
+    clearInterval(micTimer); btn.classList.remove("rec"); btn.classList.add("busy"); t.classList.add("live");
+    const r = await pywebview.api.stop_dictation();
+    btn.classList.remove("busy"); t.classList.remove("live");
+    if (r.text) t.value = (micBase ? micBase + " " : "") + r.text;
+    else if (r.error) btn.title = r.error;
+    t.dispatchEvent(new Event("input"));
+    return;
+  }
+  const r = await pywebview.api.start_dictation();
+  if (r.error) { btn.title = r.error; return; }
+  micBase = t.value.trimEnd();
+  btn.classList.add("rec"); t.classList.add("live");
+  micTimer = setInterval(async () => {          // show the words as they are spoken
+    const p = await pywebview.api.dictation_partial();
+    if (p.text) { t.value = (micBase ? micBase + " " : "") + p.text; t.scrollTop = t.scrollHeight; }
+  }, 600);
+}
+
 window.onFilesStaged = (staged) => {
   expand();
   for (const s of staged) {
@@ -236,11 +233,8 @@ window.onFilesStaged = (staged) => {
 };
 
 async function pick(kind) {
-  inputError = "";
-  try {
-    if (kind === "scan") { const s = await pywebview.api.pick_scan(); if (s) scan = s; }
-    else histories.push(...(await pywebview.api.pick_history()));
-  } catch (err) { inputError = "File selection failed. Please try again."; console.error(err); }
+  if (kind === "scan") { const s = await pywebview.api.pick_scan(); if (s) scan = s; }
+  else histories.push(...(await pywebview.api.pick_history()));
   render();
 }
 function clearScan() { scan = null; pywebview.api.clear_scan(); render(); }
@@ -248,8 +242,8 @@ function clearHistory() { histories.forEach((h) => h.id && pywebview.api.remove_
 
 // ---------- engine status ----------
 const ENGINE = {
-  imaging: { ready: "Image AI loaded", loading: "Loading image AI", mock: "Image AI · demo", unavailable: "Image AI unavailable" },
-  reasoning: { ready: "Reasoning AI loaded", loading: "Loading reasoning AI", mock: "Reasoning AI · demo", unavailable: "Reasoning AI off" },
+  imaging: { ready: "Imaging ready", loading: "Loading imaging", mock: "Imaging · demo", unavailable: "Imaging unavailable" },
+  reasoning: { ready: "Reasoning ready", loading: "Loading reasoning", mock: "Reasoning · demo", unavailable: "Reasoning off" },
 };
 async function pollEngine() {
   const s = await pywebview.api.engine_status();
@@ -262,24 +256,16 @@ async function pollEngine() {
 
 // ---------- analysis ----------
 async function analyse() {
-  try {
-  lastSymptoms = $("symptoms").value;
+  lastSymptoms = $("symptoms").value || lastSymptoms;
   const r = await pywebview.api.analyze(lastSymptoms);
   if (r.error) { $("hint").textContent = r.error; return; }
   currentCase = r.case_id;
   $("procCase").textContent = "Case " + r.case_id;
   show("proc");
   poll(r.case_id);
-  } catch (err) { showOperationError(err); }
-}
-
-function showOperationError(err) {
-  showError({title: "Operation failed", message: "The app could not complete this action. See technical details.",
-    causes: [], details: String(err)}, currentCase || "not started");
 }
 
 async function poll(id) {
-  try {
   const p = await pywebview.api.progress(id);
   const total = p.steps.length, done = p.steps.filter((s) => s.state === "complete" || s.state === "skipped").length;
   const run = p.steps.find((s) => s.state === "running");
@@ -293,18 +279,14 @@ async function poll(id) {
   if (p.state === "REVIEW_READY") {
     $("procStep").textContent = "Review ready";
     $("procBar").style.width = "100%";
-    return setTimeout(async () => {
-      try {
-      await pywebview.api.open_review(id);
-      clearInputView();
-      $("pillLabel").textContent = `${id} · in review`;
+    return setTimeout(() => {
+      pywebview.api.open_review(id);
+      $("pillSub").innerHTML = `${esc(id)} · in review`;
       collapse();
-      } catch (err) { showOperationError(err); }
     }, 650);
   }
   if (p.state === "FAILED") return showError(p.error, id);
   setTimeout(() => poll(id), 250);
-  } catch (err) { showOperationError(err); }
 }
 
 function showError(e, id) {
@@ -319,27 +301,15 @@ function toggleDetails() {
   pywebview.api.island(SIZES.err[0], Math.ceil($("err").getBoundingClientRect().height));
 }
 
-function clearInputView() {
-  scan = null; histories = []; lastSymptoms = ""; $("symptoms").value = "";
-  inputError = ""; currentCase = null;
-  render();
-}
-
 window.resetLauncher = () => {
-  clearInputView();
+  scan = null; histories = []; lastSymptoms = ""; $("symptoms").value = "";
   window.pywebview && pywebview.api.clear_intake();
-  $("pillLabel").textContent = navigator.userAgent.includes("Windows") ? "Ctrl+Alt+B" : "New case";
+  $("pillSub").innerHTML = `New case <svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 6l4 4 4-4"/></svg>`;
   render();
   if (view !== "intake") collapse();
 };
 
-window.addEventListener("pywebviewready", () => {
-  if (navigator.userAgent.includes("Windows")) {
-    $("pillLabel").textContent = "Ctrl+Alt+B";
-    $("hotkeyHint").hidden = false;
-  }
-  render(); bindDrops(); pollEngine(); pywebview.api.island(...SIZES.pill);
-});
+window.addEventListener("pywebviewready", () => { render(); bindDrops(); pollEngine(); pywebview.api.island(...SIZES.pill); });
 render();
 </script>
 </body>

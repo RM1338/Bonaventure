@@ -28,10 +28,8 @@ CHEXZERO_DIR = _first("BV_CHEXZERO_DIR", MODELS_DIR / "CheXzero", ROOT / "CheXze
 CHEXZERO_CKPT = _first("BV_CHEXZERO_CKPT", CHEXZERO_DIR / "checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt")
 MEDSAM_DIR = _first("BV_MEDSAM_DIR", MODELS_DIR / "MedSAM", ROOT / "MedSAM", must_have="segment_anything")
 MEDSAM_CKPT = _first("BV_MEDSAM_CKPT", MEDSAM_DIR / "work_dir/MedSAM/medsam_vit_b.pth")
-_medgemma = _first("BV_MEDGEMMA", MODELS_DIR / "MedGemma", MODELS_DIR / "medgemma-1.5-4b-it", HOME_MODELS / "medgemma-1.5-4b-it", must_have="config.json")
+_medgemma = _first("BV_MEDGEMMA", MODELS_DIR / "MedGemma", HOME_MODELS / "medgemma-1.5-4b-it", must_have="config.json")
 MEDGEMMA_ID = str(_medgemma) if (_medgemma / "config.json").exists() else "google/medgemma-1.5-4b-it"
-WHISPER_LIVE_DIR = _first("BV_WHISPER_LIVE", MODELS_DIR / "whisper-base.en", HOME_MODELS / "whisper-base.en", must_have="config.json")
-WHISPER_FINAL_DIR = _first("BV_WHISPER", MODELS_DIR / "whisper-small.en", HOME_MODELS / "whisper-small.en", must_have="config.json")
 
 
 if __name__ == "__main__":
