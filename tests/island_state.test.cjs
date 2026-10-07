@@ -130,5 +130,22 @@ function advance(delay) {
   assert.equal(state(), 'pill');
   assert.deepEqual(calls.at(-1), [340, 40]);
   assert.equal(frames.length, 0);
+  // Double-clicking must open one picker; cancellation/errors must permit retry.
+  let pickerCalls = 0, cancelPicker;
+  api.pick_scan = () => {
+    pickerCalls++;
+    return new Promise(resolve => { cancelPicker = resolve; });
+  };
+  const picking = vm.runInContext("pick('scan')", context);
+  await vm.runInContext("pick('scan')", context);
+  assert.equal(pickerCalls, 1);
+  cancelPicker(null); await picking;
+  api.pick_scan = async () => { throw new Error('picker failed'); };
+  await vm.runInContext("pick('scan')", context);
+  assert.equal(vm.runInContext('pickerBusy', context), false);
+  assert.match(element('hint').textContent, /try again/);
+  api.pick_scan = async () => { pickerCalls++; return null; };
+  await vm.runInContext("pick('scan')", context);
+  assert.equal(pickerCalls, 2);
   console.log('Launcher bridge checks passed: shell sizing, collapse timing, draft preservation, rapid toggles, analysis view, and reduced motion.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

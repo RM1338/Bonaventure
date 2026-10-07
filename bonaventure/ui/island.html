@@ -284,10 +284,19 @@ function bindDrops() {
   });
 }
 
+let pickerBusy = false;
 async function pick(kind) {
-  if (kind === "scan") { const s = await pywebview.api.pick_scan(); if (s) scan = s; }
-  else histories.push(...(await pywebview.api.pick_history()));
-  render();
+  if (pickerBusy) return;
+  pickerBusy = true;
+  try {
+    if (kind === "scan") { const s = await pywebview.api.pick_scan(); if (s) scan = s; }
+    else histories.push(...(await pywebview.api.pick_history()));
+    render();
+  } catch (error) {
+    $("hint").textContent = "Could not open the file picker. Please try again.";
+  } finally {
+    pickerBusy = false;
+  }
 }
 function clearScan() { scan = null; pywebview.api.clear_scan(); render(); }
 function clearHistory() { histories.forEach((h) => h.id && pywebview.api.remove_history(h.id)); histories = []; render(); }

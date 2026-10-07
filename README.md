@@ -218,6 +218,8 @@ either side of the camera. Hover reveals dismiss after the pointer leaves for
 0.5 seconds; clicking or typing in the launcher keeps it open. Escape
 hides it (except during analysis). Scans, records, and presentation text survive
 hiding. On screens without a notch, hover below the center of the menu bar.
+File selection opens in front of the launcher. Hover and launcher toggles pause
+while the picker is open; selecting a file or canceling restores launcher focus.
 macOS controls the icon's ordering among other menu bar items. If another app
 already owns the shortcut, the menu reports that it is unavailable.
 The borderless panel reaches the screen's top edge and reserves the full camera

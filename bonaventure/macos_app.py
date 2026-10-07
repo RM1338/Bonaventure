@@ -148,6 +148,10 @@ class Api:
         self._scan, self._histories = None, []
 
     def _dialog(self, multiple, filt):
+        if sys.platform == "darwin" and self._mac_controls is not None:
+            from .macos_files import choose_files
+            extensions = HISTORY_TYPES if multiple else SCAN_TYPES
+            return choose_files(self, multiple, [ext.lstrip(".") for ext in extensions])
         kind = getattr(webview, "FileDialog", None)
         mode = kind.OPEN if kind else webview.OPEN_DIALOG
         return self._launcher.create_file_dialog(mode, allow_multiple=multiple, file_types=(filt, "All files (*.*)"))
