@@ -58,6 +58,18 @@ def _reliable():
 
 
 RELIABLE = _reliable()
+
+
+def _platt():
+    """{reader: {finding: {a, b, n, source}}}: P(finding | score) = sigmoid(a * logit(score) + b), fitted on the labelled films."""
+    if not CALIBRATION.exists():
+        return {}
+    cal = json.loads(CALIBRATION.read_text())
+    return {r: {f: dict(a=c["platt"][0], b=c["platt"][1], n=c["n_pos"] + c["n_neg"], source=cal["source"].get(f))
+                for f, c in per.items() if "platt" in c} for r, per in cal["readers"].items()}
+
+
+PLATT = _platt()
 CONCEPT_CAL = Path(__file__).resolve().parent / "concept_calibration.json"   # scripts/eval_concepts.py
 
 
@@ -107,6 +119,37 @@ class ZeroShot:
         p = torch.sigmoid(self.scale * ((f @ self.pos.T) - (f @ self.neg.T)))[0]
         return {fid: float(v) for fid, v in zip(FINDINGS, p)}
 
+
+    @torch.inference_mode()
+    def occlusion(self, img, fids, n=8, batch=16):
+        """Heatmap by occlusion: grey out each cell of an n x n grid and measure how much each finding's score drops.
+        Model-agnostic and faithful (it shows what this reader actually depends on), at 1 + n*n forward passes for all findings at once.
+        -> {FINDING: n x n grid in 0..1} (findings whose score never depends on any one region are left out)."""
+        from PIL import ImageDraw
+        g = img.convert("L")
+        w, h = g.size
+        fill = int(np.asarray(g).mean())
+        batch_x = [self.preprocess(g)]
+        for i in range(n):          # occlude on the film itself, so the grid matches the image whatever padding the reader adds
+            for j in range(n):
+                o = g.copy()
+                ImageDraw.Draw(o).rectangle([j * w // n, i * h // n, (j + 1) * w // n, (i + 1) * h // n], fill=fill)
+                batch_x.append(self.preprocess(o))
+        feats = []
+        dtype = next(self.model.parameters()).dtype
+        for k in range(0, len(batch_x), batch):
+            f = self.model.encode_image(torch.stack(batch_x[k:k + batch]).to(CLIP_DEVICE, dtype)).float()
+            feats.append(f / f.norm(dim=-1, keepdim=True))
+        f = torch.cat(feats)
+        idx = [list(FINDINGS).index(fid) for fid in fids]
+        logit = self.scale * ((f @ self.pos[idx].T) - (f @ self.neg[idx].T))   # (1 + n*n, len(fids))
+        drop = (logit[0:1] - logit[1:]).clamp(min=0)                           # how much hiding each cell lowers the score
+        out = {}
+        for c, fid in enumerate(fids):
+            d = drop[:, c]
+            if float(d.max()) > 0.05 * max(float(logit[0, c].abs()), 1.0):
+                out[fid] = (d / d.max()).reshape(n, n).round(decimals=3).tolist()
+        return out
 
     @torch.inference_mode()
     def check(self, phrases, tokenize):
@@ -568,7 +611,8 @@ def analyze(models, img):
         m = models.get(role)
         if m:
             t = time.time()
-            sources.append(dict(role=role, model=m.name, scores=m.scores(img), thresholds=THRESHOLDS[m.name], reliable=RELIABLE[m.name]))
+            sources.append(dict(role=role, model=m.name, scores=m.scores(img), thresholds=THRESHOLDS[m.name], reliable=RELIABLE[m.name],
+                                platt=PLATT.get(m.name, {})))
             timing[m.name] = round(time.time() - t, 2)
     concepts, top_concepts = {}, []
     if models.get("concepts") and models["primary"].name == "CLEAR":

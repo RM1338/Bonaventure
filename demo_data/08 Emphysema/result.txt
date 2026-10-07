@@ -1,0 +1,3 @@
+BV-231
+Emphysema: SUPPORTED (high)
+Atelectasis: UNCERTAIN (moderate, image confidence 34 %)

@@ -1,0 +1,145 @@
+{
+  "case_id": "BV-156",
+  "state": "REVIEW_READY",
+  "created": "2026-10-07T14:34:52",
+  "scan": {
+    "file": "Normal_posteroanterior_PA_chest_radiograph_X-ray.jpg",
+    "view": "Chest X-ray",
+    "color": 0.0,
+    "width": 1929,
+    "height": 2207
+  },
+  "quality": {
+    "state": "acceptable",
+    "warnings": [],
+    "metrics": {
+      "min_side": 1929,
+      "mean": 132.28,
+      "contrast": 41.24,
+      "sharpness": 123.67,
+      "color": 0.0
+    }
+  },
+  "history_files": [],
+  "history_provided": false,
+  "warnings": [],
+  "identity": {
+    "status": "unknown",
+    "sources": [],
+    "message": "Patient identity could not be checked (no name or MRN in the inputs)."
+  },
+  "interval": {
+    "status": "none",
+    "reason": "No dated prior radiology report in the supplied records.",
+    "rows": []
+  },
+  "rejected": [
+    {
+      "claim": "Elevated right hemidiaphragm",
+      "by": "MedGemma 1.5",
+      "reason": "CLEAR, reading the same phrase against the film, disagrees (0.34 < 0.85)"
+    }
+  ],
+  "unrecognised": [
+    "Routine check",
+    "no symptoms"
+  ],
+  "understanding_flags": [],
+  "presentation_text": "Routine check, no symptoms.",
+  "symptoms": [],
+  "timeline": [],
+  "findings": [],
+  "summary": {
+    "total": 0,
+    "counts": {
+      "SUPPORTED": 0,
+      "CONFLICTING": 0,
+      "UNCERTAIN": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    },
+    "critical": 0,
+    "overall_quality": "high",
+    "message": "No sufficiently supported finding was identified from the supplied evidence."
+  },
+  "not_assessable": [],
+  "other_observations": [],
+  "technical": {
+    "models": [
+      {
+        "role": "primary",
+        "model": "CLEAR"
+      },
+      {
+        "role": "verifier",
+        "model": "CheXzero"
+      }
+    ],
+    "timing": {
+      "CLEAR": 1.09,
+      "CheXzero": 0.08,
+      "CLEAR concepts": 0.11,
+      "MedGemma survey": 2.92
+    },
+    "raw_reasoning": [
+      "```json\n[\n  {\"name\": \"Elevated right hemidiaphragm\", \"region\": \"Right lower lung\"},\n  {\"name\": \"Possible left lower lobe opacity\", \"region\": \"Left lower lung\"}\n]\n```",
+      "[natural-language understanding] 1. Routine examination\n2. No symptoms reported\n"
+    ],
+    "top_concepts": [
+      [
+        "interatrial septal closure",
+        1,
+        0.5869
+      ],
+      [
+        "potentially suggestive of reactive adenopathy",
+        2,
+        0.5708
+      ],
+      [
+        "no evidence of active granulomatous disease",
+        3,
+        0.5664
+      ],
+      [
+        "punctate granulomas in the lungs",
+        4,
+        0.5659
+      ],
+      [
+        "several additional small and punctate foci of metallic density material over the upper left chest",
+        5,
+        0.5635
+      ],
+      [
+        "punctate granulomas in the upper lobes bilaterally",
+        6,
+        0.562
+      ],
+      [
+        "previous atrial septal closure device",
+        7,
+        0.5557
+      ],
+      [
+        "minimal interstitial septal thickening at the base of the right lung",
+        8,
+        0.5532
+      ],
+      [
+        "punctate calcified granulomas in the lungs bilaterally",
+        9,
+        0.5522
+      ],
+      [
+        "minimal peripheral septal thickening",
+        10,
+        0.5518
+      ]
+    ],
+    "total_seconds": 5.69,
+    "engine_status": {
+      "imaging": "ready",
+      "reasoning": "ready"
+    }
+  }
+}

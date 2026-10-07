@@ -1,4 +1,4 @@
-"""Run every case in the demo library (~/bonaventure/demo_library) through the full pipeline and write what Bonaventure said
+"""Run every case in the demo library (demo_data/) through the full pipeline and write what Bonaventure said
 into each folder (result.txt) and into the library index. Reopen any case with ./run.sh BV-xxx.
 
     PYTHONPATH=. .venv/bin/python scripts/run_demo_library.py
@@ -8,7 +8,7 @@ from pathlib import Path
 
 from bonaventure import imaging, pipeline
 
-LIB = Path.home() / "bonaventure/demo_library"
+LIB = Path(__file__).resolve().parent.parent / "demo_data"
 
 if __name__ == "__main__":
     eng = imaging.ImagingEngine()
@@ -20,7 +20,8 @@ if __name__ == "__main__":
                           [{"path": str(d / "history.pdf"), "name": "history.pdf"}], (d / "presentation.txt").read_text())
         c.run(eng)
         r = c.result or {}
-        lines = [f"{f['display_name']}: {f['status']} ({f['evidence_strength']})" for f in r.get("findings", [])]
+        lines = [f"{f['display_name']}: {f['status']} ({f['evidence_strength']}"
+                 + (f", image confidence {f['confidence']['image']} %" if f.get("confidence") else "") + ")" for f in r.get("findings", [])]
         lines += [f"Also seen: {o['name']}" for o in r.get("other_observations", [])]
         lines += [f"Not assessable on X-ray: {n['name']}" for n in r.get("not_assessable", [])]
         lines = lines or ["No findings"]

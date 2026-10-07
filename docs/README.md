@@ -4,24 +4,21 @@ Bonaventure is a clinician-facing chest X-ray evidence reconciliation assistant 
 
 This documentation set is organized to support implementation, evaluation, team coordination, and the final public repository.
 
-## Current desktop setup
+## Start here (as built)
 
-Use the [repository README](../README.md) for the current
-[platform selection](../README.md#desktop-platforms),
-[macOS setup and background installer](../README.md#install-and-run-on-macos),
-and [voice-model downloads](../README.md#voice-dictation-optional-offline-english).
+* [`ARCHITECTURE.md`](ARCHITECTURE.md): the system as implemented, with component, data-pipeline, model and reconciliation diagrams
+* [`HOW_IT_WORKS.md`](HOW_IT_WORKS.md): a step-by-step walkthrough of one real case from input to report, plus likely judge questions
+* [`PS05_CHECKLIST.md`](PS05_CHECKLIST.md): every PS05 requirement and submission guideline, mapped to where it is met
+* [`sample_output/`](sample_output/): real outputs of demo cases A–E and a normal film (result JSON, PDF report, annotated film)
+* [`13_MODEL_RESOURCE_REGISTER.md`](13_MODEL_RESOURCE_REGISTER.md): every external model, dataset and library
+* [`DESKTOP_VERIFICATION.md`](DESKTOP_VERIFICATION.md): desktop regressions and native macOS/Linux checks
+* [`MACOS_SETUP.md`](MACOS_SETUP.md): Gavriel’s complete Mac setup, troubleshooting and evaluation guide
+* [`MACOS_PR_REVIEW.md`](MACOS_PR_REVIEW.md): review and integration of Gavriel's existing macOS PR
 
-The platform shells share `desktop.Api`. Linux loads `ui/island.html`; macOS loads
-`ui/island_macos.html` with native notch/menu controls and a foreground file
-picker. The macOS app/login installer is not used on Linux. Voice dictation uses
-`openai/whisper-base.en` for live captions and `openai/whisper-small.en` for the
-final transcript, with ffmpeg on Mac and PipeWire on Linux.
-Follow the executable setup instructions in the repository README; the numbered
-documents below are product specifications and implementation plans.
-See [Desktop verification](DESKTOP_VERIFICATION.md) for automated coverage,
-actual test limitations, and the remaining Mac/Linux runtime checks.
+## Planning documents (written before implementation)
 
-## Documentation Index
+These were written before the build. Where they differ from the code, `ARCHITECTURE.md` is authoritative.
+
 
 1. `01_PRD.md` — Product Requirements Document
 2. `02_SRS.md` — Software Requirements Specification
