@@ -1,0 +1,5 @@
+BV-232
+Pulmonary fibrosis: SUPPORTED (high)
+Cardiomegaly: SUPPORTED (high, image confidence 56 %)
+Consolidation: UNCERTAIN (moderate, image confidence 49 %)
+Pulmonary edema: UNCERTAIN (moderate, image confidence 70 %)

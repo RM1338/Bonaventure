@@ -18,24 +18,18 @@ import numpy as np
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")  # less fragmentation across cases on a 6 GB GPU
 import torch  # noqa: E402
 
+from .generation import generate_with_budget
+from .model_runtime import image_generation_seconds, load_medgemma
 from .knowledge import FINDINGS, SUPPRESSED_BY
-from .pipeline import ROOT
+from .model_paths import CHEXZERO_CKPT, CHEXZERO_DIR, CLEAR_CKPT, CLEAR_CODE, CLEAR_DIR, MEDGEMMA_ID, MEDSAM_CKPT, MEDSAM_DIR
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # 6 GB budget: MedGemma (4-bit) + MedSAM's 1024px encoder own the GPU; the two CLIP-style readers are quick enough on CPU
 CLIP_DEVICE = os.environ.get("BV_CLIP_DEVICE", "cpu")
-_LOCAL_CLEAR_DIR = ROOT / "models/clear"
-CLEAR_DIR = Path(os.environ.get("BV_CLEAR_DIR", _LOCAL_CLEAR_DIR if _LOCAL_CLEAR_DIR.is_dir() else Path.home() / "bonaventure/models/clear"))
-CLEAR_CKPT = os.environ.get("BV_CLEAR_CKPT") or (str(CLEAR_DIR / "best_model.pt") if (CLEAR_DIR / "best_model.pt").exists() else None)
-_LOCAL_TORCH_HOME = ROOT / "models/.torch-cache"
-if (_LOCAL_TORCH_HOME / "hub/facebookresearch_dinov2_main/hubconf.py").is_file():
-    os.environ.setdefault("TORCH_HOME", str(_LOCAL_TORCH_HOME))
-MEDSAM_DIR = ROOT / "models/MedSAM" if (ROOT / "models/MedSAM").is_dir() else ROOT / "MedSAM"
-CHEXZERO_DIR = ROOT / "models/CheXzero" if (ROOT / "models/CheXzero").is_dir() else ROOT / "CheXzero"
-MEDSAM_CKPT = MEDSAM_DIR / "work_dir/MedSAM/medsam_vit_b.pth"
-CHEXZERO_CKPT = CHEXZERO_DIR / "checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt"
-_LOCAL_MEDGEMMA = Path.home() / "bonaventure/models/medgemma-1.5-4b-it"
-MEDGEMMA_ID = os.environ.get("BV_MEDGEMMA") or (str(_LOCAL_MEDGEMMA) if (_LOCAL_MEDGEMMA / "model-00002-of-00002.safetensors").exists() else "google/medgemma-1.5-4b-it")
+# Reuse a bundled DINOv2 source cache when the Windows setup provides one.
+_local_torch_home = Path(__file__).resolve().parent.parent / "models/.torch-cache"
+if (_local_torch_home / "hub/facebookresearch_dinov2_main/hubconf.py").is_file():
+    os.environ.setdefault("TORCH_HOME", str(_local_torch_home))
 CALIBRATION = Path(__file__).resolve().parent / "calibration.json"   # scripts/calibrate.py on CheXpert validation
 
 
@@ -68,6 +62,18 @@ def _reliable():
 
 
 RELIABLE = _reliable()
+
+
+def _platt():
+    """{reader: {finding: {a, b, n, source}}}: P(finding | score) = sigmoid(a * logit(score) + b), fitted on the labelled films."""
+    if not CALIBRATION.exists():
+        return {}
+    cal = json.loads(CALIBRATION.read_text())
+    return {r: {f: dict(a=c["platt"][0], b=c["platt"][1], n=c["n_pos"] + c["n_neg"], source=cal["source"].get(f))
+                for f, c in per.items() if "platt" in c} for r, per in cal["readers"].items()}
+
+
+PLATT = _platt()
 CONCEPT_CAL = Path(__file__).resolve().parent / "concept_calibration.json"   # scripts/eval_concepts.py
 
 
@@ -119,6 +125,37 @@ class ZeroShot:
 
 
     @torch.inference_mode()
+    def occlusion(self, img, fids, n=8, batch=16):
+        """Heatmap by occlusion: grey out each cell of an n x n grid and measure how much each finding's score drops.
+        Model-agnostic and faithful (it shows what this reader actually depends on), at 1 + n*n forward passes for all findings at once.
+        -> {FINDING: n x n grid in 0..1} (findings whose score never depends on any one region are left out)."""
+        from PIL import ImageDraw
+        g = img.convert("L")
+        w, h = g.size
+        fill = int(np.asarray(g).mean())
+        batch_x = [self.preprocess(g)]
+        for i in range(n):          # occlude on the film itself, so the grid matches the image whatever padding the reader adds
+            for j in range(n):
+                o = g.copy()
+                ImageDraw.Draw(o).rectangle([j * w // n, i * h // n, (j + 1) * w // n, (i + 1) * h // n], fill=fill)
+                batch_x.append(self.preprocess(o))
+        feats = []
+        dtype = next(self.model.parameters()).dtype
+        for k in range(0, len(batch_x), batch):
+            f = self.model.encode_image(torch.stack(batch_x[k:k + batch]).to(CLIP_DEVICE, dtype)).float()
+            feats.append(f / f.norm(dim=-1, keepdim=True))
+        f = torch.cat(feats)
+        idx = [list(FINDINGS).index(fid) for fid in fids]
+        logit = self.scale * ((f @ self.pos[idx].T) - (f @ self.neg[idx].T))   # (1 + n*n, len(fids))
+        drop = (logit[0:1] - logit[1:]).clamp(min=0)                           # how much hiding each cell lowers the score
+        out = {}
+        for c, fid in enumerate(fids):
+            d = drop[:, c]
+            if float(d.max()) > 0.05 * max(float(logit[0, c].abs()), 1.0):
+                out[fid] = (d / d.max()).reshape(n, n).round(decimals=3).tolist()
+        return out
+
+    @torch.inference_mode()
     def check(self, phrases, tokenize):
         """Open-vocabulary second read of the last image: P(phrase) vs P('no ' + phrase) for each phrase."""
         if not phrases:
@@ -131,9 +168,10 @@ class ZeroShot:
 
 
 def load_clear():
-    sys.path.insert(0, str(ROOT / "CLEAR/src"))
+    sys.path.insert(0, str(CLEAR_CODE / "src"))
     import clear
-    model, preprocess = clear.load_pretrained(CLEAR_CKPT, device=CLIP_DEVICE, local_files_only=True)
+    model, preprocess = clear.load_pretrained(CLEAR_CKPT, device=CLIP_DEVICE,
+                                              local_files_only=os.environ.get("HF_HUB_OFFLINE") == "1")
     zs = ZeroShot("CLEAR", model, preprocess, clear.tokenize)
     zs.tokenize = clear.tokenize
     return zs
@@ -289,10 +327,7 @@ class MedGemma:
     def __init__(self):
         from transformers import AutoModelForImageTextToText, AutoProcessor, BitsAndBytesConfig
         self.processor = AutoProcessor.from_pretrained(MEDGEMMA_ID)
-        self.model = AutoModelForImageTextToText.from_pretrained(
-            MEDGEMMA_ID, device_map={"": 0} if DEVICE == "cuda" else None, dtype=torch.bfloat16,
-            quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16) if DEVICE == "cuda" else None)
-        self.model.eval()
+        self.model = load_medgemma(torch, AutoModelForImageTextToText, BitsAndBytesConfig, MEDGEMMA_ID)
 
     DESCRIBE = (
         "You are assisting a radiologist reviewing a frontal chest X-ray. For each candidate finding listed, decide whether it is "
@@ -311,9 +346,16 @@ class MedGemma:
     def _ask(self, img, text, max_new_tokens):
         messages = [{"role": "user", "content": [{"type": "image", "image": img.convert("RGB")}, {"type": "text", "text": text}]}]
         inputs = self.processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_dict=True,
-                                                    return_tensors="pt").to(self.model.device, dtype=torch.bfloat16)
-        out = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
-        return self.processor.decode(out[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
+                                                    return_tensors="pt").to(self.model.device, dtype=self.model.dtype)
+        out = generate_with_budget(self.model, inputs, max_new_tokens,
+                                   image_generation_seconds(self.model.device.type), "MedGemma image")
+        tokens = out[0][inputs["input_ids"].shape[-1]:]
+        text = self.processor.decode(tokens, skip_special_tokens=True)
+        if not text.strip():
+            special = self.processor.decode(tokens, skip_special_tokens=False)
+            raise RuntimeError(f"MedGemma returned no image response (device={self.model.device}, "
+                               f"dtype={self.model.dtype}, generated={special!r}); reasoning unavailable")
+        return text
 
     @torch.inference_mode()
     def describe(self, img, finding_ids):
@@ -337,7 +379,8 @@ class MedGemma:
         messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
         chat = self.processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False) + "1."  # skip any 'thinking'
         inputs = self.processor(text=chat, return_tensors="pt").to(self.model.device)
-        out = self.model.generate(**inputs, max_new_tokens=24 * len(clauses) + 20, do_sample=False)
+        out = generate_with_budget(self.model, inputs, min(256, 24 * len(clauses) + 20),
+                                   os.environ.get("BV_PRESENTATION_SECONDS", "30"), "MedGemma clinical rewrite")
         reply = "1." + self.processor.decode(out[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
         rewrites = {}
         for line in reply.splitlines():
@@ -535,12 +578,16 @@ def load_all(status):
     for key, loader in (("primary", load_clear), ("verifier", load_chexzero)):
         try:
             loaded[key] = loader()
+            status[key] = "ready"
         except Exception as e:
-            print(f"[models] {key} unavailable: {e!r}")
+            status[key] = "unavailable"
+            print(f"[models] {key} unavailable: {e!r}", flush=True)
     if "primary" in loaded and loaded["primary"].name == "CLEAR":
         try:
             loaded["concepts"] = ConceptBank(loaded["primary"].model)
+            status["concepts"] = "ready"
         except Exception as e:
+            status["concepts"] = "unavailable"
             print(f"[models] CLEAR concept bank unavailable: {e!r}")
     status["imaging"] = "ready" if "primary" in loaded else "unavailable"
     if "primary" not in loaded and "verifier" in loaded:  # fall back: verifier becomes primary, no independent check
@@ -554,7 +601,9 @@ def load_all(status):
         status["reasoning"] = "unavailable"
     try:
         loaded["segmentation"] = MedSAM()
+        status["segmentation"] = "ready"
     except Exception as e:
+        status["segmentation"] = "unavailable"
         print(f"[models] MedSAM unavailable: {e!r}")
     if "primary" not in loaded:
         raise RuntimeError("no imaging model could be loaded")
@@ -568,7 +617,8 @@ def analyze(models, img):
         m = models.get(role)
         if m:
             t = time.time()
-            sources.append(dict(role=role, model=m.name, scores=m.scores(img), thresholds=THRESHOLDS[m.name], reliable=RELIABLE[m.name]))
+            sources.append(dict(role=role, model=m.name, scores=m.scores(img), thresholds=THRESHOLDS[m.name], reliable=RELIABLE[m.name],
+                                platt=PLATT.get(m.name, {})))
             timing[m.name] = round(time.time() - t, 2)
             audit.append(dict(model=m.name, state="complete", detail="Image scores produced."))
         else:

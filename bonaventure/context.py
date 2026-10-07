@@ -128,7 +128,7 @@ class HistoryParseError(Exception):
 
 
 def read_pages(path):
-    """Text of each page. PDFs via poppler's pdftotext; plain text is a single page."""
+    """PDF pages via Poppler or pypdf; plain text is a single page."""
     path = Path(path)
     if path.suffix.lower() == ".pdf":
         try:
@@ -151,6 +151,12 @@ def pdf_page_count(path):
     try:
         info = subprocess.run(["pdfinfo", str(path)], capture_output=True, text=True, timeout=20).stdout
         return int(re.search(r"^Pages:\s+(\d+)", info, re.M).group(1))
+    except FileNotFoundError:
+        try:
+            from pypdf import PdfReader
+            return len(PdfReader(path).pages)
+        except Exception:
+            return None
     except (AttributeError, OSError, subprocess.SubprocessError):
         return None
 

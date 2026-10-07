@@ -1,0 +1,8 @@
+BV-227
+Pleural effusion: SUPPORTED (high, image confidence 98 %)
+Consolidation: SUPPORTED (high, image confidence 84 %)
+Pulmonary edema: UNCERTAIN (moderate, image confidence 60 %)
+Atelectasis: UNCERTAIN (moderate, image confidence 66 %)
+Pleural thickening: UNCERTAIN (low, image confidence 38 %)
+Lines & devices: UNCERTAIN (moderate, image confidence 56 %)
+Cardiomegaly: UNCERTAIN (moderate, image confidence 79 %)

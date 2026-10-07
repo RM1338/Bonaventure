@@ -10,7 +10,7 @@ import time
 import traceback
 from pathlib import Path
 
-from bonaventure import app
+from bonaventure import windows_app as app
 
 
 def wait_for(check, seconds=240):
@@ -24,8 +24,10 @@ def wait_for(check, seconds=240):
 
 
 def main():
+    if os.name != "nt":
+        raise SystemExit("This native UI verification requires Windows. Use scripts/reproduce.py on other platforms.")
     captured = {}
-    original_init, original_start = app.Api.__init__, app.webview.start
+    original_init, original_start = app.WindowsApi.__init__, app.webview.start
 
     def capture(api):
         original_init(api)
@@ -102,7 +104,7 @@ def main():
             Path("reports/pipeline-acceptance-verification.json").write_text(json.dumps(evidence, indent=2))
             print("ACCEPTANCE FINISHED", evidence["passed"], flush=True)
 
-    app.Api.__init__ = capture
+    app.WindowsApi.__init__ = capture
     app.webview.start = lambda **kw: original_start(verify, **kw)
     app.main()
 

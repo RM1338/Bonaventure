@@ -1,268 +1,650 @@
 # Bonaventure — Clinical Evidence Intelligence
 
-A clinician-facing chest X-ray **evidence reconciliation** assistant (HackNex 2026 · HNX26PSI05).
-It reads a chest X-ray, the patient's history documents and the current presentation, and for every candidate
-finding decides whether the evidence **SUPPORTS** it, **CONFLICTS**, is **UNCERTAIN**, or is **INSUFFICIENT** —
-showing exactly where on the film, which history fact (document + page + quote) and which symptom drove that call.
+**HackNex 2026 Internal Qualifier · HNX26PSI05: Multimodal Medical Image Intelligence**
 
-> Decision support only. Not a diagnosis. Every output must be reviewed by a qualified clinician.
+Bonaventure is a desktop second-opinion assistant for chest X-rays. It reads the **film**, the patient's **history
+documents** and the **current presentation** (typed or dictated). For every candidate finding it decides whether the
+evidence **SUPPORTS** it, **CONFLICTS**, is **UNCERTAIN** or is **INSUFFICIENT**, and it shows the basis for each call:
+where on the film, which document, page and quote, and which symptom. Every claim a model made that the evidence did
+not back is listed under *Checked and rejected*.
 
-## What it looks like
+> Decision support only. Not a diagnosis. It speaks as a helper ("Consider cardiomegaly…"); a qualified clinician
+> reviews every output and their verdict is final.
 
-- **Island launcher** — a centered floating input panel on Windows (`Ctrl + Alt + B` to show/hide).
-  Drop the X-ray, the history PDFs, type the presentation, *Analyse*. Progress is shown inside the island.
-- **Reading room** — the result opens in a dark reading room: the film on a wall viewbox with grease-pencil marks traced
-  along MedSAM's outline, a patient-context panel (complaint, symptoms, dated history with sources) and an evidence panel
-  with each finding's state, an evidence triangle (image · history · presentation), what each of the four models said,
-  CLEAR's matching concepts and the impression.
-- **Evidence report** — a printable PDF with the annotated film, per-finding evidence, sources and limitations.
-
-## How it works
-
-```
-X-ray ──► quality gate ──► CLEAR (primary) ──► concept bank: 368,294 observations ranked against the film
-                         └► CheXzero (verifier)
-                              │  candidates with any signal
-                              ▼
-                         MedGemma 1.5: what is visible + a box ──► MedSAM: box → mask → outline
-History PDFs ──► text → concepts, negation, dates, provenance (file, page, quote) ─┐
-Presentation ──► symptoms present / denied, durations ───────────────────────────┤
-                                                                                  ▼
-                                 Evidence reconciliation (bonaventure/reconcile.py)
-                                 image agreement × history × symptoms × quality
-                                 → SUPPORTED / UNCERTAIN / CONFLICTING / INSUFFICIENT_EVIDENCE + reasons
-```
-
-Reconciliation rules (explicit, every status carries its reasons):
-
-| Situation | State |
+| Document | |
 |---|---|
-| Image quality poor | INSUFFICIENT_EVIDENCE |
-| Primary and verifier disagree strongly | CONFLICTING |
-| Image positive, but the records explicitly contradict it (e.g. recent report: "normal heart size") | CONFLICTING |
-| Image positive, key symptoms denied and outnumber support | CONFLICTING |
-| Both image models positive + supporting context | SUPPORTED |
-| Weak / partial image signal | UNCERTAIN or INSUFFICIENT_EVIDENCE |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture as built: components, data pipeline, models, reconciliation |
+| [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md) | One real case followed from input to report, with the actual numbers |
+| [`docs/PS05_CHECKLIST.md`](docs/PS05_CHECKLIST.md) | Every PS05 requirement and submission guideline, and where it is met |
+| [`docs/13_MODEL_RESOURCE_REGISTER.md`](docs/13_MODEL_RESOURCE_REGISTER.md) | Declared models, datasets and libraries |
+| [`docs/sample_output/`](docs/sample_output/) | Real outputs: result JSON for demo cases A–E and a normal film, PDF report, annotated film |
+| [`docs/MACOS_SETUP.md`](docs/MACOS_SETUP.md) | Gavriel’s complete Homebrew/pip setup and Mac evaluation guide |
+| [`docs/WINDOWS_SETUP.md`](docs/WINDOWS_SETUP.md) | Jebastin’s recorded Windows setup, dependency pins and UI verification |
+| [`docs/MACOS_PR_REVIEW.md`](docs/MACOS_PR_REVIEW.md) | Review of the macOS PR, integration fixes, tests and remaining native checks |
 
-**What it can recognise.** 16 catalogue findings, each read by two calibrated image models — pleural effusion, cardiomegaly,
-pulmonary edema, consolidation, pneumonia, atelectasis, pneumothorax, lung nodule, lung mass, emphysema, pulmonary fibrosis,
-pleural thickening, widened mediastinum, hiatus hernia, rib fracture, lines & devices. Anything else MedGemma sees on the film
-(open-ended survey: "list every abnormal finding") is shown as *also seen — single reader, unverified*, never as a finding.
-Conditions a chest X-ray cannot settle — **pulmonary embolism**, aortic dissection — are raised as *not assessable on a chest
-X-ray* when the history/presentation points to them, with the appropriate next test, instead of being guessed from the film.
+---
 
-Evidence strength (high / moderate / low) is a rule-based summary of agreement between calibrated readers, **not** a probability.
-MedGemma never creates findings; it only describes and localizes candidates raised by the image models.
+## See it working
 
-## Evaluation & calibration
+Recorded on the development laptop (Linux, Hyprland), running the real models on demo case 02 from [`demo_data/`](demo_data/).
 
-Both image readers were evaluated on labelled chest X-rays (`scripts/calibrate.py`): the **CheXpert v1.0 validation set**
-(radiologist consensus, 202 frontal films) where it has enough positives, otherwise a per-finding sample from the
-**NIH ChestX-ray14** test split (676 films, NLP-mined labels — noisier, so its numbers are conservative). For every finding
-and reader the evidence levels are read off that finding's ROC curve — *weak* = 90 % sensitivity, *moderate* = Youden's J,
-*strong* = 90 % specificity — and stored in `bonaventure/calibration.json`.
+**The island:** the pill at the top of the screen expands; the film and the history PDF are dropped in, the presentation
+is typed, and *Analyse* runs the seven steps inside the island. The waiting is sped up 7×; the real case took about a minute,
+including model warm-up.
 
-**A reader only votes on findings where it reached AUROC ≥ 0.70.** Findings no reader can separate reliably are never
-raised by the image models; if MedGemma names them in its open-ended survey they appear only as *also seen*, and only when
-CLEAR — reading the same phrase zero-shot against the film — agrees.
+![Island launcher: pill → intake → analysis](docs/media/island_demo.gif)
 
-| Finding | Source (positives) | CLEAR AUROC | CheXzero AUROC | Both | Votes |
+**The reading room** that opens when the case is ready, with the occlusion heatmap toggled on and off (`H`):
+
+![Reading room with heatmap](docs/media/reading_room_demo.gif)
+
+## What it does
+
+1. **Island launcher**: a black Dynamic-Island-style pill at the top of the screen (`Super + Alt + B` or the bar
+   icon on Linux). Drop the X-ray (PNG, JPEG or DICOM) and the history PDFs, then type or
+   **dictate** the presentation. Words appear live while you speak. Press *Analyse*; progress is shown inside the island.
+2. **Four local models read the film.**
+   * CLEAR and CheXzero score 16 findings with calibrated cut-offs.
+   * CLEAR's concept bank ranks the film against 368,294 radiology-report phrases.
+   * MedGemma 1.5 surveys, describes and boxes what it sees.
+   * MedSAM turns each box into an outline.
+3. **The patient context is read with provenance.**
+   * History: dated, negation-aware facts, each with its file, page and verbatim quote.
+   * Presentation: understood by MedGemma (rewritten into clinical terms) and checked by deterministic rules.
+     Disagreements are flagged, and phrases nothing understood are listed instead of being guessed.
+   * Patient identity is checked across all documents and the DICOM header.
+4. **Reconciliation.** Explicit rules combine image agreement, history, symptoms and image quality into one evidence
+   state per finding, with its reasons and an evidence strength.
+5. **Reading room.** A dark review window shows the film with hand-drawn grease-pencil outlines, the findings, and for
+   the selected one, what each reader said with its sources. It also shows:
+   * *Since last report* (NEW / KNOWN / NOT SEEN NOW), compared with the patient's prior radiology report.
+   * *Not assessable on X-ray*, e.g. pulmonary embolism, with the test that would settle it.
+   * *Also seen* (verified observations outside the catalogue) and *Rejected claims*.
+   * A **heatmap** for each finding (where the image reader's score comes from) and an **image confidence %**.
+   * **Agree / Disagree**: a clinician who disagrees gets the evidence for and against their read, plus a second look
+     from MedGemma; their verdict is recorded.
+6. **PDF evidence report**: annotated film, lung diagram, per-finding evidence with sources, clinician review, rejected
+   claims and limitations.
+
+## System architecture
+
+Five layers: inputs → desktop app → analysis core → reasoning → outputs. Everything runs locally, and the analysis core
+lives apart from the window code (`desktop.Api` + `pipeline`), so only the shell is OS-specific.
+
+The figures below document the Linux/CUDA configuration and shared reasoning.
+macOS uses its own AppKit shell and ffmpeg recorder; MedGemma can use MPS/CPU.
+The current presentation parser rewrites only unmatched phrases. Historical
+timings in the figures are from earlier Linux runs. See the
+[diagram notes](docs/DIAGRAM_NOTES.md) for these implementation details.
+
+![System architecture](docs/diagrams/system_architecture.png)
+
+### Image-evidence pipeline and its hallucination checks
+
+Every model claim has to pass an independent check. A claim that fails is not silently dropped: it goes to the
+*Checked and rejected* log that the clinician can open, with who made the claim and why it was rejected.
+
+![Image evidence pipeline](docs/diagrams/image_evidence_pipeline.png)
+
+### Patient context and presentation understanding
+
+![Patient context](docs/diagrams/patient_context.png)
+
+### Reconciliation logic
+
+![Reconciliation logic](docs/diagrams/reconciliation_logic.png)
+
+Diagrams made in [Lucidchart](https://lucid.app/lucidchart/8c67717a-b926-4130-91e5-c5ecbcc7dcfd/view). Module-level detail, the reconciliation
+decision tree and the `result.json` contract are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Models
+
+All models run locally on the laptop. None was trained or fine-tuned by us; they were **calibrated** on labelled data
+(see Evaluation).
+
+| Model | What Bonaventure uses it for | Links | Licence |
+|---|---|---|---|
+| **CLEAR** (DINOv2 ViT-B/14 image encoder + text encoder) | Primary image reader: zero-shot score per finding from a positive / negative prompt pair | [code](https://github.com/peterhan91/CLEAR) · [weights](https://huggingface.co/peterhan91/CLEAR) | Apache-2.0 |
+| **CLEAR concept bank** (368,294 report-phrase embeddings) | Ranks the film against real radiology phrases: specificity gate, third reader, quotes shown as evidence | [weights](https://huggingface.co/peterhan91/CLEAR) (`concept_embeddings_368294.pt`, `mimic_concepts.csv`) | Apache-2.0 |
+| **CheXzero** (CLIP ViT-B/32 trained on MIMIC-CXR) | Independent verifier with the same prompts; occlusion heatmap | [code + weights](https://github.com/rajpurkarlab/CheXzero) | MIT |
+| **MedGemma 1.5 4B-it** (4-bit NF4 on CUDA; unquantized on MPS/CPU) | Open survey of the film, per-finding visibility + observations, bounding boxes, clinical rewrite of the presentation, second look when a clinician disagrees | [Hugging Face](https://huggingface.co/google/medgemma-1.5-4b-it) | Health AI Developer Foundations terms |
+| **MedSAM** (SAM ViT-B, medical) | Turns each box into an outline | [code + weights](https://github.com/bowang-lab/MedSAM) | Apache-2.0 |
+| **DINOv2** (code only) | Backbone architecture loaded by CLEAR | [code](https://github.com/facebookresearch/dinov2) | Apache-2.0 |
+| **Whisper base.en** | Live dictation captions | [Hugging Face](https://huggingface.co/openai/whisper-base.en) | MIT |
+| **Whisper small.en** | Final dictation transcript | [Hugging Face](https://huggingface.co/openai/whisper-small.en) | MIT |
+| **all-MiniLM-L6-v2** | Meaning-based fallback for presentation phrases no rule recognises | [Hugging Face](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | Apache-2.0 |
+
+## Datasets
+
+No dataset was used for training. The datasets below were used **only** to evaluate and calibrate the readers, to audit
+hallucinations, and to build the demo data.
+
+| Dataset | Used for | Where we pulled it from | Licence |
+|---|---|---|---|
+| **CheXpert v1.0** (validation split, 202 frontal films, radiologist consensus labels) | AUROC and calibration of CLEAR and CheXzero for 8 findings; confidence % (Platt scaling) | [danjacobellis/chexpert](https://huggingface.co/datasets/danjacobellis/chexpert) on Hugging Face · original: [Stanford ML Group](https://stanfordmlgroup.github.io/competitions/chexpert/) | Stanford CheXpert Research Use Agreement: **not redistributed here**, only the derived numbers |
+| **NIH ChestX-ray14** (test split, 2 shards; NLP-mined labels) | Calibration of pneumonia, nodule, mass, emphysema, fibrosis, pleural thickening, hernia; the 36-film hallucination audit; **the 14 demo-data films** | [timm/nih-chest-xray-14](https://huggingface.co/datasets/timm/nih-chest-xray-14) on Hugging Face · original: [NIH Clinical Center](https://nihcc.app.box.com/v/ChestXray-NIHCC) (Wang et al., CVPR 2017) | No restrictions (NIH Clinical Center) |
+| **MIMIC-CXR report phrases** | Inside the CLEAR concept bank (phrases only, as released by CLEAR) | via [CLEAR](https://huggingface.co/peterhan91/CLEAR) | as released by CLEAR |
+| **Wikimedia Commons** CC0 radiographs | The acceptance cases A–E in `sample_data/` | [Kerley B lines](https://commons.wikimedia.org/wiki/File:Chest_radiograph_of_a_lung_with_Kerley_B_lines.jpg), [normal PA](https://commons.wikimedia.org/wiki/File:Normal_posteroanterior_(PA)_chest_radiograph_(X-ray).jpg), [PA 3-8-2010](https://commons.wikimedia.org/wiki/File:Chest_Xray_PA_3-8-2010.png) | CC0 |
+
+All patient histories and presentations in this repository are **fictional**.
+
+## Technologies and libraries
+
+| Layer | Used |
+|---|---|
+| Runtime | Python 3.12+ (Windows setup uses 3.11), PyTorch 2.11 (CUDA 12.8 on Linux/Windows; MPS/CPU on macOS), transformers 5.19, accelerate; bitsandbytes 0.50 for CUDA |
+| Desktop | pywebview 6.2 on WebKitGTK (Linux) or Cocoa/WebKit through PyObjC (macOS), WebView2 (Windows), HTML/CSS/JS UI; separate native shells |
+| Documents | Poppler or pypdf for history; WeasyPrint (Linux/macOS) or Edge (Windows) for PDF reports; pydicom, Pillow, NumPy |
+| Audio | PipeWire `pw-record` on Linux; ffmpeg/AVFoundation on macOS |
+| Evaluation | scikit-learn (ROC, AUROC, logistic calibration), pandas (parquet datasets) |
+
+Everything runs **locally and offline**. No external API is called and no patient data leaves the machine. Versions and
+licences: [`docs/13_MODEL_RESOURCE_REGISTER.md`](docs/13_MODEL_RESOURCE_REGISTER.md).
+
+---
+
+## Install
+
+Clone the repository and run the following commands from its root. Keep a separate
+`.venv` on each machine: a Linux virtual environment cannot be reused on macOS.
+[`requirements.txt`](requirements.txt) contains shared package versions;
+[`requirements-linux.txt`](requirements-linux.txt) adds CUDA quantization, while
+[`requirements-macos.txt`](requirements-macos.txt) installs the shared stack without it.
+pywebview supplies its macOS PyObjC dependencies automatically.
+
+```bash
+git clone https://github.com/RM1338/Bonaventure.git
+cd Bonaventure
+```
+
+Linux, macOS and Windows desktop shells are included on `main`. The complete
+[macOS setup and evaluation guide](docs/MACOS_SETUP.md) is also available.
+
+### Linux (tested: Arch / Omarchy + Hyprland, RTX 3050 6 GB)
+
+This follows the original Omarchy setup documented at `769bdad`, using `uv` and
+the system Python so GTK bindings remain available. The development environment
+is Python **3.14.7**, created by uv **0.12.22** with
+`include-system-site-packages = true`; its torch/torchvision are
+**2.11.0+cu128 / 0.26.0+cu128**. The requirements filename below is the new
+Linux entry point; it includes the original shared pins plus bitsandbytes.
+
+```bash
+sudo pacman -S --needed webkit2gtk-4.1 python-gobject poppler pipewire
+uv venv --python /usr/bin/python3 --system-site-packages .venv          # system site-packages for the GTK bindings
+uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu128
+uv pip install --python .venv/bin/python -r requirements-linux.txt
+.venv/bin/python scripts/check_setup.py --mock
+```
+
+`uv` and `xdg-open` are already available on the development Omarchy machine.
+If absent on a fresh Arch install, add them with
+`sudo pacman -S --needed uv xdg-utils`. To install exactly the demonstrated
+CUDA wheel versions, replace `torch torchvision` above with
+`torch==2.11.0 torchvision==0.26.0`.
+
+This is the tested Arch/Omarchy setup. Other Linux distributions need equivalent
+GTK/WebKit, Poppler, PipeWire and document-viewer packages. Configure
+`scripts/bonaventure-toggle` as a shortcut or bar action; Super + Alt + B is an
+example binding, not an automatically registered shortcut.
+
+### macOS (Homebrew Python; native verification still required)
+
+Use Gavriel's [PR #7 Homebrew + pip setup](https://github.com/RM1338/Bonaventure/pull/7).
+The commands below follow its explicit Homebrew interpreter selection, rather
+than assuming `python3.12` is on `PATH`. `requirements-macos.txt` includes the
+same shared package pins as the guide's `requirements.txt`; Linux-only
+bitsandbytes is excluded. Install [Homebrew](https://brew.sh/) first, then:
+
+```bash
+brew install git python@3.12 pango poppler ffmpeg
+BONAVENTURE_PYTHON="$(brew --prefix python@3.12)/bin/python3.12"
+"$BONAVENTURE_PYTHON" -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements-macos.txt
+.venv/bin/python --version
+export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
+.venv/bin/python scripts/check_setup.py --mock
+BV_MOCK=1 BV_START=expand ./run.sh
+```
+
+For an existing checkout, keep a working `.venv` and skip creating it. If it
+points to an unavailable Xcode Python shim, rename it as a backup before creating
+one with the explicit Homebrew Python above. Install packages inside the venv;
+avoid system-wide `pip3` and `--break-system-packages`.
+
+The last command checks the UI with synthetic output. Quit that instance before
+starting real inference. Use Option + Command + B, the menu bar icon, or hover
+below the notch. Clicking/typing pins intake open; Escape and the hide button
+hide the launcher while preserving progress. File pickers appear above it.
+
+The pinned PyTorch packages are installed from the default package index on
+macOS ([PyTorch installation](https://pytorch.org/get-started/locally/)); do not
+use the Linux CUDA index. MedGemma selects Apple MPS when available, otherwise
+CPU. MPS uses bfloat16 where supported, otherwise float32, with eager attention;
+CUDA uses four-bit quantization. The unquantized model needs more RAM and time
+than the tested RTX setup. See the startup log for the actual device/dtype.
+Native rendering, microphone permissions, MPS inference and login startup must
+be verified on a Mac; Linux tests cover their logic with mocked platform APIs.
+
+For the optional Finder/login launcher, quit the app and run
+`.venv/bin/python scripts/install_macos.py` (or add `--no-login`). It uses this
+checkout and its `.venv`; keep both in place. Logs are in
+`~/Library/Logs/Bonaventure/bonaventure.log`. Allow microphone access when prompted.
+
+### Windows (separate Python 3.11 environment)
+
+See [Windows setup and verification](docs/WINDOWS_SETUP.md) for the PR author’s
+PowerShell commands, model layout, recorded dependency versions and sample UI
+checks. Use `requirements-windows.txt` for that environment. Start it with
+`python -m bonaventure.app`; Windows uses a centered launcher and `Ctrl+Alt+B`.
+It uses Edge for PDF export and pypdf if Poppler is missing. Type the presentation;
+Windows microphone recording is not implemented. The merged native Windows
+GUI/Edge behavior still needs a Windows rerun.
+
+### Models
+
+Choose the layout for your machine. Clone each external repository once, skipping
+ones already present. The resolver supports both layouts without moving files.
+
+**Linux / Omarchy:** retain the home-directory weights and top-level code layout
+from the original Linux setup:
+
+```bash
+# model code (cloned into the repo root)
+git clone https://github.com/peterhan91/CLEAR
+git clone https://github.com/rajpurkarlab/CheXzero
+git clone https://github.com/bowang-lab/MedSAM
+.venv/bin/python scripts/patch_clear_loader.py
+mkdir -p CheXzero/checkpoints/chexzero_weights MedSAM/work_dir/MedSAM
+
+# weights (MedGemma is gated: accept its licence on Hugging Face first)
+.venv/bin/hf auth login
+M=~/bonaventure/models
+.venv/bin/hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir "$M/clear"
+.venv/bin/hf download google/medgemma-1.5-4b-it --include '*.json' --include '*.model' --include '*.safetensors' --local-dir "$M/medgemma-1.5-4b-it"
+```
+
+**macOS:** use the repo-local layout from PR #7, under `models/`, not
+`models/Models/`:
+
+```bash
+mkdir -p models/CLEAR
+git clone https://github.com/peterhan91/CLEAR.git models/CLEAR/code
+git clone https://github.com/rajpurkarlab/CheXzero.git models/CheXzero
+git clone https://github.com/bowang-lab/MedSAM.git models/MedSAM
+mkdir -p models/CheXzero/checkpoints/chexzero_weights models/MedSAM/work_dir/MedSAM
+.venv/bin/python scripts/patch_clear_loader.py
+.venv/bin/hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir models/CLEAR
+.venv/bin/hf auth login
+.venv/bin/hf download google/medgemma-1.5-4b-it --include '*.json' --include '*.txt' --include '*.model' --include '*.safetensors' --local-dir models/MedGemma
+```
+
+Accept MedGemma's access terms on its [model page](https://huggingface.co/google/medgemma-1.5-4b-it)
+before downloading, and log in locally with an authorized account.
+
+Download these two checkpoints from the authors' releases; cloning their code
+does **not** download weights:
+
+| Checkpoint | Official download | Linux destination | macOS destination |
+|---|---|---|---|
+| CheXzero | [Authors' checkpoint folder](https://drive.google.com/drive/folders/1makFLiEMbSleYltaRxw81aBhEDMpVwno?usp=sharing), linked in their [README](https://github.com/rajpurkarlab/CheXzero#readme) | `CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt` | `models/CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt` |
+| MedSAM ViT-B | [Authors' checkpoint folder](https://drive.google.com/drive/folders/1ETWmi4AiniJeWOt6HAsYgTjYv_fkgzoN?usp=drive_link), linked in their [README](https://github.com/bowang-lab/MedSAM#readme) | `MedSAM/work_dir/MedSAM/medsam_vit_b.pth` | `models/MedSAM/work_dir/MedSAM/medsam_vit_b.pth` |
+
+Use the named CheXzero checkpoint, not a different ensemble member, to retain the
+demonstrated calibration. For MedSAM use `medsam_vit_b.pth`, not the generic SAM
+checkpoint. An in-repo layout (`models/CLEAR/code`, `models/CLEAR`,
+`models/CheXzero`, `models/MedSAM`, `models/MedGemma`) is also found automatically.
+
+While internet is still available, prepare the DINOv2 Torch Hub source cache as
+in PR #7, without downloading separate DINOv2 weights. Then validate setup after
+all checkpoints are in place:
+
+```bash
+.venv/bin/python -c 'import torch; torch.hub.load("facebookresearch/dinov2:main", "dinov2_vitb14_reg", pretrained=False, trust_repo=True, skip_validation=True)'
+.venv/bin/python -m bonaventure.model_paths
+.venv/bin/python scripts/check_setup.py
+```
+
+The app and reproduction runner set Hugging Face offline mode; complete downloads
+and the DINOv2 source-cache preparation before going offline. The setup checker only
+checks dependencies/files. It does not prove inference or native GUI behaviour.
+
+### Optional dictation and phrase matching
+
+**Linux / Omarchy:** keep the home model paths used on the development machine:
+
+```bash
+.venv/bin/hf download openai/whisper-base.en --local-dir ~/bonaventure/models/whisper-base.en
+.venv/bin/hf download openai/whisper-small.en --local-dir ~/bonaventure/models/whisper-small.en
+.venv/bin/hf download sentence-transformers/all-MiniLM-L6-v2 --local-dir ~/bonaventure/models/minilm
+.venv/bin/python scripts/check_setup.py --mock --voice
+```
+
+**macOS:** PR #7's Whisper downloads keep the processor/configuration files and
+safetensors weights in the repo-local model directory:
+
+```bash
+.venv/bin/hf download openai/whisper-base.en --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/whisper-base.en
+.venv/bin/hf download openai/whisper-small.en --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/whisper-small.en
+.venv/bin/hf download sentence-transformers/all-MiniLM-L6-v2 --include '*.json' --include '*.txt' --include '*.safetensors' --local-dir models/minilm
+.venv/bin/python scripts/check_setup.py --mock --voice
+```
+
+Existing Whisper copies under `~/bonaventure/models/` are also found. MiniLM's
+default is `~/bonaventure/models/minilm`; for the repo-local download above,
+start with `BV_MINILM="$PWD/models/minilm" ./run.sh`. Dictation uses PipeWire on
+Linux and ffmpeg/AVFoundation on macOS. The most recent recording is kept locally
+in the ignored `models/last_dictation.wav` for debugging.
+
+## Configure
+
+No configuration is needed for the default layout. Optional environment variables:
+
+| Variable | Effect |
+|---|---|
+| `BV_MOCK=1` | Run the UI without models (clearly labelled mock output) |
+| `BV_MEDGEMMA`, `BV_CLEAR_DIR`, `BV_CHEXZERO_DIR`, `BV_MEDSAM_DIR`, `BV_MODELS_DIR` | Point at model folders elsewhere |
+| `BV_WHISPER`, `BV_WHISPER_LIVE`, `BV_MINILM` | Dictation / meaning-fallback model folders |
+| `BV_CLIP_DEVICE=cuda` | Run CLEAR and CheXzero on the GPU (default CPU, which leaves VRAM for MedGemma + MedSAM) |
+| `BV_MEDGEMMA_DEVICE=auto` | Select CUDA, then macOS MPS, then CPU; `cuda`, `mps`, or `cpu` requires that backend |
+| `BV_IMAGE_GENERATION_SECONDS`, `BV_PRESENTATION_SECONDS` | Cooperative generation budgets: image default 180 s CUDA / 600 s MPS / 1800 s CPU; presentation default 30 s |
+| `BV_START=expand` | Open the island expanded at launch |
+
+The Linux shortcut and bar button only need to run `scripts/bonaventure-toggle`. This starts the app, or shows/hides the
+island if it is already running.
+
+## Run
+
+```bash
+./run.sh                    # Linux island or macOS notch launcher
+BV_START=expand ./run.sh    # open intake immediately
+./run.sh BV-001             # substitute a case ID created on THIS machine
+scripts/bonaventure-toggle  # Linux only: show / hide the island
+```
+
+Saved cases are in `cases/BV-xxx/` (inputs, `scan.png`, `result.json`); reports go to `reports/BV-xxx.pdf`.
+These directories are ignored by Git. A fresh clone has no saved BV case IDs;
+generate a case first, then use the ID printed by the runner to reopen it.
+On macOS exported reports open with `open`; Linux uses `xdg-open`.
+
+---
+
+## Demo data
+
+[`demo_data/`](demo_data/) holds **14 demo cases, one per condition**. Each case folder has the input files and what
+Bonaventure reported:
+
+```
+demo_data/02 Cardiomegaly/
+  film.png           the medical image (NIH ChestX-ray14 film 00004344_013, labelled "Cardiomegaly")
+  history.pdf        fictional patient record (cardiology note, echo report)
+  presentation.txt   fictional current presentation, as a clinician would type or dictate it
+  result.txt         what Bonaventure reported for this case
+```
+
+The films are real NIH ChestX-ray14 test-split images chosen by their dataset label
+([`scripts/build_demo_library.py`](scripts/build_demo_library.py)); every film is a different image, and every patient has
+a different, fictional history and presentation. To try one, drop `film.png` and `history.pdf` on the island and paste
+`presentation.txt`.
+
+### Sample input and output: demo case 02 (cardiomegaly)
+
+**Input:**
+* `film.png`: NIH film labelled *Cardiomegaly*.
+* `history.pdf`: *"Dilated cardiomyopathy, LVEF 30 %. Hypertension since 2010."*; furosemide; echo with moderate
+  mitral regurgitation.
+* Presentation: *"Tired all the time for 3 weeks, breathless on climbing one flight of stairs, both ankles swollen by
+  evening."*
+
+**Output** ([result JSON](docs/sample_output/demo02_cardiomegaly_result.json) · [PDF report](docs/sample_output/demo02_cardiomegaly_report.pdf)):
+
+![Annotated film, demo case 02](docs/sample_output/demo02_cardiomegaly_annotated.png)
+
+| Finding | State | Strength · image confidence | Evidence shown to the clinician |
+|---|---|---|---|
+| Cardiomegaly | **SUPPORTED** | high · 96 % (CLEAR 99, CheXzero 94) | MedGemma: "The heart appears enlarged, with a prominent cardiac silhouette"; MedSAM outline of the heart; echo report p.1 "Dilated cardiomyopathy, LVEF 30%"; fatigue for 3 weeks, breathlessness, ankle swelling |
+| Pulmonary edema | **SUPPORTED** | high · 82 % (CLEAR 92, CheXzero 73) | MedGemma: "increased opacity in the lung fields, suggestive of pulmonary edema"; furosemide in the record; breathlessness, ankle swelling |
+| Consolidation | **SUPPORTED** | high · 32 % (CLEAR 48, CheXzero 17) | Both readers above their cut-offs and breathlessness supports it, **but** MedGemma did not see it and the image confidence is only 32 %. It is drawn as an approximate zone. See Limitations |
+
+* 10 model claims were checked and rejected, e.g. "right-sided central venous catheter" and "left lower lobe opacity"
+  (MedGemma's survey; CLEAR did not confirm them).
+
+### All 14 demo cases (current code)
+
+| Case | What Bonaventure reports (state, strength, image confidence) |
+|---|---|
+| 01 Pleural effusion | Pleural effusion: SUPPORTED (high, image confidence 98 %); Consolidation: SUPPORTED (high, image confidence 84 %); Pleural thickening: SUPPORTED (high, image confidence 28 %); Atelectasis: SUPPORTED (moderate, image confidence 62 %); Cardiomegaly: SUPPORTED (high, image confidence 54 %); Pulmonary edema: UNCERTAIN (moderate, image confidence 74 %) |
+| 02 Cardiomegaly | Cardiomegaly: SUPPORTED (high, image confidence 96 %); Pulmonary edema: SUPPORTED (high, image confidence 82 %); Consolidation: SUPPORTED (high, image confidence 32 %) |
+| 03 Pulmonary edema | Pulmonary edema: SUPPORTED (high, image confidence 94 %); Consolidation: SUPPORTED (high, image confidence 48 %); Cardiomegaly: SUPPORTED (high, image confidence 92 %); Atelectasis: UNCERTAIN (low, image confidence 49 %) |
+| 04 Pneumonia | Pleural effusion: SUPPORTED (high, image confidence 98 %); Consolidation: SUPPORTED (high, image confidence 84 %); Pulmonary edema: UNCERTAIN (moderate, image confidence 60 %); Atelectasis: UNCERTAIN (moderate, image confidence 66 %); Pleural thickening: UNCERTAIN (low, image confidence 38 %); Lines & devices: UNCERTAIN (moderate, image confidence 56 %); Cardiomegaly: UNCERTAIN (moderate, image confidence 79 %) |
+| 05 Atelectasis | Atelectasis: SUPPORTED (high, image confidence 86 %); Widened mediastinum: CONFLICTING (low, image confidence 52 %) |
+| 06 Pneumothorax | Cardiomegaly: SUPPORTED (high, image confidence 32 %); Lines & devices: UNCERTAIN (low, image confidence 38 %); Pneumothorax: UNCERTAIN (moderate, image confidence 53 %); Atelectasis: UNCERTAIN (moderate, image confidence 75 %); Pleural effusion: UNCERTAIN (moderate, image confidence 64 %) |
+| 07 Lung mass | Widened mediastinum: CONFLICTING (low, image confidence 45 %); Consolidation: UNCERTAIN (moderate, image confidence 20 %); Lines & devices: UNCERTAIN (low, image confidence 32 %); Atelectasis: UNCERTAIN (moderate, image confidence 43 %); Also seen: Right upper lobe opacity; Also seen: Right lower lobe opacity |
+| 08 Emphysema | Emphysema: SUPPORTED (high); Atelectasis: UNCERTAIN (moderate, image confidence 34 %) |
+| 09 Pulmonary fibrosis | Pulmonary fibrosis: SUPPORTED (high); Cardiomegaly: SUPPORTED (high, image confidence 56 %); Consolidation: UNCERTAIN (moderate, image confidence 49 %); Pulmonary edema: UNCERTAIN (moderate, image confidence 70 %) |
+| 10 Pleural thickening | Pleural thickening: SUPPORTED (high, image confidence 44 %); Pleural effusion: SUPPORTED (high, image confidence 98 %); Atelectasis: SUPPORTED (high, image confidence 59 %); Cardiomegaly: SUPPORTED (high, image confidence 38 %); Consolidation: CONFLICTING (moderate, image confidence 54 %); Pulmonary edema: UNCERTAIN (low, image confidence 22 %); Also seen: Right lung opacity; Also seen: Elevated right hemidiaphragm |
+| 11 Hiatus hernia | Hiatus hernia: SUPPORTED (high, image confidence 70 %); Cardiomegaly: SUPPORTED (high, image confidence 61 %); Pleural thickening: SUPPORTED (moderate, image confidence 25 %); Atelectasis: INSUFFICIENT_EVIDENCE (low, image confidence 30 %); Lines & devices: INSUFFICIENT_EVIDENCE (low, image confidence 38 %) |
+| 12 Lines and devices | Cardiomegaly: UNCERTAIN (moderate, image confidence 96 %); Pulmonary edema: UNCERTAIN (moderate, image confidence 64 %); Pleural effusion: UNCERTAIN (moderate, image confidence 58 %); Lines & devices: UNCERTAIN (moderate, image confidence 74 %); Atelectasis: UNCERTAIN (low, image confidence 44 %) |
+| 13 Normal | No findings |
+| 14 Pulmonary embolism (not on X-ray) | Not assessable on X-ray: Pulmonary embolism |
+
+These are unedited outputs, including the imperfect ones. Of the 12 cases with a condition visible on X-ray, 11 raise
+it: pneumonia (04) appears as consolidation, and the pneumothorax (06) and the devices (12) only as *uncertain*. The lung
+mass (07) is not raised; masses are a known weak spot. Several cases
+also show extra findings. The normal film (13) gets no findings, and the pulmonary-embolism case (14) correctly gets no
+image finding, only the *not assessable on X-ray* advisory. Regenerate with the
+commands below; fresh outputs are kept separately from the committed examples.
+
+### Acceptance cases A–E
+
+[`sample_data/`](sample_data/) holds five scripted acceptance cases on CC0 Wikimedia films. They test the reasoning rather
+than the image models: the same film with agreeing vs. contradicting history (A/B), a degraded image (C), a condition an
+X-ray cannot show (D), and records from two different patients (E). Their outputs are in
+[`docs/sample_output/`](docs/sample_output/), and case A is followed step by step in [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md).
+
+## Reproduce the demonstrated results
+
+Both suites use files already committed in this repository; no dataset download
+is needed to reproduce them. Complete the OS setup and model downloads above,
+quit any running Bonaventure instance to release model memory, and run commands
+from the repository root. **Real inference is the default.**
+
+List cases or check their inputs without loading models:
+
+```bash
+.venv/bin/python scripts/reproduce.py --suite library --list
+.venv/bin/python scripts/reproduce.py --suite acceptance --list
+.venv/bin/python scripts/reproduce.py --suite library --check-inputs
+.venv/bin/python scripts/reproduce.py --suite acceptance --check-inputs
+```
+
+Reproduce the cardiomegaly example used in the GIFs, with a fresh PDF:
+
+```bash
+.venv/bin/python scripts/reproduce.py --suite library --case 02 --pdf
+```
+
+The terminal prints its new `BV-xxx` ID and output directory. Open that case with
+`./run.sh BV-xxx`. Compare the fresh result to
+[`demo02_cardiomegaly_result.json`](docs/sample_output/demo02_cardiomegaly_result.json)
+and the [committed PDF](docs/sample_output/demo02_cardiomegaly_report.pdf).
+
+Run all 14 library cases, all seven acceptance cases, or just the same-film
+agreement/contradiction pair:
+
+```bash
+.venv/bin/python scripts/reproduce.py --suite library --pdf
+.venv/bin/python scripts/reproduce.py --suite acceptance --pdf
+.venv/bin/python scripts/reproduce.py --suite acceptance --case A --case B --pdf
+```
+
+Each invocation creates a new `cases/demo-runs/<UTC timestamp>/` directory:
+
+```text
+manifest.json           mode, commit, OS, package versions, input SHA-256 hashes,
+                        presentation, model status, BV IDs and finding summaries
+02/result.json          full evidence, confidence, provenance and intermediate outputs
+02/progress.json        case state and stage progress
+02/report.pdf           if --pdf was requested
+02/error.json           if that case or report export failed
+```
+
+Acceptance output folders use `A`, `B`, etc. Full saved cases remain in
+`cases/BV-xxx/` and canonical PDFs in `reports/`. The runner does not replace any
+committed `demo_data/result.txt` or `docs/sample_output/` file. It exits nonzero
+on missing inputs/models, timeout, failed analysis or PDF export. All four image
+models plus the concept bank must load for a real reproduction; the runner
+refuses automatic fallback to mock output.
+
+For a pipeline/report check without model weights, explicitly add `--mock`:
+
+```bash
+.venv/bin/python scripts/reproduce.py --suite library --case 02 --mock --pdf
+```
+
+Its manifest is labelled `mode: mock`; synthetic results are **not** evidence of
+real detection accuracy. Unset `BV_MOCK` before a real run. Runtime varies by
+hardware; the Linux demo timing does not establish Mac latency. Finding scores
+and generation wording can vary across backends, so compare evidence states,
+citations and limitations rather than expecting byte-identical JSON or BV IDs.
+
+The older `scripts/run_demo_cases.py` still runs A–E plus two normals.
+`scripts/run_demo_library.py` overwrites the library's committed summaries;
+use `scripts/reproduce.py` for submission reproduction.
+
+Self-tests and desktop regressions:
+
+```bash
+.venv/bin/python -m bonaventure.context
+.venv/bin/python -m bonaventure.reconcile
+.venv/bin/python -c 'from bonaventure import models; models._selftest()'
+.venv/bin/python -m unittest discover -s tests -v
+node --test tests/*.test.cjs
+```
+
+Node is needed only for JavaScript regression tests (`brew install node` or
+`sudo pacman -S nodejs`), not for the app or demo runner. For per-model runtime
+diagnostics, run `.venv/bin/python scripts/diagnose_models.py`; on slow CPU use
+`--timeout 2400`. Optional Whisper checkpoints must be installed for those voice
+checks. See [`docs/DESKTOP_VERIFICATION.md`](docs/DESKTOP_VERIFICATION.md) for native checks.
+
+| Case | Input | Expected result |
+|---|---|---|
+| A · agreement | Kerley-B film + heart-failure history + breathlessness, orthopnea | Cardiomegaly and edema **SUPPORTED · high**, localized; consolidation **CONFLICTING** (fever and cough denied) |
+| B · contradiction | *Same film* + a history whose recent report reads "normal heart size, lungs clear" | Everything **CONFLICTING**, quoting the report; since last report: **NEW** |
+| C · poor image | Degraded film | **INSUFFICIENT_EVIDENCE**: no forced conclusion |
+| D · not on X-ray | Normal film + post-op knee replacement, pleuritic pain, racing heart, calf swelling | No image finding; **pulmonary embolism: not assessable on a chest X-ray**, with Wells/D-dimer/CTPA advice |
+| E · wrong patient | Records from two different patients | **Identity mismatch**: history not used, interval comparison blocked |
+| N, N2 · normal | Two normal films | No findings |
+
+Real outputs of these runs are in [`docs/sample_output/`](docs/sample_output/).
+
+Calibration and audit (needs the datasets, see the register):
+
+```bash
+PYTHONPATH=. .venv/bin/python scripts/calibrate.py      # → bonaventure/calibration.json
+PYTHONPATH=. .venv/bin/python scripts/eval_concepts.py  # → bonaventure/concept_calibration.json
+PYTHONPATH=. .venv/bin/python scripts/audit.py          # → bonaventure/audit.json (36 unseen NIH films)
+```
+
+## Evaluation
+
+For each finding and reader, AUROC on labelled films and three cut-offs read off the ROC curve: *weak* = 90 %
+sensitivity, *moderate* = Youden's J, *strong* = 90 % specificity. **A reader only votes where AUROC ≥ 0.70.**
+
+| Finding | Source (positives) | CLEAR | CheXzero | Both | Votes |
 |---|---|---|---|---|---|
 | Pleural effusion | CheXpert (64+) | 0.909 | 0.884 | 0.904 | CLEAR + CheXzero |
 | Cardiomegaly | CheXpert (66+) | 0.848 | 0.825 | 0.843 | CLEAR + CheXzero |
 | Pulmonary edema | CheXpert (42+) | 0.912 | 0.906 | 0.935 | CLEAR + CheXzero |
 | Consolidation | CheXpert (32+) | 0.901 | 0.851 | 0.897 | CLEAR + CheXzero |
 | Atelectasis | CheXpert (75+) | 0.814 | 0.786 | 0.817 | CLEAR + CheXzero |
-| Pneumothorax | CheXpert (7+) | 0.785 | 0.763 | 0.800 | CLEAR + CheXzero |
+| Pneumothorax | CheXpert (7+) | 0.785 | 0.763 | 0.800 | CLEAR + CheXzero (hand-set cut-offs: too few positives) |
 | Widened mediastinum | CheXpert (105+) | 0.880 | 0.877 | 0.900 | CLEAR + CheXzero |
 | Lines & devices | CheXpert (99+) | 0.736 | 0.730 | 0.755 | CLEAR + CheXzero |
 | Pleural thickening | NIH (85+) | 0.699 | 0.730 | 0.734 | CheXzero |
 | Pneumonia | NIH (60+) | 0.724 | 0.689 | 0.715 | CLEAR |
 | Hiatus hernia | NIH (30+) | 0.531 | 0.859 | 0.724 | CheXzero |
-| Lung mass | NIH (79+) | 0.673 | 0.619 | 0.656 | none → only via MedGemma survey, verified by CLEAR |
-| Emphysema | NIH (68+) | 0.627 | 0.548 | 0.573 | none → only via MedGemma survey, verified by CLEAR |
-| Pulmonary fibrosis | NIH (68+) | 0.627 | 0.546 | 0.561 | none → only via MedGemma survey, verified by CLEAR |
-| Lung nodule | NIH (82+) | 0.535 | 0.514 | 0.531 | none → only via MedGemma survey, verified by CLEAR |
-| Rib fracture | — | — | — | — | no labels available → never raised by the image models |
+| Emphysema / fibrosis | NIH (68+ each) | 0.63 | 0.55 | — | concept bank (AUROC 0.829 / 0.768) + MedGemma + history |
+| Lung mass / nodule | NIH (79+ / 82+) | 0.67 / 0.54 | 0.62 / 0.51 | — | none: only via the MedGemma survey, verified by CLEAR |
+| Rib fracture | — | — | — | — | no labels: never raised by the image models |
 
-Other guards: a finding needs one reader at *moderate* or both at *weak* (a single voter must be *strong*); a specific finding
-suppresses its overlapping parent (cardiomegaly → widened mediastinum, consolidation → pneumonia); when the image readers
-disagree MedGemma breaks the tie (2–1 → UNCERTAIN). Both normal sample films produce **no findings**.
+**Hallucination audit** (`scripts/audit.py`, full pipeline on 36 NIH films not used for calibration, film only, no
+history):
 
-## Windows setup
+| | Result |
+|---|---|
+| Normal films with a **SUPPORTED** finding | **1 / 12** (a "lines & devices" false positive; see the checklist) |
+| Normal films with any UNCERTAIN / CONFLICTING item | 9 / 12: never presented as supported, each says "no supporting clinical context" |
+| Normal films with an "also seen" observation | 3 / 12 |
+| Diseased films where the labelled disease was raised | **10 / 24**: cardiomegaly 2/2, edema 2/2, consolidation 2/2, atelectasis 2/2, effusion 1/2, pleural thickening 1/2; 0/2 for pneumothorax, pneumonia, mass, nodule, emphysema, fibrosis (the last two need a supporting history, and the audit supplies none) |
+| Model claims removed by the cross-checks | 193 (all listed per case under *Checked and rejected*) |
 
-The current Windows setup was exercised with **Python 3.11**, an **NVIDIA RTX 4050 with 6 GB VRAM**, and the existing `.venv`. The desktop uses pywebview; Windows PDF export uses Microsoft Edge. PDF history extraction falls back to `pypdf` when Poppler is absent.
+This is the worst case: a bare film with no history and no presentation, where the context rule cannot help.
+These numbers are from before the final bare-film rule (a finding on a film with no context must be seen by both image
+models, or named by MedGemma unprompted and confirmed by CLEAR; devices need that same evidence). A re-check of the same
+12 normal films after it: **no SUPPORTED and no CONFLICTING item on any of them**, 5 / 12 completely clean. The full
+36-film audit was not re-run after that change; demo cases A–E were, with identical results.
 
-### Run on this already configured computer
+---
 
-Open **PowerShell** and run:
+## Scope note
 
-```powershell
-cd C:\Users\jebas\projects\Hacknex_phase_1\Bonaventure
-$env:BV_MEDGEMMA = (Resolve-Path 'models/medgemma-1.5-4b-it').Path
-$env:HF_HUB_OFFLINE = '1'
-$env:TRANSFORMERS_OFFLINE = '1'
-$env:PYTHONIOENCODING = 'utf-8'
-Remove-Item Env:BV_MOCK -ErrorAction SilentlyContinue
-.\.venv\Scripts\python.exe -m bonaventure.app
-```
+| Minimum viable solution (implemented, demonstrated) | Stretch goals |
+|---|---|
+| Chest X-ray input (PNG/JPEG/DICOM) with a quality gate | **Implemented:** MedSAM segmentation outlines; open-ended "also seen" survey; dictation with live captions; LLM understanding of free-text presentations; patient identity check; "since last report"; clinician challenge + second look; rejected-claims log; lung diagram in the report; separate macOS shell (native runtime verification pending) |
+| Multi-model image reading with calibrated levels and confidence %, localization (box/outline/zone), occlusion heatmap | **Not done:** CT / MRI; OCR for scanned history PDFs; trained (not zero-shot) classifiers; reliable nodule / mass / pneumothorax detection |
+| History parsing with negation, dates and page-level provenance | |
+| Evidence reconciliation → SUPPORTED / UNCERTAIN / CONFLICTING / INSUFFICIENT with reasons | |
+| Desktop review UI and PDF evidence report | |
 
-Use your checkout path if it differs. Calling the virtual environment's Python directly avoids PowerShell activation-policy issues. These environment variables apply to the current terminal session.
+## Limitations
 
-1. Start **one instance**. Windows does not currently prevent duplicate launches; each instance loads its own models.
-2. Wait for **Image AI loaded** and **Reasoning AI loaded**. These indicators mean models are loaded, not that files are attached.
-3. Press **Ctrl + Alt + B** to show/hide the centered input panel. `Escape` collapses the expanded intake panel.
-4. Click **Chest X-ray** to select a scan, or drag the file into the panel. PNG, JPEG, DICOM, BMP, TIFF and WebP are accepted.
-5. Optionally attach text-based PDF/TXT/MD history and type the current symptoms. Scanned PDFs require OCR outside this app.
-6. Click **Analyse**. The review displays the scan, findings, context, and model activity. Completed inputs are cleared for the next case.
-7. Choose **Export report** to save a PDF under `reports/`. The PDF opens with the Windows default application.
-
-Keep the launching terminal open. To stop the application, use `Ctrl+C` in that terminal; hiding the panel or closing the review does not stop the model process.
-
-Reopen an existing saved case using its actual folder name (with the same environment variables set):
-
-```powershell
-.\.venv\Scripts\python.exe -m bonaventure.app BV-014
-```
-
-### Preparing another Windows computer
-
-Prerequisites:
-
-- 64-bit Python 3.11 and Git.
-- An NVIDIA GPU/driver compatible with the CUDA 12.8 PyTorch build used here. The tested GPU has 6 GB VRAM; the full pipeline has not been verified on CPU alone.
-- Microsoft Edge and its WebView2 runtime for the desktop web view; Edge is also used for PDF export.
-- The model code, checkpoints, tokenizer files and cached backbone source described below.
-
-The existing `.venv` was created with `--system-site-packages` and also uses installed user packages. Do not overwrite it just to follow these instructions. For a **new checkout**, create an isolated environment:
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
-.\.venv\Scripts\python.exe -m pip install pywebview==6.2.1 pythonnet==3.2.0 pydicom==3.0.2 pypdf==6.7.5 pillow==12.3.0 numpy==2.3.5
-.\.venv\Scripts\python.exe -m pip install transformers==5.19.0 accelerate==1.15.0 bitsandbytes==0.50.2 huggingface_hub==1.33.0
-.\.venv\Scripts\python.exe -m pip install ftfy==6.3.1 regex==2026.9.29 pandas==2.3.3 scikit-learn==1.8.0 scipy==1.17.1 h5py==3.15.1 tqdm==4.70.1 einops==0.8.2 sentencepiece==0.2.1 protobuf==6.33.6
-```
-
-These pins were read from the working environment; a clean installation with these commands has **not** been independently tested. `requirements.txt` contains different NumPy, pandas, SciPy, scikit-learn and h5py pins, so it is not the Windows Python 3.11 environment lock. Windows export does not require WeasyPrint's GTK/Pango dependencies.
-
-Check that the selected interpreter sees CUDA:
-
-```powershell
-.\.venv\Scripts\python.exe -c "import torch; print(torch.__version__); print('CUDA available:', torch.cuda.is_available())"
-```
-
-### Model files and code
-
-Keep this layout relative to the repository root:
-
-```text
-CLEAR/src/clear/                         CLEAR Python source
-models/
-  clear/
-    best_model.pt
-    concept_embeddings_368294.pt
-    mimic_concepts.csv
-  CheXzero/
-    model.py
-    clip.py
-    checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt
-  MedSAM/
-    segment_anything/
-    work_dir/MedSAM/medsam_vit_b.pth
-  medgemma-1.5-4b-it/                     Complete Hugging Face snapshot
-  .torch-cache/hub/facebookresearch_dinov2_main/
-```
-
-CLEAR also needs its local text/tokenizer assets and cached DINOv2 source. Preserve the configured CLEAR directory and caches when moving this setup; copying checkpoint files alone is insufficient for offline loading. The unused CLEAR `concepts_embeddings_sfr_mistral.pickle` is not required by this pipeline.
-
-Model sources, checkpoint fingerprints and Google Drive download links are recorded in [the model resource register](docs/13_MODEL_RESOURCE_REGISTER.md).
-
-For a new MedGemma download, accept Google's terms on its Hugging Face repository, authenticate locally, then download the complete snapshot:
-
-```powershell
-.\.venv\Scripts\hf.exe auth login
-.\.venv\Scripts\hf.exe download google/medgemma-1.5-4b-it --local-dir models/medgemma-1.5-4b-it
-```
-
-Run downloads before enabling offline mode. If you already set the offline variables in the same terminal, remove them first:
-
-```powershell
-Remove-Item Env:HF_HUB_OFFLINE -ErrorAction SilentlyContinue
-Remove-Item Env:TRANSFORMERS_OFFLINE -ErrorAction SilentlyContinue
-```
-
-Set `BV_MEDGEMMA` explicitly at launch as shown above. `BV_CLEAR_DIR` and `BV_CLEAR_CKPT` can override CLEAR's default model folder and checkpoint.
-
-## Windows verification and sample inputs
-
-After setting the launch environment variables, close other instances and run the native UI acceptance check:
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.verify_windows_pipeline
-```
-
-This starts the real application, attaches sample files through its drop handler, clicks Analyse, and checks model output and rendered findings. It creates saved cases and writes `reports/pipeline-acceptance-verification.json`; it leaves the positive case open. It uses real models, not demo output.
-
-The Windows run on **7 October 2026** verified:
-
-| Scenario | Inputs | Observed result |
-|---|---|---|
-| Positive | `kerley_b.jpg` + `case_a_history.pdf` + breathlessness/orthopnoea symptoms | Cardiomegaly and pulmonary edema supported; consolidation conflicting; two MedSAM outlines accepted |
-| Contradictory history | Same scan + `case_b_history.pdf` + the test's presentation | All three findings conflicting |
-| Normal sample | `Chest_Xray_PA_3-8-2010.png`, no history or symptoms | No accepted findings; localization and MedSAM skipped |
-
-Scans are under `sample_data/scans/`; synthetic histories are under `sample_data/histories/`. The test script contains the exact symptom text. These checks establish software behavior on the samples, not clinical accuracy.
-
-Additional backend demo scenarios and parser checks:
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.run_demo_cases
-.\.venv\Scripts\python.exe -m bonaventure.context
-.\.venv\Scripts\python.exe -m bonaventure.reconcile
-```
-
-## Windows troubleshooting
-
-- **Analyse is disabled:** attach a readable scan and wait for file staging to finish. History is optional. The model-loaded indicators do not indicate attached data.
-- **No accepted findings:** read the model activity and rejected claims in the result. Zero accepted findings does not establish that the scan is normal. History entries describe prior observations, not newly detected image findings.
-- **No outlines:** MedSAM needs an accepted bounding box. A skipped stage is reported when none is available; failed or unavailable components are shown as limitations.
-- **Model startup failure:** check paths, complete downloads and CUDA availability. Startup failure now reports an error rather than automatically returning simulated findings. `BV_MOCK=1` deliberately enables development-only simulated output; remove it for real inference.
-- **PDF export fails:** confirm Microsoft Edge is installed and `reports/` is writable. Windows uses headless Edge for export.
-- **History has no extracted text:** use a text-based document. OCR is not implemented.
-- **Shortcut does not respond:** check the launching terminal for a hotkey-registration warning and close duplicate instances. Another program may own `Ctrl+Alt+B`.
-- **Microphone dictation:** the current recording implementation uses Linux PipeWire and has not been ported to Windows. Type the presentation on Windows.
-
-The Linux entry points (`run.sh`, Hyprland toggle socket and GTK drop integration) remain in the repository. They are not the Windows launch commands.
+* Chest X-ray only, frontal views. 16 catalogue findings. Nodules, masses and pneumothorax are not reliably detected.
+* Evidence strength is a rule-based summary of agreement. The **image confidence %** is calibrated (Platt scaling) on
+  CheXpert / NIH films, whose prevalence differs from clinical use; it describes the image only.
+* Calibration sets are small: 202 CheXpert validation films (only 7 pneumothoraces) and NIH labels that are NLP-mined.
+* MedGemma boxes are approximate; when a box contradicts its own region text it is discarded and an approximate zone is
+  shown instead, labelled as such.
+* History parsing is rule-based with no OCR. The presentation uses an LLM, checked by rules, so some phrasing can still
+  be missed; it is then listed as "not understood".
 
 ## Repository
 
 ```
 bonaventure/
-  app.py          desktop client: island + reading room, Windows hotkey, Linux Hyprland integration
-  pipeline.py     case orchestration, progress states, failure capture
-  imaging.py      scan loading (PNG/JPEG/DICOM), quality gate, model engine (+ mock)
-  models.py       CLEAR (+ concept bank), CheXzero, MedGemma, MedSAM adapters
-  context.py      history + presentation parsing (negation, dates, durations, provenance)
-  knowledge.py    clinical vocabulary and finding ↔ evidence map
-  reconcile.py    evidence reconciliation engine
-  report.py       PDF evidence report
-  ui/             island.html, review.html (reading room), base.css, bundled fonts
-scripts/          Windows UI verification, demo cases, sample history generator, Linux toggle
-sample_data/      CC0 demo films, synthetic histories
-docs/             PRD, SRS, architecture, pipeline, UX, report spec, model register …
+  app.py            entry point (dispatches to Linux, macOS or Windows)
+  desktop.py        shared UI bridge (intake, analysis, review, challenge, dictation, export)
+  windows_app.py    Windows shell: centered launcher and Ctrl+Alt+B shortcut
+  linux_app.py      Linux shell: Hyprland island placement, GTK drag-and-drop
+  macos_app.py      macOS shell: notch placement, menu bar, picker and shortcut
+  pipeline.py       case orchestration, progress, presentation understanding
+  imaging.py        scan loading (PNG/JPEG/DICOM), quality gate, model engine (+ mock)
+  models.py         CLEAR, concept bank, CheXzero, MedGemma, MedSAM; image-evidence stage
+  context.py        history + presentation parsing (negation, dates, durations, provenance, identity)
+  semantic.py       MiniLM meaning fallback
+  reconcile.py      evidence reconciliation, interval change, not-assessable, challenge discussion
+  knowledge.py      clinical vocabulary, findings, anatomical zones
+  report.py         PDF evidence report, lung diagram
+  dictation.py      offline Whisper dictation with live captions
+  model_paths.py    model locations (both layouts, env overrides)
+  calibration.json, concept_calibration.json, audit.json
+  ui/               island.html (launcher), review.html (reading room), fonts
+scripts/            calibration, audit, demo cases, demo library, setup checks, toggle
+demo_data/          14 demo cases (NIH films + fictional histories, presentations, results)
+sample_data/        acceptance cases A–E (CC0 films, fictional histories)
+docs/               architecture, walkthrough, PS05 checklist, sample outputs, diagrams, GIFs, planning docs, model register
 ```
 
 ## Original contribution vs. external components
 
-Original: the workflow, the evidence-reconciliation engine and its rules, history/symptom parsing with provenance,
-uncertainty and contradiction handling, the island + reading-room product experience, and the evidence report.
-External (declared in `docs/13_MODEL_RESOURCE_REGISTER.md`): CLEAR + concept bank, CheXzero, MedGemma 1.5, MedSAM, DINOv2 code, open-source libraries, CC0 demo films.
+**Original:** the workflow and product; the evidence-reconciliation engine and all its rules; per-reader calibration
+and the concept-rank specificity gate; the cross-checks between models (survey verified by CLEAR, box vs region,
+mask vs box); history parsing with provenance; the presentation-understanding layers; the identity check; interval
+change; not-assessable advisories; clinician challenge; the rejected-claims log; the island and reading-room UI; the
+PDF report.
 
-## Limitations
-
-- Chest X-ray only. 16 catalogue findings; other abnormalities appear only as unverified single-reader observations.
-- Calibration uses 202 validation films; pneumothorax has only 7 positives there, so its levels stay hand-set.
-- MedGemma boxes are approximate (laterality can be wrong); shown as approximate localization.
-- History parsing is rule-based (no OCR for scanned PDFs).
+**External** (declared in the register): CLEAR and its concept bank, CheXzero, MedGemma 1.5, MedSAM, Whisper, MiniLM,
+DINOv2 code, open-source libraries, the CheXpert and NIH datasets (calibration and evaluation only, nothing trained),
+and CC0 demo films.

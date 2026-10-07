@@ -19,7 +19,7 @@ class InvalidScan(Exception):
 def load_scan(path):
     """Any supported file -> (8-bit grayscale PIL image, metadata dict)."""
     path = Path(path)
-    meta = {"file": path.name, "view": "Chest X-ray"}
+    meta = {"file": path.name, "view": "Medical image"}
     try:
         if path.suffix.lower() in (".dcm", ".dicom"):
             import pydicom
@@ -32,7 +32,7 @@ def load_scan(path):
             meta["patient_name"] = str(getattr(ds, "PatientName", "") or "").strip() or None
             meta["patient_id"] = str(getattr(ds, "PatientID", "") or "").strip() or None
             view = str(getattr(ds, "ViewPosition", "") or "").upper()
-            meta["view"] = f"{view} Chest X-ray" if view in ("PA", "AP", "LL", "LATERAL") else "Chest X-ray"
+            meta["view"] = f"{view} medical image" if view in ("PA", "AP", "LL", "LATERAL") else "Medical image"
         else:
             img = ImageOps.exif_transpose(Image.open(path))
             meta["color"] = _colorfulness(img)
@@ -89,7 +89,6 @@ class ImagingEngine:
         self.mock = os.environ.get("BV_MOCK") == "1"
         self.status = {"imaging": "loading", "reasoning": "loading"}
         self.models = {}
-        self.load_error = None
         self._loaded = threading.Event()  # status flips to "ready" per model; this fires only once self.models is complete
         self._lock = threading.Lock()
         threading.Thread(target=self._load, daemon=True).start()
@@ -103,9 +102,12 @@ class ImagingEngine:
             from . import models  # heavy: torch + checkpoints
             self.models = models.load_all(self.status)
         except Exception as e:
-            self.load_error = str(e)
-            print(f"[imaging] real models unavailable: {e!r}")
-            self.status = {"imaging": "unavailable", "reasoning": "unavailable"}
+            print(f"[imaging] real models unavailable: {e!r}", flush=True)
+            self.load_error = repr(e)
+            for key in self.status:
+                if self.status[key] == "loading":
+                    self.status[key] = "unavailable"
+            self.status["imaging"] = "unavailable"
         finally:
             self._loaded.set()
 
@@ -115,10 +117,10 @@ class ImagingEngine:
     def analyze(self, img, scan_path):
         self._loaded.wait()
         with self._lock:  # one GPU, one case at a time
-            if self.load_error:
-                raise RuntimeError(f"Model startup failed: {self.load_error}")
             if self.mock:
                 return _mock_analyze(img, scan_path)
+            if getattr(self, "load_error", None):
+                raise RuntimeError(f"Real model loading failed: {self.load_error}")
             from . import models
             result = models.analyze(self.models, img)
             if not result["sources"]:

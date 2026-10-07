@@ -26,8 +26,13 @@ STEPS = [
 ERROR_TEXT = {
     "INVALID_SCAN": ("Image analysis unavailable", "The chest X-ray could not be read.",
                      ["Unsupported image format", "Corrupt or incomplete file"]),
-    "IMAGE_MODEL_FAILED": ("Image analysis unavailable", "The imaging model could not process this study.",
-                           ["Unsupported image format", "Incomplete study", "Insufficient image quality"]),
+    "IMAGE_MODEL_FAILED": ("Image analysis unavailable", "A model failed while analyzing this study.", []),
+    "IMAGE_MODEL_TIMEOUT": ("Image analysis timed out", "The model exceeded its generation time budget.",
+                            ["Slow model inference; see technical details for the model and budget"]),
+    "IMAGE_MODEL_LOAD_FAILED": ("Imaging model unavailable", "The real imaging models could not be loaded.",
+                                ["Check local model files and runtime dependencies using scripts/diagnose_models.py"]),
+    "IMAGE_MODEL_MEMORY": ("Image analysis ran out of memory", "There was not enough memory to complete model inference.",
+                           ["Quit other applications before retrying"]),
     "INTERNAL": ("Analysis interrupted", "Bonaventure could not complete this case.", []),
 }
 
@@ -50,15 +55,30 @@ class Case:
         self.state = "PROCESSING"
         self.error = None
         self.result = None
+        self.stage_seconds = {}
 
     def progress(self):
         return dict(case_id=self.id, state=self.state, error=self.error,
-                    steps=[dict(key=k, label=label, state=self.steps[k]) for k, label in STEPS])
+                    steps=[dict(key=k, label=label, state=self.steps[k], seconds=self.stage_seconds.get(k)) for k, label in STEPS])
+
+    def _save_progress(self):
+        path = self.dir / "progress.json"
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(self.progress(), indent=2))
+        temporary.replace(path)
 
     def _step(self, key, fn):
         self.steps[key] = "running"
-        out = fn()
+        self._save_progress()
+        start = time.monotonic()
+        print(f"[case {self.id}] {key}: started", flush=True)
+        try:
+            out = fn()
+        finally:
+            self.stage_seconds[key] = round(time.monotonic() - start, 2)
+            print(f"[case {self.id}] {key}: returned after {self.stage_seconds[key]}s", flush=True)
         self.steps[key] = "complete"
+        self._save_progress()
         return out
 
     def _fail(self, code, exc):
@@ -68,6 +88,8 @@ class Case:
             self.steps[k] = "failed"
         self.state = "FAILED"
         self.error = dict(code=code, title=title, message=message, causes=causes, details=f"{exc!r}\n\n{traceback.format_exc()}")
+        print(f"[case {self.id}] failed ({code}): {exc!r}", flush=True)
+        self._save_progress()
 
     def run(self, engine):
         t0 = time.time()
@@ -99,18 +121,15 @@ class Case:
             if not self.histories:
                 self.steps["history"] = "skipped"
             def understand():
-                """MedGemma reads every phrase and rewrites it in clinical language; the deterministic parser maps the rewrite to
-                concepts (auditable); the rules' own reading of the clinician's words checks it. Disagreements keep the safer
-                reading and are shown. Phrases nothing understood are reported, never silently dropped."""
+                """Parse known phrases directly and ask for optional rewrites of unmatched wording.
+                Keep original text, provenance and unresolved phrases available for review."""
                 from .knowledge import HISTORY_CONCEPTS, SYMPTOM_CONCEPTS
-                from . import semantic
                 text = self.symptoms_text
                 clauses = [c.strip() for c in re.split(r"[,.;]|\band\b", text) if len(c.strip().split()) >= 2]
-                mg = None if engine.mock else (engine.models.get("reasoning") if engine.ready() else None)
-                rewrites = [""] * len(clauses)
-                if mg and clauses:
-                    with engine._lock:
-                        rewrites, self._nl_raw = mg.rewrite_clinical(clauses)
+                from .presentation import clinical_rewrites
+                rewrites, self._nl_raw, rewrite_warnings = clinical_rewrites(
+                    engine, clauses, lambda phrase: context.parse_symptoms(phrase) or context.presentation_as_history(phrase))
+                warnings.extend(rewrite_warnings)
 
                 found, hx, flags, unrecognised, have = [], [], [], [], {}
 
@@ -130,6 +149,7 @@ class Case:
                     out.update({e["concept"]: ("history", "present" if e["state"] == "present" else "denied", None) for e in context.presentation_as_history(t)})
                     return out
 
+                matcher, matcher_checked = None, False
                 for clause, rw in zip(clauses, rewrites):
                     rules, model = read(clause), read(rw) if rw else {}
                     for cid, (kind, state, dur) in rules.items():
@@ -143,8 +163,21 @@ class Case:
                         # where the rules already read a symptom in this phrase, MedGemma's extra symptoms are looser paraphrase
                         if cid not in rules and not (kind == "symptom" and rules_saw_symptom):
                             add(kind, cid, state, clause, f"understood by MedGemma: “{clause}” → {rw}", dur)
-                    if not rules and not model and semantic.matcher():
-                        m = semantic.matcher().match(rw or clause) or semantic.matcher().match(clause)
+                    if not rules and not model and not matcher_checked:
+                        matcher_checked = True
+                        try:
+                            from . import semantic
+                            matcher = semantic.matcher()
+                        except Exception as exc:
+                            print(f"[presentation] semantic matcher unavailable: {exc!r}", flush=True)
+                            warnings.append("Meaning-based matching unavailable; unmatched phrases need review.")
+                    if not rules and not model and matcher:
+                        try:
+                            m = matcher.match(rw or clause) or matcher.match(clause)
+                        except Exception as exc:
+                            print(f"[presentation] semantic matching failed: {exc!r}", flush=True)
+                            warnings.append("Meaning-based matching failed; unmatched phrases need review.")
+                            matcher, m = None, None
                         if m:
                             denied = bool(re.match(r"\s*(?:no|not|never|denies|denied|without)\b", clause, re.I))
                             add(m[0], m[1], "denied" if denied else "present", clause, f"matched by meaning ({m[2]:.2f}): “{clause}”")
@@ -167,8 +200,14 @@ class Case:
             try:
                 result = self._step("image", lambda: engine.analyze(img, self.scan))
             except Exception as e:
-                return self._fail("IMAGE_MODEL_FAILED", e)
-            self.steps["localize"] = "complete" if result.get("localizations") else "skipped"
+                code = ("IMAGE_MODEL_LOAD_FAILED" if getattr(engine, "load_error", None)
+                        else "IMAGE_MODEL_TIMEOUT" if isinstance(e, TimeoutError)
+                        else "IMAGE_MODEL_MEMORY" if isinstance(e, MemoryError) or type(e).__name__ == "OutOfMemoryError"
+                        else "IMAGE_MODEL_FAILED")
+                return self._fail(code, e)
+            self._step("localize", lambda: None)  # localization is produced alongside the image analysis
+            if not result.get("localizations"):
+                self.steps["localize"] = "skipped"
             for entry in result.get("model_audit", []):
                 if entry["state"] in ("failed", "unavailable"):
                     warnings.append(f"{entry['model']}: {entry['state']} — {entry['detail']}")
@@ -178,6 +217,18 @@ class Case:
             other = reconcile.other_observations(result, findings)
             reliable = {f for s in result["sources"] for f, ok in s.get("reliable", {}).items() if ok}
             interval = reconcile.interval_changes(findings, events, identity, reliable)
+            # occlusion heatmap per shown finding: where the independent image reader's score actually comes from
+            reader = None if engine.mock else engine.models.get("verifier") or engine.models.get("primary")
+            shown = [f for f in findings if f["status"] != "INSUFFICIENT_EVIDENCE"][:6]
+            if reader and shown:
+                try:
+                    with engine._lock:
+                        heat = reader.occlusion(img, [f["canonical_name"] for f in shown])
+                    for f in shown:
+                        if f["canonical_name"] in heat:
+                            f["heatmap"] = dict(grid=heat[f["canonical_name"]], model=reader.name, method="occlusion")
+                except Exception as e:  # a visual aid only: never fail the case for it
+                    print(f"[pipeline] heatmap skipped: {e!r}")
 
             def prepare():
                 preview = img.copy()
@@ -195,11 +246,15 @@ class Case:
                     findings=findings, summary=summary, not_assessable=not_assessable, other_observations=other,
                     technical=dict(models=[dict(role=s["role"], model=s["model"]) for s in result["sources"]],
                                    model_audit=result.get("model_audit", []), demo=engine.mock,
-                                   timing=result.get("timing", {}), raw_reasoning=(result.get("raw_reasoning") or []) + ([f"[natural-language understanding] {self._nl_raw}"] if getattr(self, "_nl_raw", None) else []),
+                                   timing=result.get("timing", {}), stage_seconds=dict(self.stage_seconds), raw_reasoning=(result.get("raw_reasoning") or []) + ([f"[natural-language understanding] {self._nl_raw}"] if getattr(self, "_nl_raw", None) else []),
                                    top_concepts=result.get("top_concepts") or [], total_seconds=round(time.time() - t0, 2), engine_status=dict(engine.status)),
                 )
                 (self.dir / "result.json").write_text(json.dumps(self.result, indent=2))
             self._step("review", prepare)
+            self.result["technical"]["stage_seconds"] = dict(self.stage_seconds)
+            self.result["technical"]["total_seconds"] = round(time.time() - t0, 2)
+            (self.dir / "result.json").write_text(json.dumps(self.result, indent=2))
             self.state = "REVIEW_READY"
+            self._save_progress()
         except Exception as e:
             self._fail("INTERNAL", e)

@@ -5,12 +5,11 @@ pydicom==3.0.2
 pypdf==6.7.5             # PDF history reading when Poppler is unavailable
 pillow==12.3.0
 numpy==2.5.3
-# Imaging / reasoning models (install torch from the CUDA index: --index-url https://download.pytorch.org/whl/cu128)
+# Shared imaging / reasoning packages. Use the per-OS requirements files; Windows has its own Python 3.11 pins.
 torch==2.11.0
 torchvision==0.26.0
 transformers==5.19.0
 accelerate==1.15.0
-bitsandbytes==0.50.2
 huggingface_hub==1.33.0
 # CLEAR / CheXzero code dependencies
 ftfy==6.3.1
