@@ -1,7 +1,7 @@
 {
   "summary": {
     "n_normals": 12,
-    "normals_with_supported_finding": 3,
+    "normals_with_supported_finding": 1,
     "normals_with_any_finding": 9,
     "normals_with_also_seen": 3,
     "n_diseased": 24,
@@ -73,7 +73,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 4,
-      "case": "BV-036"
+      "case": "BV-115"
     },
     {
       "image": "00004808_004",
@@ -84,7 +84,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 2,
-      "case": "BV-037"
+      "case": "BV-116"
     },
     {
       "image": "00007034_082",
@@ -104,7 +104,7 @@
         "Thoracic spine hardware"
       ],
       "rejected": 8,
-      "case": "BV-038"
+      "case": "BV-117"
     },
     {
       "image": "00007557_003",
@@ -117,24 +117,22 @@
       "hit": false,
       "also_seen": [],
       "rejected": 3,
-      "case": "BV-039"
+      "case": "BV-118"
     },
     {
       "image": "00001373_005",
       "label": "Normal",
       "target": null,
       "raised": {
-        "CARDIOMEGALY": "SUPPORTED",
+        "CARDIOMEGALY": "UNCERTAIN",
         "SUPPORT_DEVICES": "UNCERTAIN",
         "PLEURAL_EFFUSION": "UNCERTAIN"
       },
-      "supported": [
-        "CARDIOMEGALY"
-      ],
+      "supported": [],
       "hit": false,
       "also_seen": [],
       "rejected": 7,
-      "case": "BV-040"
+      "case": "BV-119"
     },
     {
       "image": "00002856_001",
@@ -145,7 +143,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 1,
-      "case": "BV-041"
+      "case": "BV-120"
     },
     {
       "image": "00008295_032",
@@ -160,7 +158,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 3,
-      "case": "BV-042"
+      "case": "BV-121"
     },
     {
       "image": "00007735_049",
@@ -176,7 +174,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 10,
-      "case": "BV-043"
+      "case": "BV-122"
     },
     {
       "image": "00005712_002",
@@ -187,7 +185,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 1,
-      "case": "BV-044"
+      "case": "BV-123"
     },
     {
       "image": "00008008_013",
@@ -205,7 +203,7 @@
         "Right lower lobe opacity"
       ],
       "rejected": 6,
-      "case": "BV-045"
+      "case": "BV-124"
     },
     {
       "image": "00007735_000",
@@ -218,28 +216,26 @@
       "hit": false,
       "also_seen": [],
       "rejected": 6,
-      "case": "BV-046"
+      "case": "BV-125"
     },
     {
       "image": "00006964_009",
       "label": "Normal",
       "target": null,
       "raised": {
-        "PNEUMOTHORAX": "SUPPORTED",
         "ENLARGED_MEDIASTINUM": "CONFLICTING",
+        "PNEUMOTHORAX": "UNCERTAIN",
         "ATELECTASIS": "UNCERTAIN",
         "PLEURAL_THICKENING": "UNCERTAIN",
         "CONSOLIDATION": "UNCERTAIN"
       },
-      "supported": [
-        "PNEUMOTHORAX"
-      ],
+      "supported": [],
       "hit": false,
       "also_seen": [
         "Right-sided chest tube"
       ],
       "rejected": 6,
-      "case": "BV-047"
+      "case": "BV-126"
     },
     {
       "image": "00007322_031",
@@ -260,7 +256,7 @@
         "Right lower lobe opacity"
       ],
       "rejected": 15,
-      "case": "BV-048"
+      "case": "BV-127"
     },
     {
       "image": "00007557_009",
@@ -268,23 +264,22 @@
       "target": "PLEURAL_EFFUSION",
       "raised": {
         "SUPPORT_DEVICES": "SUPPORTED",
-        "ATELECTASIS": "SUPPORTED",
         "PNEUMOTHORAX": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
         "PLEURAL_EFFUSION": "UNCERTAIN",
         "CONSOLIDATION": "UNCERTAIN",
         "PLEURAL_THICKENING": "UNCERTAIN",
         "CARDIOMEGALY": "UNCERTAIN"
       },
       "supported": [
-        "SUPPORT_DEVICES",
-        "ATELECTASIS"
+        "SUPPORT_DEVICES"
       ],
       "hit": true,
       "also_seen": [
         "Elevated right hemidiaphragm"
       ],
       "rejected": 6,
-      "case": "BV-049"
+      "case": "BV-128"
     },
     {
       "image": "00007735_038",
@@ -300,72 +295,63 @@
       "hit": true,
       "also_seen": [],
       "rejected": 4,
-      "case": "BV-050"
+      "case": "BV-129"
     },
     {
       "image": "00005066_036",
       "label": "Cardiomegaly",
       "target": "CARDIOMEGALY",
       "raised": {
-        "CARDIOMEGALY": "SUPPORTED",
+        "CARDIOMEGALY": "UNCERTAIN",
         "PULMONARY_EDEMA": "UNCERTAIN",
         "PLEURAL_EFFUSION": "UNCERTAIN",
         "CONSOLIDATION": "UNCERTAIN",
         "SUPPORT_DEVICES": "UNCERTAIN",
         "HERNIA": "UNCERTAIN"
       },
-      "supported": [
-        "CARDIOMEGALY"
-      ],
+      "supported": [],
       "hit": true,
       "also_seen": [],
       "rejected": 5,
-      "case": "BV-051"
+      "case": "BV-130"
     },
     {
       "image": "00004342_043",
       "label": "Edema",
       "target": "PULMONARY_EDEMA",
       "raised": {
-        "CARDIOMEGALY": "SUPPORTED",
-        "PULMONARY_EDEMA": "SUPPORTED",
         "SUPPORT_DEVICES": "SUPPORTED",
-        "CONSOLIDATION": "SUPPORTED",
+        "CARDIOMEGALY": "UNCERTAIN",
+        "PULMONARY_EDEMA": "UNCERTAIN",
         "ATELECTASIS": "UNCERTAIN",
-        "PLEURAL_EFFUSION": "UNCERTAIN"
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN"
       },
       "supported": [
-        "CARDIOMEGALY",
-        "PULMONARY_EDEMA",
-        "SUPPORT_DEVICES",
-        "CONSOLIDATION"
+        "SUPPORT_DEVICES"
       ],
       "hit": true,
       "also_seen": [],
       "rejected": 9,
-      "case": "BV-052"
+      "case": "BV-131"
     },
     {
       "image": "00000032_024",
       "label": "Edema",
       "target": "PULMONARY_EDEMA",
       "raised": {
-        "PULMONARY_EDEMA": "SUPPORTED",
-        "PLEURAL_EFFUSION": "SUPPORTED",
-        "CARDIOMEGALY": "SUPPORTED",
+        "PULMONARY_EDEMA": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN",
         "ATELECTASIS": "UNCERTAIN",
         "CONSOLIDATION": "UNCERTAIN",
         "SUPPORT_DEVICES": "UNCERTAIN"
       },
-      "supported": [
-        "PULMONARY_EDEMA",
-        "PLEURAL_EFFUSION",
-        "CARDIOMEGALY"
-      ],
+      "supported": [],
       "hit": true,
       "also_seen": [],
       "rejected": 13,
-      "case": "BV-053"
+      "case": "BV-132"
     },
     {
       "image": "00006808_017",
@@ -373,43 +359,38 @@
       "target": "CONSOLIDATION",
       "raised": {
         "SUPPORT_DEVICES": "SUPPORTED",
-        "ATELECTASIS": "SUPPORTED",
-        "CARDIOMEGALY": "SUPPORTED",
+        "ATELECTASIS": "UNCERTAIN",
         "PULMONARY_EDEMA": "UNCERTAIN",
         "CONSOLIDATION": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN",
         "PLEURAL_EFFUSION": "UNCERTAIN"
       },
       "supported": [
-        "SUPPORT_DEVICES",
-        "ATELECTASIS",
-        "CARDIOMEGALY"
+        "SUPPORT_DEVICES"
       ],
       "hit": true,
       "also_seen": [
         "Right hemidiaphragm elevation"
       ],
       "rejected": 7,
-      "case": "BV-054"
+      "case": "BV-133"
     },
     {
       "image": "00000467_002",
       "label": "Consolidation",
       "target": "CONSOLIDATION",
       "raised": {
-        "PLEURAL_EFFUSION": "SUPPORTED",
-        "CONSOLIDATION": "SUPPORTED",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN",
         "ATELECTASIS": "UNCERTAIN",
         "PLEURAL_THICKENING": "UNCERTAIN",
         "CARDIOMEGALY": "UNCERTAIN"
       },
-      "supported": [
-        "PLEURAL_EFFUSION",
-        "CONSOLIDATION"
-      ],
+      "supported": [],
       "hit": true,
       "also_seen": [],
       "rejected": 5,
-      "case": "BV-055"
+      "case": "BV-134"
     },
     {
       "image": "00000583_043",
@@ -424,7 +405,7 @@
       "hit": true,
       "also_seen": [],
       "rejected": 4,
-      "case": "BV-056"
+      "case": "BV-135"
     },
     {
       "image": "00002350_012",
@@ -438,7 +419,7 @@
       "hit": true,
       "also_seen": [],
       "rejected": 5,
-      "case": "BV-057"
+      "case": "BV-136"
     },
     {
       "image": "00001006_001",
@@ -451,7 +432,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 4,
-      "case": "BV-058"
+      "case": "BV-137"
     },
     {
       "image": "00004858_080",
@@ -464,7 +445,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 3,
-      "case": "BV-059"
+      "case": "BV-138"
     },
     {
       "image": "00001247_011",
@@ -475,7 +456,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 2,
-      "case": "BV-060"
+      "case": "BV-139"
     },
     {
       "image": "00005567_025",
@@ -488,28 +469,26 @@
       "hit": false,
       "also_seen": [],
       "rejected": 3,
-      "case": "BV-061"
+      "case": "BV-140"
     },
     {
       "image": "00007120_005",
       "label": "Mass",
       "target": "LUNG_MASS",
       "raised": {
-        "PLEURAL_EFFUSION": "SUPPORTED",
         "ENLARGED_MEDIASTINUM": "CONFLICTING",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
         "PLEURAL_THICKENING": "UNCERTAIN",
         "ATELECTASIS": "UNCERTAIN",
         "HERNIA": "UNCERTAIN"
       },
-      "supported": [
-        "PLEURAL_EFFUSION"
-      ],
+      "supported": [],
       "hit": false,
       "also_seen": [
         "Elevated left hemidiaphragm"
       ],
       "rejected": 5,
-      "case": "BV-062"
+      "case": "BV-141"
     },
     {
       "image": "00008008_029",
@@ -525,7 +504,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 5,
-      "case": "BV-063"
+      "case": "BV-142"
     },
     {
       "image": "00004547_018",
@@ -538,7 +517,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 7,
-      "case": "BV-064"
+      "case": "BV-143"
     },
     {
       "image": "00002424_001",
@@ -552,7 +531,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 2,
-      "case": "BV-065"
+      "case": "BV-144"
     },
     {
       "image": "00002570_002",
@@ -568,7 +547,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 2,
-      "case": "BV-066"
+      "case": "BV-145"
     },
     {
       "image": "00001555_000",
@@ -579,7 +558,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 4,
-      "case": "BV-067"
+      "case": "BV-146"
     },
     {
       "image": "00003460_002",
@@ -595,7 +574,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 5,
-      "case": "BV-068"
+      "case": "BV-147"
     },
     {
       "image": "00004822_018",
@@ -611,25 +590,23 @@
       "hit": false,
       "also_seen": [],
       "rejected": 5,
-      "case": "BV-069"
+      "case": "BV-148"
     },
     {
       "image": "00007670_045",
       "label": "Pleural_Thickening",
       "target": "PLEURAL_THICKENING",
       "raised": {
-        "PLEURAL_EFFUSION": "SUPPORTED",
         "SUPPORT_DEVICES": "SUPPORTED",
-        "CARDIOMEGALY": "SUPPORTED",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
         "PNEUMOTHORAX": "UNCERTAIN",
         "CONSOLIDATION": "UNCERTAIN",
         "ATELECTASIS": "UNCERTAIN",
-        "PLEURAL_THICKENING": "UNCERTAIN"
+        "PLEURAL_THICKENING": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN"
       },
       "supported": [
-        "PLEURAL_EFFUSION",
-        "SUPPORT_DEVICES",
-        "CARDIOMEGALY"
+        "SUPPORT_DEVICES"
       ],
       "hit": true,
       "also_seen": [
@@ -639,7 +616,7 @@
         "Right lower lobe opacity"
       ],
       "rejected": 9,
-      "case": "BV-070"
+      "case": "BV-149"
     },
     {
       "image": "00000894_001",
@@ -650,7 +627,7 @@
       "hit": false,
       "also_seen": [],
       "rejected": 7,
-      "case": "BV-071"
+      "case": "BV-150"
     }
   ]
 }

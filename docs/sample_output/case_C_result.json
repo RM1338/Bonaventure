@@ -1,0 +1,261 @@
+{
+  "case_id": "BV-110",
+  "state": "REVIEW_READY",
+  "created": "2026-10-07T14:07:16",
+  "scan": {
+    "file": "degraded_cxr.jpg",
+    "view": "Chest X-ray",
+    "color": 0.0,
+    "width": 275,
+    "height": 315
+  },
+  "quality": {
+    "state": "poor",
+    "warnings": [
+      "Very low resolution \u2014 fine detail cannot be assessed.",
+      "Low image contrast.",
+      "Image appears blurred or heavily compressed."
+    ],
+    "metrics": {
+      "min_side": 275,
+      "mean": 59.05,
+      "contrast": 18.03,
+      "sharpness": 1.52,
+      "color": 0.0
+    }
+  },
+  "history_files": [],
+  "history_provided": false,
+  "warnings": [],
+  "identity": {
+    "status": "unknown",
+    "sources": [],
+    "message": "Patient identity could not be checked (no name or MRN in the inputs)."
+  },
+  "interval": {
+    "status": "none",
+    "reason": "No dated prior radiology report in the supplied records.",
+    "rows": []
+  },
+  "rejected": [
+    {
+      "claim": "Elevated right hemidiaphragm",
+      "by": "MedGemma 1.5",
+      "reason": "CLEAR, reading the same phrase against the film, disagrees (0.50 < 0.85)"
+    },
+    {
+      "claim": "Atelectasis",
+      "by": "CLEAR + CheXzero",
+      "reason": "prompt score was high, but no phrase among the film's top 300 of 368,294 report phrases names it (best #934)"
+    },
+    {
+      "claim": "Emphysema",
+      "by": "CLEAR concepts",
+      "reason": "the film's closest report phrases suggest it, but MedGemma did not confirm it on the image"
+    },
+    {
+      "claim": "Pulmonary fibrosis",
+      "by": "CLEAR concepts",
+      "reason": "the film's closest report phrases suggest it, but MedGemma did not confirm it on the image"
+    },
+    {
+      "claim": "Widened mediastinum",
+      "by": "label hierarchy",
+      "reason": "already explained by cardiomegaly"
+    }
+  ],
+  "unrecognised": [],
+  "understanding_flags": [],
+  "presentation_text": "Mild breathlessness.",
+  "symptoms": [
+    {
+      "concept": "dyspnea",
+      "label": "Shortness of breath",
+      "state": "present",
+      "duration": null,
+      "text": "Mild breathlessness",
+      "source": "\u201cMild breathlessness\u201d \u2192 Shortness of breath (MedGemma agrees)"
+    }
+  ],
+  "timeline": [],
+  "findings": [
+    {
+      "canonical_name": "CARDIOMEGALY",
+      "display_name": "Cardiomegaly",
+      "status": "INSUFFICIENT_EVIDENCE",
+      "evidence_strength": "low",
+      "localization": null,
+      "mask": null,
+      "image_evidence": [
+        {
+          "text": "Visual reasoning model did not identify this finding",
+          "source": "description",
+          "level": "absent"
+        },
+        {
+          "text": "Primary image signal: moderate",
+          "source": "CLEAR",
+          "level": "moderate"
+        },
+        {
+          "text": "Independent verifier: absent",
+          "source": "CheXzero",
+          "level": "absent"
+        },
+        {
+          "text": "\u201cinterstitial prominence due to chronic changes related to congestive heart failure\u201d",
+          "source": "CLEAR concept",
+          "rank": 241,
+          "level": "moderate"
+        },
+        {
+          "text": "\u201cchronic recurrent congestive heart failure\u201d",
+          "source": "CLEAR concept",
+          "rank": 265,
+          "level": "moderate"
+        }
+      ],
+      "history_evidence": [],
+      "symptom_evidence": [
+        {
+          "text": "Shortness of breath",
+          "concept": "dyspnea",
+          "duration": null
+        }
+      ],
+      "negative_evidence": [],
+      "contradictions": [],
+      "notes": [
+        "Image quality prevents reliable assessment."
+      ],
+      "signals": {
+        "image": "moderate",
+        "verifier": "absent",
+        "agreement": "discordant",
+        "history": "not provided",
+        "symptoms": "present"
+      },
+      "contribution": {
+        "image": 0.61,
+        "verifier": 0.028,
+        "context": 1.0
+      },
+      "technical": {
+        "primary_model": "CLEAR",
+        "primary_score": 0.6097,
+        "thresholds": [
+          0.5076,
+          0.5472,
+          0.7291
+        ],
+        "verifier_thresholds": [
+          0.1943,
+          0.1943,
+          0.7168
+        ],
+        "verifier_model": "CheXzero",
+        "verifier_score": 0.0279,
+        "localization_source": null,
+        "support_count": 1,
+        "against_count": 0
+      },
+      "clinician_text": "Cardiomegaly cannot be reliably assessed from the supplied evidence.",
+      "id": "finding_01"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "counts": {
+      "SUPPORTED": 0,
+      "CONFLICTING": 0,
+      "UNCERTAIN": 0,
+      "INSUFFICIENT_EVIDENCE": 1
+    },
+    "critical": 0,
+    "overall_quality": "low",
+    "message": "No sufficiently supported finding was identified from the supplied evidence."
+  },
+  "not_assessable": [],
+  "other_observations": [],
+  "technical": {
+    "models": [
+      {
+        "role": "primary",
+        "model": "CLEAR"
+      },
+      {
+        "role": "verifier",
+        "model": "CheXzero"
+      }
+    ],
+    "timing": {
+      "CLEAR": 1.01,
+      "CheXzero": 0.06,
+      "CLEAR concepts": 0.1,
+      "MedGemma survey": 2.81,
+      "MedGemma": 3.98
+    },
+    "raw_reasoning": [
+      "```json\n[\n  {\"name\": \"Elevated right hemidiaphragm\", \"region\": \"Right\"},\n  {\"name\": \"Possible right lower lobe opacity\", \"region\": \"Right lower lobe\"}\n]\n```",
+      "```json\n{\"findings\": [{\"name\": \"Cardiomegaly\", \"visible\": false, \"region\": \"Heart\", \"observations\": []}, {\"name\": \"Emphysema\", \"visible\": false, \"region\": \"Lung\", \"observations\": []}, {\"name\": \"Pulmonary fibrosis\", \"visible\": false, \"region\": \"Lung\", \"observations\": []}]}\n```",
+      "[natural-language understanding] 1. Shortness of breath\n2. Orthopnea\n3. No fever\n4. Palpitations\n5. Tachycardia\n6. Chest pain\n7. Dyspnea\n8. Orthopnea"
+    ],
+    "top_concepts": [
+      [
+        "vascular pattern in the apices suggests emphysema",
+        1,
+        0.6963
+      ],
+      [
+        "vascular pattern suggests severe copd",
+        2,
+        0.6929
+      ],
+      [
+        "diffuse pleural calcifications",
+        3,
+        0.6562
+      ],
+      [
+        "affects mid and upper zones as well as the lower",
+        4,
+        0.6562
+      ],
+      [
+        "diffuse parenchymal changes compatible with emphysema",
+        5,
+        0.6558
+      ],
+      [
+        "attenuation of pulmonary vascular markings towards the apices suggests underlying emphysema",
+        6,
+        0.6548
+      ],
+      [
+        "interstitial changes compatible with copd",
+        7,
+        0.6538
+      ],
+      [
+        "vascular pattern suggests some emphysema",
+        8,
+        0.646
+      ],
+      [
+        "suggestion of pulmonary emphysema in both upper lobes",
+        9,
+        0.645
+      ],
+      [
+        "diffuse tiny lucencies consistent with interstitial pulmonary emphysema",
+        10,
+        0.645
+      ]
+    ],
+    "total_seconds": 9.68,
+    "engine_status": {
+      "imaging": "ready",
+      "reasoning": "ready"
+    }
+  }
+}
