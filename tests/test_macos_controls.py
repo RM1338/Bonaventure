@@ -107,15 +107,16 @@ class ControllerTests(unittest.TestCase):
         self.assertIsNone(self.controls.local_event(escape))
         self.assertFalse(self.controls.expanded)
 
-    def test_analysis_is_not_closed_by_escape_or_hover(self):
+    def test_analysis_ignores_hover_but_can_be_hidden_with_escape(self):
         self.controls.view = "proc"
         self.controls.expanded = True
         self.mouse.x, self.mouse.y = 20, 50
         self.poll(0)
         self.poll(10)
         event = S(window=lambda: self.native, type=lambda: 10, keyCode=lambda: 53)
-        self.assertIs(self.controls.local_event(event), event)
         self.assertTrue(self.controls.expanded)
+        self.assertIsNone(self.controls.local_event(event))
+        self.assertFalse(self.controls.expanded)
 
     def test_shortcut_conflict_is_reported_in_menu(self):
         self.controls.hotkey = None

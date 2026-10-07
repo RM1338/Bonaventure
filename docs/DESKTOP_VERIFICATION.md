@@ -20,7 +20,7 @@ recorders, and speech decoders where the real platform or models are unavailable
 | Closing transition and flicker | Actual-animation completion/cancellation, final paint, stable native frame, delayed focus release, reduced motion | Watch the menu bar while repeatedly closing; automated tests cannot establish flicker is gone |
 | Foreground file selection | Window levels, multi/single selection, cancellation, retries, duplicate clicks, errors, cleanup failure recovery, controller pause | Open/select/cancel native picker; verify it stays in front |
 | Background and login startup | Wrapper execution with spaces, minimal login PATH, microphone plist; mocked install/no-login/uninstall/running-instance flows | Finder launch, login launch, microphone permission |
-| Progress redesign | Stage index, skipped/completed stages, grouped phases, review-ready and reset states | Render real analysis progress |
+| Progress redesign | Stage index, skipped/completed stages, grouped phases, review-ready and reset states; explicit hide/reopen preserves processing; Escape hides without hover dismissal; Open review button | Render real progress and verify visible ×, Escape and review reopening |
 | Input preservation | Draft inputs and processing view survive hide/reopen; rapid-toggle races | Verify scan/history attachments with native picker |
 | Voice model locations | Repo/home lookup and environment overrides; optional setup checks | Load and decode with the real speech models |
 | Voice recording lifecycle | Final/live decoder fallback, typed-text preservation, live captions, final replacement, cancellation, saved WAV, recorder exit race, kill/reap, pending start/stop, serialized restart, stale captions, quit cleanup | Real microphone capture and Whisper decoding |

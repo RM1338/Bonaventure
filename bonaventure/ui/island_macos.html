@@ -92,6 +92,7 @@
   .proc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
   .proc-brand { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #ddd; }
   .proc-brand::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #68B8FA; }
+  .proc-actions { display: flex; align-items: center; gap: 12px; }
   .proc-case { color: #999; font-size: 11px; font-variant-numeric: tabular-nums; }
   .proc-card { padding: 16px; background: #111214; border: 1px solid rgba(255,255,255,.09); border-radius: 16px; }
   .proc-caption { display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; color: #a1a4aa; }
@@ -159,7 +160,7 @@
 
 <!-- processing -->
 <div class="view panel" id="proc">
-  <div class="proc-head"><span class="proc-brand">Bonaventure</span><span class="proc-case" id="procCase">Case</span></div>
+  <div class="proc-head"><span class="proc-brand">Bonaventure</span><span class="proc-actions"><span class="proc-case" id="procCase">Case</span><button class="chev" onclick="collapse()" title="Close launcher (Esc)" aria-label="Close launcher"><svg class="i" viewBox="0 0 16 16" style="width:14px;height:14px"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></span></div>
   <div class="proc-card">
     <div class="proc-caption"><span>Chest X-ray analysis</span><span class="proc-count" id="procCount">Preparing</span></div>
     <div class="proc-current">
@@ -169,7 +170,8 @@
     <div class="proc-track" id="procTrack" aria-label="Analysis stages"></div>
     <div class="proc-phases" id="procPhases"><span>Patient context</span><span>Image findings</span><span>Evidence review</span></div>
   </div>
-  <div class="proc-foot">Your review will open automatically when it’s ready.</div>
+  <div class="proc-foot" id="procFoot">You can close this panel; analysis will continue in the background.</div>
+  <button class="go" id="procReview" style="display:none; margin-top:12px" onclick="openCurrentReview()">Open review</button>
 </div>
 
 <!-- error -->
@@ -267,7 +269,7 @@ window.revealIsland = async () => {
 };
 window.dismissIsland = () => { if (managed) show("idle"); else if (view === "intake") collapse(); };
 window.toggleIsland = () => (view === "pill" || view === "idle" ? expand() : view === "intake" ? collapse() : null);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && view === "intake") collapse(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && ["intake", "proc", "err"].includes(view)) collapse(); });
 
 // ---------- intake tiles ----------
 function render() {
@@ -376,6 +378,8 @@ function renderProgress(p) {
   const run = p.steps.find((s) => s.state === "running");
   const ready = p.state === "REVIEW_READY";
   $("proc").classList.toggle("ready", ready);
+  $("procReview").style.display = ready ? "block" : "none";
+  $("procFoot").textContent = ready ? "Open your review or close this panel." : "You can close this panel; analysis will continue in the background.";
   const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
   text("procCount", !total ? "Preparing" : ready ? `${total} stages complete` : run ? `Stage ${p.steps.indexOf(run) + 1} / ${total}` : `${done} / ${total} complete`);
   text("procStep", ready ? "Review ready" : run ? run.label : "Preparing clinical evidence");
@@ -388,6 +392,12 @@ function renderProgress(p) {
     const state = steps.some(s => s.state === "running") ? "run" : steps.length && steps.every(s => stateClass(s) === "done") ? "done" : "";
     return `<span class="${state}">${label}</span>`;
   }).join("");
+}
+function openCurrentReview() {
+  if (currentCase) {
+    pywebview.api.open_review(currentCase);
+    collapse();
+  }
 }
 async function poll(id) {
   const p = await pywebview.api.progress(id);

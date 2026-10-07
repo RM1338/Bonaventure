@@ -137,7 +137,7 @@ class MenuBarController(AppKit.NSObject):
                 self.pinned = True
                 if not self.expanded:
                     self.reveal(pinned=True)
-            elif event.keyCode() == 53 and self.view != "proc":  # Escape
+            elif event.keyCode() == 53:  # Explicit Escape hides the panel without canceling analysis
                 self.hide()
                 return None
             else:

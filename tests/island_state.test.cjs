@@ -33,6 +33,7 @@ const api = {
   island: async (...args) => { calls.push(args); },
   engine_status: async () => ({ imaging: 'ready', reasoning: 'ready' }),
   clear_intake: async () => {},
+  open_review: async id => { calls.push(["review", id]); },
   dismiss_launcher: async () => window.dismissIsland()
 };
 let reducedMotion = false;
@@ -110,6 +111,10 @@ function advance(delay) {
   window.dismissIsland();
   await window.revealIsland(); await settle();
   assert.equal(state(), 'proc');
+  vm.runInContext("collapse()", context); await settle();
+  assert.equal(state(), 'idle');
+  await window.revealIsland(); await settle();
+  assert.equal(state(), 'proc');
   // Once a case resets, the next reveal must open intake, not stale progress.
   window.resetLauncher();
   await window.revealIsland(); await settle();
@@ -174,9 +179,15 @@ function advance(delay) {
   assert.equal(element('procStep').textContent, 'Review ready');
   assert.equal(element('procCount').textContent, '7 stages complete');
   assert(element('proc').classList.contains('ready'));
+  assert.equal(element('procReview').style.display, 'block');
+  assert.match(element('procFoot').textContent, /close this panel/);
+  vm.runInContext("currentCase = 'BV-004'; openCurrentReview()", context); await settle();
+  assert(calls.some(call => call[0] === 'review' && call[1] === 'BV-004'));
+  assert.equal(state(), 'pill');
   vm.runInContext("renderProgress({ state: 'PREPARING', steps: [] })", context);
   assert.equal(element('procCount').textContent, 'Preparing');
   assert(!element('proc').classList.contains('ready'));
+  assert.equal(element('procReview').style.display, 'none');
   // Live dictation must preserve typed text and replace captions with final text.
   element('symptoms').value = 'Short of breath.';
   api.start_dictation = async () => ({ ok: true });
