@@ -9,7 +9,7 @@ torch==2.11.0
 torchvision==0.26.0
 transformers==5.19.0
 accelerate==1.15.0
-bitsandbytes==0.50.2
+bitsandbytes==0.50.2; platform_system == "Linux"
 huggingface_hub==1.33.0
 # CLEAR / CheXzero code dependencies
 ftfy==6.3.1

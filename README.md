@@ -98,14 +98,78 @@ uv pip install --python .venv/bin/python torch torchvision --index-url https://d
 uv pip install --python .venv/bin/python -r requirements.txt
 
 # model code + weights (see docs/13_MODEL_RESOURCE_REGISTER.md)
-git clone https://github.com/peterhan91/CLEAR
-git clone https://github.com/rajpurkarlab/CheXzero      # weights → CheXzero/checkpoints/chexzero_weights/
-git clone https://github.com/bowang-lab/MedSAM          # medsam_vit_b.pth → MedSAM/work_dir/MedSAM/
-hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir ~/bonaventure/models/clear
-hf download google/medgemma-1.5-4b-it                   # gated: accept the licence + `hf auth login` first
+mkdir -p models/CLEAR
+git clone https://github.com/peterhan91/CLEAR models/CLEAR/code
+git clone https://github.com/rajpurkarlab/CheXzero models/CheXzero
+git clone https://github.com/bowang-lab/MedSAM models/MedSAM
+hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir models/CLEAR
+hf download google/medgemma-1.5-4b-it --local-dir models/MedGemma  # gated: accept the licence + `hf auth login` first
+.venv/bin/python scripts/patch_clear_loader.py
 ```
 
+Skip clones/downloads for assets already present. Following the
+[CheXzero README](https://github.com/rajpurkarlab/CheXzero#model-checkpoints), download
+`best_128_0.0002_original_15000_0.859.pt` from its linked Google Drive folder into
+`models/CheXzero/checkpoints/chexzero_weights/`. Place the MedSAM checkpoint at
+`models/MedSAM/work_dir/MedSAM/medsam_vit_b.pth`, as described in the
+[MedSAM README](https://github.com/bowang-lab/MedSAM#get-started).
+
+The default layout is:
+
+```text
+models/
+  CLEAR/
+    code/src/clear/                 # GitHub source; separate from the weights
+    best_model.pt
+    concept_embeddings_368294.pt
+    mimic_concepts.csv
+  CheXzero/
+    model.py
+    checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt
+  MedSAM/
+    segment_anything/
+    work_dir/MedSAM/medsam_vit_b.pth
+  MedGemma/
+    config.json
+    model.safetensors.index.json
+    model-00001-of-00002.safetensors
+    model-00002-of-00002.safetensors
+    ...                            # tokenizer and processor files
+```
+
+`BV_MODELS_DIR` overrides the whole model directory. Individual overrides are
+`BV_CLEAR_DIR` (weights/concepts), `BV_CLEAR_CODE` (GitHub source),
+`BV_CLEAR_CKPT`, `BV_CHEXZERO_DIR`, `BV_CHEXZERO_CKPT`, `BV_MEDSAM_DIR`,
+`BV_MEDSAM_CKPT`, and `BV_MEDGEMMA`.
+
 `BV_MEDGEMMA=/path/to/medgemma` points at a local copy; `BV_MOCK=1` runs the UI without models (clearly labelled demo mode).
+
+### macOS
+
+Install native dependencies with Homebrew, then Python packages in the project's
+virtual environment:
+
+```bash
+brew install pango poppler
+# Install uv without relying on Apple's Xcode Python shim:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install 3.12
+uv venv --python 3.12 --clear .venv
+uv pip install --python .venv/bin/python -r requirements.txt
+.venv/bin/python scripts/check_setup.py
+BV_MOCK=1 BV_START=expand ./run.sh
+```
+
+Then close the mock app and run `BV_START=expand ./run.sh` for real inference.
+The current adapters use CUDA when available, otherwise CPU; Apple MPS is not
+enabled. MedGemma runs without 4-bit CUDA quantization on macOS, so real inference
+needs considerably more RAM and time than the tested NVIDIA setup. A setup check
+verifies packages and local files without loading weights; it does not verify the
+native GUI, checkpoint contents, or successful inference. CLEAR also downloads
+DINOv2 architecture code via `torch.hub` on first load, as documented in its
+[upstream README](https://github.com/peterhan91/CLEAR#installation).
+Run `.venv/bin/python scripts/patch_clear_loader.py` after cloning CLEAR to avoid
+PyTorch's GitHub API lookup failing with `KeyError('Authorization')`.
 
 ## Run
 

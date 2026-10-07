@@ -19,17 +19,14 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")  # 
 import torch  # noqa: E402
 
 from .knowledge import FINDINGS, SUPPRESSED_BY
-from .pipeline import ROOT
+from .model_paths import (
+    CLEAR_DIR, CLEAR_CODE, CLEAR_CKPT, CHEXZERO_DIR, CHEXZERO_CKPT,
+    MEDSAM_DIR, MEDSAM_CKPT, MEDGEMMA_ID,
+)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # 6 GB budget: MedGemma (4-bit) + MedSAM's 1024px encoder own the GPU; the two CLIP-style readers are quick enough on CPU
 CLIP_DEVICE = os.environ.get("BV_CLIP_DEVICE", "cpu")
-CLEAR_DIR = Path(os.environ.get("BV_CLEAR_DIR", Path.home() / "bonaventure/models/clear"))  # full HF repo: weights + concept bank
-CLEAR_CKPT = os.environ.get("BV_CLEAR_CKPT") or (str(CLEAR_DIR / "best_model.pt") if (CLEAR_DIR / "best_model.pt").exists() else None)
-MEDSAM_CKPT = ROOT / "MedSAM/work_dir/MedSAM/medsam_vit_b.pth"
-CHEXZERO_CKPT = ROOT / "CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt"
-_LOCAL_MEDGEMMA = Path.home() / "bonaventure/models/medgemma-1.5-4b-it"
-MEDGEMMA_ID = os.environ.get("BV_MEDGEMMA") or (str(_LOCAL_MEDGEMMA) if (_LOCAL_MEDGEMMA / "model-00002-of-00002.safetensors").exists() else "google/medgemma-1.5-4b-it")
 CALIBRATION = Path(__file__).resolve().parent / "calibration.json"   # scripts/calibrate.py on CheXpert validation
 
 
@@ -111,7 +108,7 @@ class ZeroShot:
 
 
 def load_clear():
-    sys.path.insert(0, str(ROOT / "CLEAR/src"))
+    sys.path.insert(0, str(CLEAR_CODE / "src"))
     import clear
     model, preprocess = clear.load_pretrained(CLEAR_CKPT, device=CLIP_DEVICE)
     zs = ZeroShot("CLEAR", model, preprocess, clear.tokenize)
@@ -121,7 +118,7 @@ def load_clear():
 
 def load_chexzero():
     from torchvision.transforms import Compose, InterpolationMode, Lambda, Normalize, Resize
-    cz_dir = ROOT / "CheXzero"
+    cz_dir = CHEXZERO_DIR
     sys.path.insert(0, str(cz_dir))
     cz_model = _import_file("chexzero_model", cz_dir / "model.py")
     cz_clip = _import_file("chexzero_clip", cz_dir / "clip.py")
@@ -207,7 +204,7 @@ class ConceptBank:
 
 class MedSAM:
     def __init__(self):
-        sys.path.insert(0, str(ROOT / "MedSAM"))
+        sys.path.insert(0, str(MEDSAM_DIR))
         from segment_anything import sam_model_registry
         self.model = sam_model_registry["vit_b"](checkpoint=str(MEDSAM_CKPT)).to(DEVICE).eval()
 

@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import uuid
 from pathlib import Path
@@ -72,8 +73,14 @@ class Api:
         self._review = None
 
     # ----- island geometry -----
+    def launcher_layout(self):
+        if sys.platform == "darwin":
+            from .macos_launcher import launcher_layout
+            return launcher_layout(self._launcher)
+        return dict(notched=False, top_inset=0, min_width=340)
+
     def island(self, w, h):
-        """Resize the island and keep it centred at the top of the focused monitor (Hyprland animates the change)."""
+        """Resize the island, keeping it centred and joined to the Mac's notch."""
         w, h = int(w), int(h)
         if _on_hyprland():
             _hypr_rules()
@@ -82,6 +89,9 @@ class Api:
             sel = f'window = "title:^{ISLAND_TITLE}$"'
             _hypr(f"hl.dsp.window.resize({{ x = {w}, y = {h}, {sel} }})")
             _hypr(f"hl.dsp.window.move({{ x = {int(mx + (mw - w) / 2)}, y = {my + ISLAND_TOP}, {sel} }})")
+        elif sys.platform == "darwin":
+            from .macos_launcher import resize_launcher
+            resize_launcher(self._launcher, w, h, ISLAND_TOP)
         else:
             self._launcher.resize(w, h)
 
@@ -280,7 +290,11 @@ def main():
     api = Api()
     reopen = sys.argv[1] if len(sys.argv) > 1 else None  # e.g. `./run.sh BV-002` reopens a saved case
     api._launcher = webview.create_window(ISLAND_TITLE, str(UI / "island.html"), js_api=api, width=340, height=40,
-                                          frameless=True, easy_drag=False, resizable=True, background_color="#000000", min_size=(100, 24))
+                                          frameless=True, easy_drag=False, resizable=True, background_color="#000000",
+                                          transparent=sys.platform == "darwin", min_size=(100, 24))
+    if sys.platform == "darwin":
+        from .macos_launcher import configure_launcher
+        api._launcher.events.shown += lambda: configure_launcher(api._launcher, ISLAND_TOP)
     if reopen:
         if not (pipeline.CASES / reopen / "result.json").exists():
             sys.exit(f"No saved case {reopen} in {pipeline.CASES}")

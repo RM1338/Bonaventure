@@ -5,9 +5,13 @@
 <title>Bonaventure</title>
 <link rel="stylesheet" href="base.css">
 <style>
-  html, body { background: var(--island); overflow: hidden; }
-  body { color: #fff; }
-  .view { position: absolute; inset: 0; display: none; opacity: 0; transition: opacity .18s ease .08s; }
+  html { background: transparent; overflow: hidden; }
+  body {
+    color: #fff; overflow: hidden; border-radius: 20px;
+    background: #000;
+  }
+  body.notch-attached { border-radius: 0 0 20px 20px; }
+  .view { position: absolute; inset: var(--notch-inset, 0px) 0 0; display: none; opacity: 0; transition: opacity .18s ease .08s; }
   .view.show { display: flex; opacity: 1; }
   @starting-style { .view.show { opacity: 0; } }
 
@@ -267,7 +271,15 @@ window.resetLauncher = () => {
   if (view !== "intake") collapse();
 };
 
-window.addEventListener("pywebviewready", () => { render(); bindDrops(); pollEngine(); pywebview.api.island(...SIZES.pill); });
+window.addEventListener("pywebviewready", async () => {
+  const layout = await pywebview.api.launcher_layout();
+  document.body.classList.toggle("notch-attached", layout.notched);
+  document.documentElement.style.setProperty("--notch-inset", `${layout.top_inset}px`);
+  SIZES.pill[0] = Math.max(SIZES.pill[0], layout.min_width);
+  render(); bindDrops(); pollEngine();
+  // Preserve the active view if the automatic expansion ran during startup.
+  show(view);
+});
 render();
 </script>
 </body>
