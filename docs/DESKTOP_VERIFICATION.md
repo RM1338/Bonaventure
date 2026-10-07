@@ -6,7 +6,7 @@ interpreter and cannot execute here. Native Mac results remain unverified.
 
 ## Automated results
 
-All **82 Python tests** and the Node launcher checks pass. Context and evidence
+All **85 Python tests** and the Node launcher checks pass. Context and evidence
 reconciliation self-checks also pass. These tests use fake native APIs, clocks,
 recorders, and speech decoders where the real platform or models are unavailable.
 
@@ -24,7 +24,7 @@ recorders, and speech decoders where the real platform or models are unavailable
 | Input preservation | Draft inputs and processing view survive hide/reopen; rapid-toggle races | Verify scan/history attachments with native picker |
 | Voice model locations | Repo/home lookup and environment overrides; optional setup checks | Load and decode with the real speech models |
 | Voice recording lifecycle | Final/live decoder fallback, typed-text preservation, live captions, final replacement, cancellation, saved WAV, recorder exit race, kill/reap, pending start/stop, serialized restart, stale captions, quit cleanup | Real microphone capture and Whisper decoding |
-| Stage 3 latency/failure | Known phrases bypass rewriting; lock wait, decoding budget/partial-output rejection, malformed rewrite, original-text preservation, semantic fallback failure, full pipeline completion and persisted failure tests | Time CPU generation on the Mac |
+| Stage 3 latency/failure | Known phrases bypass rewriting; lock wait, decoding budget/partial-output rejection, malformed rewrite, original-text preservation, semantic fallback failure, full pipeline completion, persisted failure and timeout/load/memory error classification tests | Time CPU generation on the Mac |
 | Model health | Per-model statuses, no automatic mock fallback; diagnostic timeout/exit codes and shared-weight checks tested | Run real per-model inference command below |
 | Local imaging setup | Existing source/config/checkpoint file-presence checks pass; MedGemma/Whisper safetensors headers and tensor offsets fit file sizes | Load weights and run inference; file checks do not verify tensor values or quality |
 

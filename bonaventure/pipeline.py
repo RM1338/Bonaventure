@@ -26,8 +26,13 @@ STEPS = [
 ERROR_TEXT = {
     "INVALID_SCAN": ("Image analysis unavailable", "The chest X-ray could not be read.",
                      ["Unsupported image format", "Corrupt or incomplete file"]),
-    "IMAGE_MODEL_FAILED": ("Image analysis unavailable", "The imaging model could not process this study.",
-                           ["Unsupported image format", "Incomplete study", "Insufficient image quality"]),
+    "IMAGE_MODEL_FAILED": ("Image analysis unavailable", "A model failed while analyzing this study.", []),
+    "IMAGE_MODEL_TIMEOUT": ("Image analysis timed out", "The model exceeded its generation time budget.",
+                            ["Slow model inference; see technical details for the model and budget"]),
+    "IMAGE_MODEL_LOAD_FAILED": ("Imaging model unavailable", "The real imaging models could not be loaded.",
+                                ["Check local model files and runtime dependencies using scripts/diagnose_models.py"]),
+    "IMAGE_MODEL_MEMORY": ("Image analysis ran out of memory", "There was not enough memory to complete model inference.",
+                           ["Quit other applications before retrying"]),
     "INTERNAL": ("Analysis interrupted", "Bonaventure could not complete this case.", []),
 }
 
@@ -83,6 +88,7 @@ class Case:
             self.steps[k] = "failed"
         self.state = "FAILED"
         self.error = dict(code=code, title=title, message=message, causes=causes, details=f"{exc!r}\n\n{traceback.format_exc()}")
+        print(f"[case {self.id}] failed ({code}): {exc!r}", flush=True)
         self._save_progress()
 
     def run(self, engine):
@@ -194,7 +200,11 @@ class Case:
             try:
                 result = self._step("image", lambda: engine.analyze(img, self.scan))
             except Exception as e:
-                return self._fail("IMAGE_MODEL_FAILED", e)
+                code = ("IMAGE_MODEL_LOAD_FAILED" if getattr(engine, "load_error", None)
+                        else "IMAGE_MODEL_TIMEOUT" if isinstance(e, TimeoutError)
+                        else "IMAGE_MODEL_MEMORY" if isinstance(e, MemoryError) or type(e).__name__ == "OutOfMemoryError"
+                        else "IMAGE_MODEL_FAILED")
+                return self._fail(code, e)
             self._step("localize", lambda: None)  # localization is produced alongside the image analysis
 
             findings, summary = self._step("reconcile", lambda: reconcile.reconcile(result, quality, symptoms, events, bool(self.histories)))

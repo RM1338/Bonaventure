@@ -250,7 +250,10 @@ below is not an estimate for a Mac.
 Terminal output reports stage starts and elapsed times. Each case writes
 `cases/BV-XXX/progress.json`; successful results also include stage timings in
 `technical.stage_seconds`. Failed real-model loading is reported as a failure;
-mock output requires explicitly setting `BV_MOCK=1`.
+mock output requires explicitly setting `BV_MOCK=1`. Timeout, loading and
+memory failures have distinct error messages. Generic model failures do not
+claim the image format or quality caused the error; full technical details
+are saved in the case progress file and the exception is logged to Terminal.
 
 Close Bonaventure first, then run the actual model smoke tests:
 

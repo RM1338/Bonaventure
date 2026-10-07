@@ -79,6 +79,24 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(progress["error"]["code"], "IMAGE_MODEL_FAILED")
         self.assertFalse((case.dir / "result.json").exists())
 
+    def test_timeout_identified_without_blame_on_image(self):
+        self.engine.analyze.side_effect = TimeoutError("MedGemma image generation exceeded its budget")
+        case = self.run_case("no fever")
+        self.assertEqual(case.error["code"], "IMAGE_MODEL_TIMEOUT")
+        self.assertNotIn("Unsupported", str(case.error["causes"]))
+        self.assertIn("MedGemma", case.error["details"])
+
+    def test_missing_model_identified_without_blame_on_image(self):
+        self.engine.load_error = "missing weights"
+        self.engine.analyze.side_effect = RuntimeError("Real model loading failed")
+        case = self.run_case("no fever")
+        self.assertEqual(case.error["code"], "IMAGE_MODEL_LOAD_FAILED")
+
+    def test_memory_error_identified(self):
+        self.engine.analyze.side_effect = MemoryError("allocation failed")
+        case = self.run_case("no fever")
+        self.assertEqual(case.error["code"], "IMAGE_MODEL_MEMORY")
+
     def test_engine_load_failure_never_enables_mock(self):
         spec = importlib.util.spec_from_file_location("bonaventure._imaging_test", Path(__file__).parents[1] / "bonaventure/imaging.py")
         module = importlib.util.module_from_spec(spec)
