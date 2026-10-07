@@ -69,6 +69,15 @@
   .docs div { font-size: 11.5px; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile textarea { flex: 1; margin-top: 8px; resize: none; border: 0; outline: 0; background: transparent; color: #fff; font: inherit; font-size: 13px; line-height: 1.4; padding: 0; user-select: text; }
   .tile textarea::placeholder { color: rgba(255,255,255,.35); }
+  #sympTile textarea { padding-right: 34px; }
+  .mic { position: absolute; right: 10px; bottom: 10px; width: 30px; height: 30px; border-radius: 15px; border: 0; background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.8); display: grid; place-items: center; }
+  .mic:hover { background: rgba(255,255,255,.18); color: #fff; }
+  .mic.rec { background: #FF453A; color: #fff; animation: pulse 1.2s ease-in-out infinite; }
+  .mic.busy { opacity: .5; pointer-events: none; }
+  .mic svg { width: 15px; height: 15px; }
+  @keyframes pulse { 50% { opacity: .7; } }
+  textarea.live { color: rgba(255,255,255,.62); }
   .foot { display: flex; align-items: center; margin-top: 12px; gap: 14px; }
   .status { display: flex; gap: 14px; font-size: 11.5px; color: rgba(255,255,255,.5); }
   .status span { display: inline-flex; align-items: center; gap: 6px; }
@@ -119,7 +128,8 @@
     <div class="tile drop" id="histTile" data-kind="history"></div>
     <div class="tile" id="sympTile">
       <div class="ic"><svg class="i" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h6"/></svg></div>
-      <textarea id="symptoms" placeholder="Current presentation — e.g. breathless for 3 days, can't lie flat, ankle swelling, no fever"></textarea>
+      <textarea id="symptoms" placeholder="Type or dictate the presentation, in your own words"></textarea>
+      <button class="mic" title="Dictate" onclick="toggleMic(this, 'symptoms')"><svg class="i" viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 8a5 5 0 0010 0M8 13v2"/></svg></button>
     </div>
   </div>
   <div class="foot">
@@ -278,6 +288,29 @@ async function pick(kind) {
   else histories.push(...(await pywebview.api.pick_history()));
   render();
 }
+// ---------- dictation: live captions while speaking, accurate final text when stopped (offline Whisper) ----------
+let micTimer = null, micBase = "";
+async function toggleMic(btn, target) {
+  const t = document.getElementById(target);
+  if (btn.classList.contains("rec")) {
+    clearInterval(micTimer); btn.classList.remove("rec"); btn.classList.add("busy"); t.classList.add("live");
+    const r = await pywebview.api.stop_dictation();
+    btn.classList.remove("busy"); t.classList.remove("live");
+    if (r.text) t.value = (micBase ? micBase + " " : "") + r.text;
+    else if (r.error) btn.title = r.error;
+    t.dispatchEvent(new Event("input"));
+    return;
+  }
+  const r = await pywebview.api.start_dictation();
+  if (r.error) { btn.title = r.error; return; }
+  micBase = t.value.trimEnd();
+  btn.classList.add("rec"); t.classList.add("live");
+  micTimer = setInterval(async () => {          // show the words as they are spoken
+    const p = await pywebview.api.dictation_partial();
+    if (p.text) { t.value = (micBase ? micBase + " " : "") + p.text; t.scrollTop = t.scrollHeight; }
+  }, 600);
+}
+
 function clearScan() { scan = null; pywebview.api.clear_scan(); render(); }
 function clearHistory() { histories.forEach((h) => h.id && pywebview.api.remove_history(h.id)); histories = []; render(); }
 

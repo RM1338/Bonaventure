@@ -1,13 +1,15 @@
 """Offline dictation with live captions.
 
-The microphone is streamed from PipeWire (raw 16 kHz mono PCM). While the clinician speaks, a small Whisper (base.en) keeps
+The microphone is streamed as raw 16 kHz mono PCM (PipeWire on Linux, ffmpeg/AVFoundation on macOS). While the clinician speaks, a small Whisper (base.en) keeps
 re-reading the audio so far and publishes a live caption; when they stop, a more accurate model (distil-small.en) reads the
 whole recording once for the final text (small.en; distilled models loop when primed). Both are primed with clinical vocabulary so terms like "orthopnoea" or
 "haemoptysis" are not misheard as everyday words. Everything runs on the CPU; the GPU stays with the imaging models.
 """
 import os
+import shutil
 import signal
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -19,6 +21,9 @@ LIVE_DIR = Path(os.environ.get("BV_WHISPER_LIVE", MODELS / "whisper-base.en"))
 FINAL_DIR = Path(os.environ.get("BV_WHISPER", MODELS / "whisper-small.en"))
 LAST_WAV = MODELS.parent / "last_dictation.wav"   # the latest recording, kept so transcription errors can be reproduced
 RATE = 16000
+# raw 16 kHz mono s16 PCM on stdout: PipeWire on Linux, ffmpeg's AVFoundation input on macOS (`brew install ffmpeg`)
+RECORDER = (["ffmpeg", "-loglevel", "quiet", "-f", "avfoundation", "-i", ":default", "-ac", "1", "-ar", str(RATE), "-f", "s16le", "-"]
+            if sys.platform == "darwin" else ["pw-record", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "s16", "-"])
 CHUNK_S = 20          # live captions re-read at most this many seconds; older audio is frozen into finished text
 # Primes Whisper towards clinical spelling (it biases decoding; it never inserts these words by itself)
 MEDICAL_PROMPT = ("Clinical presentation: dyspnoea, dyspnea, shortness of breath, orthopnoea, orthopnea, paroxysmal nocturnal dyspnoea, "
@@ -63,7 +68,7 @@ class Dictation:
         threading.Thread(target=self._load, daemon=True).start()   # warm both models so the first word appears quickly
 
     def available(self):
-        return LIVE_DIR.exists() or FINAL_DIR.exists()
+        return (LIVE_DIR.exists() or FINAL_DIR.exists()) and shutil.which(RECORDER[0]) is not None
 
     def _load(self):
         if self._live is None and LIVE_DIR.exists():
@@ -78,8 +83,7 @@ class Dictation:
     def start(self):
         self.stop(final=False)
         self._buf, self._caption, self._frozen, self._frozen_upto = bytearray(), "", "", 0
-        self._proc = subprocess.Popen(["pw-record", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "s16", "-"],
-                                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        self._proc = subprocess.Popen(RECORDER, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
         self._recording = True
         threading.Thread(target=self._read, daemon=True).start()
         threading.Thread(target=self._caption_loop, daemon=True).start()

@@ -208,7 +208,7 @@ class Api:
             from .dictation import Dictation
             self._dictation = Dictation()
         if not self._dictation.available():
-            return dict(error="Speech model not installed (see README).")
+            return dict(error="Speech model or microphone recorder not installed (see README).")
         self._dictation.start()
         return dict(ok=True)
 
