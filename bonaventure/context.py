@@ -24,7 +24,10 @@ _NEG_WINDOW_WORDS = 8
 def _negated(sentence, start, end):
     for trig in _NEG_PRE.finditer(sentence[:start]):
         between = sentence[trig.end():start]
-        if not _NEG_STOP.search(between) and len(between.split()) <= _NEG_WINDOW_WORDS:
+        # a comma ends the negation when what follows is a new clause ("no temperature, coughs up phlegm"),
+        # not when it is a list ("denies fever, chills, cough")
+        new_clause = any(len(seg.split()) > 3 for seg in between.split(",")[1:])
+        if not _NEG_STOP.search(between) and not new_clause and len(between.split()) <= _NEG_WINDOW_WORDS:
             return True
     clause_after = re.split(r"[,.;]", sentence[end:], maxsplit=1)[0]
     return bool(_NEG_POST.match(clause_after))
@@ -187,6 +190,43 @@ def _quote(sent, s, e, width=200):
     return ("…" if a else "") + sent[a:a + width].strip() + ("…" if a + width < len(sent) else "")
 
 
+_NAME = re.compile(r"\b(?:Patient|Name|Patient name)\s*:\s*([A-Z][A-Za-z.'\- ]{1,40}?)\s*(?:,|\(|·|\bMRN\b|\bDOB\b|\d|$)", re.M)
+_MRN = re.compile(r"\b(?:MRN|Hospital (?:No|number)|Patient ID|UHID)\s*[:#.]?\s*([A-Z0-9-]{4,})", re.I)
+
+
+def norm_name(name):
+    """'R. Menon' / 'MENON^R' / 'r menon' -> 'menon r' (surname + initials), good enough to spot a different person."""
+    parts = [p for p in re.split(r"[\s.^,]+", (name or "").lower()) if p]
+    if not parts:
+        return None
+    surname = max(parts, key=len)
+    initials = "".join(sorted(p[0] for p in parts if p != surname))
+    return f"{surname} {initials}".strip()
+
+
+def document_identity(path, display_name=None):
+    """Patient name / MRN printed in a history document (None when the document does not say)."""
+    try:
+        text = "\n".join(read_pages(path))
+    except HistoryParseError:
+        return dict(file=display_name or Path(path).name, name=None, mrn=None)
+    m, k = _NAME.search(text), _MRN.search(text)
+    return dict(file=display_name or Path(path).name, name=m.group(1).strip() if m else None, mrn=k.group(1) if k else None)
+
+
+def check_identity(sources):
+    """sources: [{file, name, mrn}] from documents and the DICOM header. Different names or MRNs -> mismatch."""
+    names = {norm_name(s["name"]) for s in sources if s.get("name")}
+    mrns = {s["mrn"] for s in sources if s.get("mrn")}
+    if len(names) > 1 or len(mrns) > 1:
+        return dict(status="mismatch", sources=sources,
+                    message="These records may belong to different patients: " + "; ".join(
+                        f"{s['file']}: {s.get('name') or '—'}{' (MRN ' + s['mrn'] + ')' if s.get('mrn') else ''}" for s in sources))
+    if names or mrns:
+        return dict(status="consistent", sources=sources, message=None)
+    return dict(status="unknown", sources=sources, message="Patient identity could not be checked (no name or MRN in the inputs).")
+
+
 def presentation_as_history(text):
     """Risk factors typed into the presentation ("recent long-haul flight", "on warfarin") count as context too."""
     events = []
@@ -211,11 +251,18 @@ def build_timeline(events, relevant_concepts):
 
 
 if __name__ == "__main__":
+    a = dict(file="a.pdf", name="R. Menon", mrn="0042117"); b = dict(file="b.pdf", name="Menon R", mrn=None)
+    assert check_identity([a, b])["status"] == "consistent"
+    assert check_identity([a, dict(file="c.pdf", name="A. Fernandes", mrn=None)])["status"] == "mismatch"
+    assert check_identity([a, dict(file="x.dcm", name="MENON^R", mrn="0042118")])["status"] == "mismatch"
+    assert check_identity([dict(file="p.png", name=None, mrn=None)])["status"] == "unknown"
     s = {x["concept"]: x for x in parse_symptoms("Shortness of breath for three days, ankle swelling, no fever. Denies chest trauma or cough but has orthopnea.")}
     assert s["dyspnea"]["state"] == "present" and s["dyspnea"]["duration"] == "3 days", s["dyspnea"]
     assert s["peripheral_edema"]["state"] == "present"
     assert s["fever"]["state"] == "denied" and s["trauma"]["state"] == "denied" and s["cough"]["state"] == "denied"
     assert s["orthopnea"]["state"] == "present"
+    s2 = {x["concept"]: x for x in parse_symptoms("No temperature, coughs up a bit of phlegm every morning.")}
+    assert s2["fever"]["state"] == "denied" and s2["productive_cough"]["state"] == "present", s2
     assert [d for _, d in find_dates("Seen 12/08/2026 and on Aug 3, 2025; CHF since 2019")] == ["2026-08-12", "2025-08-03", "2019"]
     m = find_mentions("Small right-sided pleural effusion. No pneumothorax.", _HISTORY_RX)
     assert [(c, n) for c, _, _, n in m] == [("prior_effusion", False), ("prior_pneumothorax", True)], m
