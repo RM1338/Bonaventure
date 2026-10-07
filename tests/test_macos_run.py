@@ -41,7 +41,8 @@ class MacLaunchEnvironmentTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.splitlines(), ["1", "1", "1", "/homebrew/prefix/lib:/existing/lib", "-m", "bonaventure.app", "BV-005"])
 
-    def test_finder_wrapper_uses_same_actual_launch_environment(self):
+    def test_finder_wrapper_has_same_environment_without_reading_run_script(self):
+        (self.root / "run.sh").unlink()  # background launch must not read the script
         home = self.base / "user home"
         app, _ = install_files(self.root, home)
         result = subprocess.run(["/bin/bash", str(app / "Contents/MacOS/Bonaventure")], env=self.environment,
@@ -49,7 +50,10 @@ class MacLaunchEnvironmentTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         lines = (home / "Library/Logs/Bonaventure/bonaventure.log").read_text().splitlines()
         self.assertEqual(lines[:4], ["1", "1", "1", "/homebrew/prefix/lib:/existing/lib"])
-        self.assertEqual(lines[4:], ["-m", "bonaventure.app"])
+        self.assertEqual(lines[4:], ["-u", "-m", "bonaventure.app"])
+        wrapper = (app / "Contents/MacOS/Bonaventure").read_text()
+        self.assertNotIn(str(self.root / "run.sh"), wrapper)
+        self.assertIn("export PYTHONPATH=", wrapper)
 
     def test_preflight_uses_same_environment(self):
         result = self.run_script("--check-runtime")

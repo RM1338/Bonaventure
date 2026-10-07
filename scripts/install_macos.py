@@ -18,8 +18,13 @@ def launcher_script(root, logs):
         "#!/bin/bash", "set -e",
         'export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"',
         f"mkdir -p {shlex.quote(str(logs))}",
-        f"cd {shlex.quote(str(root))}",
-        f"exec /bin/bash {shlex.quote(str(root / 'run.sh'))} "
+        f"cd {shlex.quote(str(logs))}",
+        'export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1',
+        'if command -v brew >/dev/null 2>&1; then',
+        '  export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"',
+        'fi',
+        f"export PYTHONPATH={shlex.quote(str(root))}${{PYTHONPATH:+:$PYTHONPATH}}",
+        f"exec {shlex.quote(str(root / '.venv/bin/python'))} -u -m bonaventure.app "
         f">> {shlex.quote(str(logs / 'bonaventure.log'))} 2>&1", "",
     ))
 
@@ -46,23 +51,13 @@ def install_files(root, home, login=True):
     agent = home / "Library/LaunchAgents" / f"{LABEL}.plist"
     if login:
         agent.parent.mkdir(parents=True, exist_ok=True)
-        config = dict(Label=LABEL, ProgramArguments=[str(executable)], WorkingDirectory=str(root),
+        config = dict(Label=LABEL, ProgramArguments=[str(executable)], WorkingDirectory=str(home),
                       RunAtLoad=True, KeepAlive=dict(SuccessfulExit=False), ThrottleInterval=10,
                       LimitLoadToSessionType="Aqua", ProcessType="Interactive",
                       StandardOutPath=str(logs / "service.log"), StandardErrorPath=str(logs / "service.log"))
         with agent.open("wb") as stream:
             plistlib.dump(config, stream)
     return app, agent
-
-
-def protected_project_directory(root, home):
-    """LaunchAgents cannot reliably read macOS privacy-protected user folders."""
-    resolved = root.resolve()
-    for name in ("Documents", "Desktop", "Downloads", "Library/Mobile Documents"):
-        directory = (home / name).resolve()
-        if resolved == directory or directory in resolved.parents:
-            return name
-    return None
 
 
 def launcher_message(command):
@@ -113,14 +108,6 @@ def main():
             shutil.rmtree(app)
         print("Removed Bonaventure app wrapper and login startup. Project and models remain in place.")
         return
-    protected = protected_project_directory(ROOT, home)
-    if protected:
-        # The existing owned job may otherwise keep retrying the denied path.
-        subprocess.run(["launchctl", "bootout", service], capture_output=True)
-        parser.error(f"Project is inside macOS privacy-protected {protected}. "
-                     "Background startup can be denied even when Terminal launch works. "
-                     f"Move the entire checkout, including models and .venv, to {home / 'Developer/Bonaventure'}, "
-                     "then run this installer there. Stopped the login job; project files were not moved or removed.")
     # Detect the old instance rather than launching a service that immediately
     # exits after toggling an existing Terminal-owned process.
     import socket

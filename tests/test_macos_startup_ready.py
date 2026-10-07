@@ -9,13 +9,6 @@ from scripts import install_macos as installer
 
 
 class StartupReadyTests(unittest.TestCase):
-    def test_protected_folder_and_safe_developer_location(self):
-        home = Path("/Users/test")
-        for folder in ("Documents", "Desktop", "Downloads", "Library/Mobile Documents"):
-            self.assertEqual(installer.protected_project_directory(home / folder / "nested/Bonaventure", home), folder)
-        self.assertIsNone(installer.protected_project_directory(home / "Developer/Bonaventure", home))
-        self.assertIsNone(installer.protected_project_directory(home / "Documents-other/Bonaventure", home))
-
     def test_probe_sends_status_and_reads_ready(self):
         connection = Mock()
         connection.recv.return_value = b'{"ready": true}'

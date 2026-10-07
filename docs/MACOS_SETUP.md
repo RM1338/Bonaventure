@@ -57,8 +57,6 @@ release. Clone `macos` explicitly; for an existing checkout, quit the app and
 run `git switch macos` before installing or starting the Mac build.
 
 ```bash
-mkdir -p "$HOME/Developer"
-cd "$HOME/Developer"
 git clone --branch macos https://github.com/RM1338/Bonaventure.git
 cd Bonaventure
 
@@ -203,16 +201,6 @@ between decoding steps. MedSAM and the image readers retain their existing
 CUDA/CPU device selection. Native Mac timing and memory usage are not guaranteed
 by the earlier RTX 3050 measurements.
 
-For background/login startup, keep the checkout outside macOS privacy-protected
-Documents, Desktop, Downloads and iCloud Documents folders. Prefer
-`~/Developer/Bonaventure`. LaunchAgents can receive “Operation not permitted”
-for those folders even when Terminal can launch the application. Move the whole
-checkout, including models and the environment, before reinstalling. Using the
-explicit `.venv/bin/python` can continue to work after relocation, but activation
-scripts and pip/Hugging Face command shebangs can retain the old path; recreate
-an environment at the new location if those commands fail. Model files do not
-need to be downloaded again.
-
 For a background/Finder launch and login startup, quit the existing instance,
 then install the macOS wrapper once:
 
@@ -228,8 +216,9 @@ it later from Terminal. Finder/Spotlight can open the same application. Keep thi
 checkout and `.venv` in place; the wrapper points to them. `--no-login` disables
 login installation, and `--uninstall` removes the app wrapper/login agent.
 Background logs are at `~/Library/Logs/Bonaventure/bonaventure.log`.
-Terminal, Finder and login startup all use `run.sh`, which sets Homebrew library
-paths, offline model flags and unbuffered logs. After pulling this update, quit
+Terminal uses `run.sh`; Finder/login launch Python directly from a safe working
+directory, with equivalent Homebrew library paths, offline flags and unbuffered
+logs. The checkout can remain in its existing location, including Documents. After pulling this update, quit
 the old instance and rerun the installer to replace the old wrapper. You can
 check native imports without opening a window with `./run.sh --check-runtime`.
 The macOS branch rejects Linux/Windows launches; switch to the platform's branch

@@ -22,7 +22,7 @@ class InstallerTests(unittest.TestCase):
             executable = app / "Contents/MacOS/Bonaventure"
             subprocess.run(["bash", str(executable)], check=True)
             log = home / "Library/Logs/Bonaventure/bonaventure.log"
-            self.assertEqual(log.read_text().splitlines(), ["-m", "bonaventure.app"])
+            self.assertEqual(log.read_text().splitlines(), ["-u", "-m", "bonaventure.app"])
             info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
             self.assertTrue(info["LSUIElement"])
             self.assertIn("dictate", info["NSMicrophoneUsageDescription"])

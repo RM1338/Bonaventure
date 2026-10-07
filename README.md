@@ -4,9 +4,8 @@
 >
 > For a fresh Mac checkout: `git clone --branch macos https://github.com/RM1338/Bonaventure.git`. In an existing checkout, quit Bonaventure before running `git switch macos`. This branch rejects non-Mac launches before importing native GUI code. Linux/Windows setup and demo recordings retained below describe the other platform builds, not the target of this branch.
 >
-> **Background startup location:** clone/move this checkout to `~/Developer/Bonaventure`, outside Documents, Desktop, Downloads and iCloud Documents. macOS can deny login jobs access to those folders even when Terminal launch succeeds. The installer reports this and stops the failed login job.
 >
-> After updating, quit the old instance and reinstall background startup with `.venv/bin/python scripts/install_macos.py`. Finder/login and Terminal now use the same `run.sh` environment, including Homebrew Pango paths, offline model loading and unbuffered logs. `./run.sh --check-runtime` checks the native Python runtime without opening the GUI. The installer now waits for launcher readiness and reveals the panel; if startup fails it prints recent logs instead of claiming success. See the [Mac branch audit and verification steps](docs/MACOS_BRANCH_AUDIT.md).
+> After updating, quit the old instance and reinstall background startup with `.venv/bin/python scripts/install_macos.py`. Finder/login launch Python directly, while retaining the same environment settings as Terminal, including Homebrew Pango paths, offline model loading and unbuffered logs. `./run.sh --check-runtime` checks the native Python runtime without opening the GUI. The installer now waits for launcher readiness and reveals the panel; if startup fails it prints recent logs instead of claiming success. See the [Mac branch audit and verification steps](docs/MACOS_BRANCH_AUDIT.md).
 
 **HackNex 2026 Internal Qualifier · HNX26PSI05: Multimodal Medical Image Intelligence**
 

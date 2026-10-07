@@ -76,14 +76,15 @@ class InstallerCliTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 2)
         self.assertTrue(self.app.exists())
 
-    def test_protected_checkout_stops_job_and_reports_move_without_installing(self):
+    def test_documents_checkout_is_allowed(self):
         self.root = self.home / "Documents/Bonaventure"
-        self.root.mkdir(parents=True)
-        with self.assertRaises(SystemExit) as error:
-            self.run_installer()
-        self.assertEqual(error.exception.code, 2)
-        self.assertFalse(self.app.exists())
-        self.assertTrue(self.root.exists())
+        (self.root / ".venv/bin").mkdir(parents=True)
+        (self.root / ".venv/bin/python").write_text("fake Python")
+        (self.root / "run.sh").write_text("fake launch script")
+        self.run_installer()
+        self.assertTrue(self.app.exists())
+        config = plistlib.loads(self.agent.read_bytes())
+        self.assertEqual(config["WorkingDirectory"], str(self.home))
 
     def test_linux_refuses_installer_without_creating_files(self):
         with self.assertRaises(SystemExit) as error:

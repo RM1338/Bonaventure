@@ -12,8 +12,10 @@ This audit and fix branch is based on `macos`. No changes target `main`.
   `main`. The guide now clones `--branch macos`, and the README identifies the
   platform policy prominently. Historical platform instructions remain present.
 - The installed Finder/login wrapper called Python directly, bypassing `run.sh`.
-  It missed Homebrew Pango discovery and offline model flags. The wrapper and
-  installer dependency preflight now both use the same launch script as Terminal.
+  It missed Homebrew Pango discovery and offline model flags. The wrapper now
+  sets equivalent runtime flags directly; installer preflight uses the Terminal
+  launch script. This preserves direct Python startup without Bash reading a
+  script inside the checkout.
 - The launch script sets Homebrew executable paths, library paths, offline flags
   and unbuffered logs, reports a missing virtual environment clearly, and offers
   `--check-runtime` to verify native imports without opening the application.
@@ -27,18 +29,19 @@ This audit and fix branch is based on `macos`. No changes target `main`.
 - The installer previously treated LaunchAgent registration as successful app
   startup and did not open the initially hidden panel. It now checks launcher
   readiness and sends an idempotent reveal request. Failure prints recent logs.
-- User Mac logs identify the background failure as privacy denial of a checkout
-  inside Documents (`Operation not permitted`). The installer now rejects
-  protected checkout locations and stops the retrying login job. Use
-  `~/Developer/Bonaventure` and reinstall; project/model files are not moved by
-  the installer. Those logs also show MPS bfloat16 inference completing a case,
-  which is separate from verification of the corrected background startup.
+- User logs identify shell access denials when the background wrapper reads
+  `run.sh` under Documents. Restore direct Python startup, import the checkout
+  through `PYTHONPATH`, and use the home/log directory as the working directory.
+  Keep equivalent offline/Homebrew settings. Remove the protected-folder check:
+  no repository relocation is required by the installer. Native confirmation of
+  this revised startup remains needed. The logs separately show completed MPS
+  bfloat16 inference.
 
 ## Validation
 
-All **125 Python tests**, all **three Node UI suites**, context/reconciliation
+All **124 Python tests**, all **three Node UI suites**, context/reconciliation
 self-checks, shell syntax and `git diff --check` pass. New launch tests execute the
-actual shell script and installed wrapper with fake Darwin/Homebrew/Python
+actual Terminal script and direct-Python installed wrapper with fake Darwin/Homebrew/Python
 executables, including paths with spaces and shell metacharacters. They verify
 consistent environment settings, preflight imports, Linux rejection, and the
 missing-venv message. All seven acceptance and 14 library cases also complete in explicit mock mode;
@@ -81,5 +84,6 @@ Quit the Terminal-owned instance before replacing the old background wrapper:
 
 Verify Finder reopening and login startup; inspect
 `~/Library/Logs/Bonaventure/bonaventure.log` for model device/dtype and stage logs.
-Terminal and the installed wrapper now use the same runtime configuration.
+Terminal and the installed wrapper use equivalent runtime configuration; the
+wrapper launches Python directly rather than asking Bash to read run.sh.
 Do not install this wrapper from a checkout switched back to Omarchy's `main`.
