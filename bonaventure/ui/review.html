@@ -125,6 +125,7 @@
   .mic.rec { background: #FF453A; color: #fff; animation: pulse 1.2s ease-in-out infinite; }
   .mic.busy { opacity: .5; pointer-events: none; }
   .mic svg { width: 15px; height: 15px; }
+  textarea.live { color: rgba(255,255,255,.62); }
   .notewrap { position: relative; }
   @keyframes pulse { 50% { opacity: .55; } }
   .ev { display: none; margin-top: 12px; }
@@ -585,19 +586,27 @@ function openTech() {
 }
 
 
-// ---------- dictation: press to record, press again to transcribe (offline Whisper) ----------
+// ---------- dictation: live captions while speaking, accurate final text when stopped (offline Whisper) ----------
+let micTimer = null, micBase = "";
 async function toggleMic(btn, target) {
+  const t = document.getElementById(target);
   if (btn.classList.contains("rec")) {
-    btn.classList.remove("rec"); btn.classList.add("busy");
+    clearInterval(micTimer); btn.classList.remove("rec"); btn.classList.add("busy"); t.classList.add("live");
     const r = await pywebview.api.stop_dictation();
-    btn.classList.remove("busy");
-    if (r.text) { const t = document.getElementById(target); t.value = (t.value ? t.value.trimEnd() + " " : "") + r.text; t.dispatchEvent(new Event("input")); }
+    btn.classList.remove("busy"); t.classList.remove("live");
+    if (r.text) t.value = (micBase ? micBase + " " : "") + r.text;
     else if (r.error) btn.title = r.error;
+    t.dispatchEvent(new Event("input"));
     return;
   }
   const r = await pywebview.api.start_dictation();
   if (r.error) { btn.title = r.error; return; }
-  btn.classList.add("rec");
+  micBase = t.value.trimEnd();
+  btn.classList.add("rec"); t.classList.add("live");
+  micTimer = setInterval(async () => {          // show the words as they are spoken
+    const p = await pywebview.api.dictation_partial();
+    if (p.text) { t.value = (micBase ? micBase + " " : "") + p.text; t.scrollTop = t.scrollHeight; }
+  }, 600);
 }
 
 // ---------------- clinician challenges a finding ----------------

@@ -230,6 +230,9 @@ class Api:
         self._dictation.start()
         return dict(ok=True)
 
+    def dictation_partial(self):
+        return self._dictation.partial() if hasattr(self, "_dictation") else dict(text="", recording=False, seconds=0)
+
     def stop_dictation(self):
         try:
             return dict(text=self._dictation.stop())
