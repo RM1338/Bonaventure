@@ -2,7 +2,7 @@
 
 Rules are explicit on purpose: every status carries the reasons that produced it.
 """
-from .knowledge import FINDINGS, HISTORY_CONCEPTS, NOT_ASSESSABLE, SUPPRESSED_BY, SYMPTOM_CONCEPTS
+from .knowledge import FINDINGS, HISTORY_CONCEPTS, NOT_ASSESSABLE, RESOLVE, SUPPRESSED_BY, SYMPTOM_CONCEPTS, ZONE_NAMES, ZONES, region_zones
 
 LEVELS = ["absent", "weak", "moderate", "strong"]
 _ORDER = {"SUPPORTED": 0, "CONFLICTING": 1, "UNCERTAIN": 2, "INSUFFICIENT_EVIDENCE": 3}
@@ -16,6 +16,16 @@ def _thr(source, fid):
     """Per-finding calibrated thresholds; older/mock sources carry one list for every finding."""
     t = source["thresholds"]
     return t[fid] if isinstance(t, dict) else t
+
+
+def _concept_source(fid, cr, concepts):
+    """The concept bank as a reader: rank of the best matching phrase mapped onto the same weak/moderate/strong scale."""
+    import math
+    hits = concepts.get(fid, {}).get("for", [])
+    rank = hits[0][1] if hits else 10**6
+    to_score = lambda r: round(max(0.0, 1 - math.log10(max(r, 1)) / 6), 4)   # rank 1 -> 1.0, rank 10^6 -> 0
+    return dict(role="concepts", model="CLEAR concepts", scores={fid: to_score(rank)},
+                thresholds={fid: [to_score(cr["weak"]), to_score(cr["moderate"]), to_score(cr["strong"])]}, reliable={fid: True})
 
 
 def _image_agreement(p, v):
@@ -38,6 +48,9 @@ def reconcile(imaging, quality, symptoms, history_events, history_provided):
     for fid, spec in FINDINGS.items():
         # only readers that proved reliable for this finding on labelled data get a vote
         voters = [x for x in roles if x and x.get("reliable", {}).get(fid, True)]
+        cr = imaging.get("concept_reader", {}).get(fid, {})
+        if not voters and cr.get("reliable") and imaging.get("concepts"):
+            voters = [_concept_source(fid, cr, imaging["concepts"])]  # e.g. emphysema: only the concept bank reads it well
         if not voters:
             continue  # no reliable image reader: may still surface via the open-ended survey, never as a finding
         primary, verifier = voters[0], (voters[1] if len(voters) > 1 else None)
@@ -53,6 +66,10 @@ def reconcile(imaging, quality, symptoms, history_events, history_provided):
         if f:
             findings.append(f)
     raised = {f["canonical_name"] for f in findings}
+    for f in findings:
+        if SUPPRESSED_BY.get(f["canonical_name"]) in raised:
+            imaging.setdefault("rejected", []).append(dict(claim=f["display_name"], by="label hierarchy",
+                reason=f"already explained by {FINDINGS[SUPPRESSED_BY[f['canonical_name']]]['name'].lower()}"))
     findings = [f for f in findings if SUPPRESSED_BY.get(f["canonical_name"]) not in raised]
     findings.sort(key=lambda f: (_ORDER[f["status"]], f["_rank"], -f["_score"]))
     for i, f in enumerate(findings, 1):
@@ -87,14 +104,34 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
 
     # CLEAR's concept retrieval ranks the film against 368,294 report phrases. On sick films the prompt-pair scores saturate
     # for every finding; the rank of the best matching phrase is what stays specific.
-    concepts_ran = bool(imaging.get("concepts"))
+    cr = imaging.get("concept_reader", {}).get(fid)
+    # the gate only applies where the concept bank itself proved reliable (it is poor at cardiomegaly / mediastinum);
+    # without measurements (older setups) every finding is gated as before
+    concepts_ran = bool(imaging.get("concepts")) and (cr is None or cr.get("reliable", False)) and primary["model"] != "CLEAR concepts"
     best_rank = (concept.get("for") or [[None, 10**9]])[0][1]
     survey_named = any(o.get("maps_to") == fid and o.get("verified", True) for o in imaging.get("other_findings", []))
-    if concepts_ran and best_rank > 300 and not survey_named:
+    gate_drop = max(300, cr["weak"]) if cr else 300
+    if concepts_ran and best_rank > gate_drop and not survey_named:
+        if max(LEVELS.index(p), LEVELS.index(v or "absent")) >= 2:
+            imaging.setdefault("rejected", []).append(dict(
+                claim=spec["name"], by=" + ".join(x["model"] for x in (primary, verifier) if x),
+                reason="prompt score was high, but no phrase among the film's top 300 of 368,294 report phrases names it"
+                       + (f" (best #{best_rank})" if best_rank < 10**9 else "")))
         return None  # nothing in the film's top 300 phrases speaks for it: not a finding
-    concept_cap = concepts_ran and best_rank > 25
-    if best_rank <= 10:  # the film's closest report phrases name it: a third image reader saying yes
+    concept_cap = concepts_ran and best_rank > (cr["moderate"] if cr else 25)
+    if concepts_ran and best_rank <= (cr["strong"] if cr else 10):  # the film's closest report phrases name it: a third image reader saying yes
         agreement = {"weak": "partial", "partial": "concordant"}.get(agreement, agreement) if mg_sees is not False else agreement
+
+    if primary["model"] == "CLEAR concepts":
+        # a finding only the concept bank reads (emphysema, fibrosis) needs a second, independent reader: MedGemma must see it
+        if mg_sees is not True:
+            imaging.setdefault("rejected", []).append(dict(claim=spec["name"], by="CLEAR concepts",
+                reason="the film's closest report phrases suggest it, but MedGemma did not confirm it on the image"))
+            return None
+        if not hist_for:  # language retrieval + MedGemma alone also fire on normal films: the patient's record must agree
+            imaging.setdefault("rejected", []).append(dict(claim=spec["name"], by="CLEAR concepts + MedGemma",
+                reason="nothing in the patient's history points to it (e.g. COPD, ILD, asbestos), so it is not raised"))
+            return None
 
     if quality["state"] == "poor":
         status = "INSUFFICIENT_EVIDENCE"
@@ -118,7 +155,8 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
         contradictions.append("Image signal present, but the current presentation argues against it: "
                               + ", ".join(f"{s['label'].lower()} denied" for s in key_denied) + ".")
     elif agreement == "concordant":
-        status = "SUPPORTED" if support >= 1 or (p == v == "strong") or spec.get("context_free") else "UNCERTAIN"
+        # the thesis: pixels alone never make a finding "supported" — the patient has to agree (devices are hardware, exempt)
+        status = "SUPPORTED" if support >= 1 or spec.get("context_free") else "UNCERTAIN"
     elif agreement == "partial":
         status = "SUPPORTED" if support >= 2 else "UNCERTAIN"
         if v is not None:
@@ -126,6 +164,9 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
     else:
         status = "UNCERTAIN" if support >= 1 else "INSUFFICIENT_EVIDENCE"
         notes.append("Image signal is weak.")
+    if primary["model"] == "CLEAR concepts" and status == "SUPPORTED" and support == 0:
+        status = "UNCERTAIN"
+        notes.append("Read by the concept bank and MedGemma only; nothing in the history supports it.")
     if concept_cap and status == "SUPPORTED":
         status = "UNCERTAIN"
         notes.append("CLEAR's concept retrieval only weakly backs this" + (f" (best matching phrase ranked #{best_rank})." if best_rank < 10**9 else "."))
@@ -154,8 +195,9 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
 
     return dict(
         canonical_name=fid, display_name=spec["name"], status=status, evidence_strength=strength, _score=score, _rank=best_rank,
-        localization=dict(type="contour" if loc.get("contour") else "bbox", coordinates=loc["bbox"], contour=loc.get("contour"),
-                          region_name=region, source=loc.get("source")) if loc else None,
+        localization=(dict(type="contour" if loc.get("contour") else "bbox", coordinates=loc["bbox"], contour=loc.get("contour"),
+                           region_name=region, source=loc.get("source"), zones=region_zones(region)) if loc
+                      else _zone_localization(region) if status != "INSUFFICIENT_EVIDENCE" else None),
         mask=imaging.get("masks", {}).get(fid),
         image_evidence=image_evidence,
         history_evidence=[dict(text=e["label"], concept=e["concept"], date=e["date"], category=e["category"], source=e["source"]) for e in hist_for],
@@ -175,6 +217,15 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
                        localization_source=(loc or {}).get("source"), support_count=support, against_count=against),
         clinician_text=_clinician_text(spec["name"], status, region, agreement, support, mg_sees),
     )
+
+
+def _zone_localization(region):
+    """No trustworthy model outline: point at the anatomical zone(s) the region text names. Marked approximate in the UI."""
+    zones = region_zones(region)
+    boxes = [ZONES[z] for z in zones]
+    union = [min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)]
+    return dict(type="zone", coordinates=union, zones=zones, zone_boxes=boxes, contour=None,
+                region_name=region if region else ", ".join(ZONE_NAMES[z] for z in zones), source="approximate zone")
 
 
 def _dedupe(events):
@@ -220,7 +271,8 @@ def not_assessable(symptoms, events):
         hits = [present_sym[c]["label"] for c in spec["triggers"]["symptoms"] if c in present_sym]
         hits += [present_hx[c]["label"] for c in spec["triggers"]["history"] if c in present_hx]
         direct = any(c in present_sym or c in present_hx for c in spec["direct"])
-        if direct or len(hits) >= spec["min_triggers"]:
+        specific = any(c in present_sym or c in present_hx for c in spec.get("specific", []))
+        if direct or (specific and len(hits) >= spec["min_triggers"]):
             out.append(dict(id=cid, name=spec["name"], because=hits, advice=spec["advice"]))
     return out
 
@@ -230,6 +282,81 @@ def other_observations(imaging, findings):
     known = {f["canonical_name"] for f in findings}
     # shown only when a second reader (CLEAR, open-vocabulary) agrees; MedGemma alone invents masses and lines on normal films
     return [o for o in imaging.get("other_findings", []) if o.get("maps_to") not in known and o.get("verified", True)]
+
+
+# which prior-report concept describes the same thing as today's finding
+PRIOR_OF = {"PLEURAL_EFFUSION": "prior_effusion", "CARDIOMEGALY": "prior_cardiomegaly", "PNEUMOTHORAX": "prior_pneumothorax",
+            "PULMONARY_EDEMA": "prior_edema", "ATELECTASIS": "prior_atelectasis", "CONSOLIDATION": "pneumonia",
+            "PNEUMONIA": "pneumonia", "LUNG_MASS": "prior_nodule", "LUNG_NODULE": "prior_nodule"}
+
+
+def interval_changes(findings, events, identity, reliable_findings):
+    """Today's film vs the most recent prior radiology report of the SAME patient (identity must not be a mismatch).
+    NEW: prior report said absent, raised now. KNOWN: in the prior report and raised now. NOT SEEN NOW: in the prior report,
+    not raised today — only claimed for findings the image models are reliable on."""
+    if identity.get("status") == "mismatch":
+        return dict(status="blocked", reason=identity["message"], rows=[])
+    prior = {}
+    for e in events:
+        if e["source"].get("doc_type") != "Radiology report" or not e["date"]:
+            continue
+        if e["concept"] not in prior or e["date"] > prior[e["concept"]]["date"]:
+            prior[e["concept"]] = e
+    if not prior:
+        return dict(status="none", reason="No dated prior radiology report in the supplied records.", rows=[])
+    now = {f["canonical_name"]: f for f in findings if f["status"] in ("SUPPORTED", "UNCERTAIN", "CONFLICTING")}
+    rows = []
+    for fid, concept in PRIOR_OF.items():
+        e = prior.get(concept)
+        if not e:
+            continue
+        was = e["state"] == "present"
+        cur = now.get(fid)
+        if cur and not was:
+            change = "NEW"
+        elif cur and was:
+            change = "KNOWN"
+        elif was and fid in reliable_findings:
+            change = "NOT SEEN NOW"
+        else:
+            continue
+        rows.append(dict(finding=FINDINGS[fid]["name"], change=change, now=cur["status"] if cur else None,
+                         prior_date=e["date"], prior_quote=e["source"]["quote"], prior_file=e["source"]["file"], prior_page=e["source"]["page"]))
+    order = {"NEW": 0, "NOT SEEN NOW": 1, "KNOWN": 2}
+    rows.sort(key=lambda r: order[r["change"]])
+    return dict(status="ok", reason=None, rows=rows, compared_to=max(e["date"] for e in prior.values()))
+
+
+def discuss(f, verdict, quality, second_look=None):
+    """A clinician disagrees. Lay out, from the evidence already gathered, what agrees with them and what does not.
+    verdict: 'absent' (clinician thinks it is not there) or 'present' (clinician thinks it is). Never overrules the clinician."""
+    lv = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, None: None}
+    sees, doubts = [], []
+    t = f["technical"]
+    for model, level in ((t["primary_model"], f["signals"]["image"]), (t.get("verifier_model"), f["signals"]["verifier"])):
+        if model and level is not None:
+            (sees if lv[level] >= 2 else doubts).append(f"{model} reads the image as {level}")
+    for e in f["image_evidence"]:
+        if e["source"] == "description":
+            (doubts if e.get("level") == "absent" else sees).append(f"MedGemma: {e['text']}")
+        elif e["source"] == "CLEAR concept":
+            sees.append(f"Report phrase {e['text']} is #{e['rank']} of 368,294 closest to this film")
+    sees += [f"History: {e['text']} ({e['source']['doc_type']}, page {e['source']['page']})" for e in f["history_evidence"]]
+    sees += [f"Presentation: {s['text']}" + (f" for {s['duration']}" if s.get("duration") else "") for s in f["symptom_evidence"]]
+    doubts += [n["text"] for n in f["negative_evidence"]] + f["contradictions"]
+    doubts += [n for n in f["notes"] if not n.startswith("Evidence strength reduced")]
+    if quality.get("state") != "acceptable":
+        doubts.append(f"Image quality is {quality['state']}: {' '.join(quality.get('warnings', []))}")
+    if second_look is not None:
+        (sees if second_look["visible"] else doubts).append(f"MedGemma, asked to look again with your reasoning: {second_look['reason']}")
+    agree, against = (doubts, sees) if verdict == "absent" else (sees, doubts)
+    if len(agree) >= len(against):
+        lean = "The evidence Bonaventure gathered is consistent with your read."
+    else:
+        lean = (f"Most of the evidence Bonaventure gathered points the other way ({len(against)} items against {len(agree)}). "
+                f"Your clinical judgement takes precedence; the items below are what you may want to reconcile.")
+    return dict(verdict=verdict, agree=agree, against=against, lean=lean,
+                resolve=f"What would settle it: {RESOLVE.get(f['canonical_name'], 'further imaging')}.")
 
 
 def relevant_concepts(findings):

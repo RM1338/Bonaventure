@@ -1,0 +1,137 @@
+{
+  "PLEURAL_EFFUSION": {
+    "source": "CheXpert",
+    "auroc": 0.749,
+    "n_pos": 64,
+    "n_neg": 138,
+    "rank_at_90_sens": 40,
+    "rank_at_youden": 7,
+    "rank_at_90_spec": 1
+  },
+  "CARDIOMEGALY": {
+    "source": "CheXpert",
+    "auroc": 0.624,
+    "n_pos": 66,
+    "n_neg": 136,
+    "rank_at_90_sens": 1859,
+    "rank_at_youden": 208,
+    "rank_at_90_spec": 37
+  },
+  "PNEUMOTHORAX": {
+    "source": "CheXpert",
+    "auroc": 0.783,
+    "n_pos": 7,
+    "n_neg": 195,
+    "rank_at_90_sens": 28,
+    "rank_at_youden": 28,
+    "rank_at_90_spec": 1
+  },
+  "CONSOLIDATION": {
+    "source": "CheXpert",
+    "auroc": 0.741,
+    "n_pos": 32,
+    "n_neg": 170,
+    "rank_at_90_sens": 17,
+    "rank_at_youden": 17,
+    "rank_at_90_spec": 1
+  },
+  "PULMONARY_EDEMA": {
+    "source": "CheXpert",
+    "auroc": 0.829,
+    "n_pos": 42,
+    "n_neg": 160,
+    "rank_at_90_sens": 4,
+    "rank_at_youden": 4,
+    "rank_at_90_spec": 1
+  },
+  "ATELECTASIS": {
+    "source": "CheXpert",
+    "auroc": 0.842,
+    "n_pos": 75,
+    "n_neg": 127,
+    "rank_at_90_sens": 78,
+    "rank_at_youden": 78,
+    "rank_at_90_spec": 7
+  },
+  "ENLARGED_MEDIASTINUM": {
+    "source": "CheXpert",
+    "auroc": 0.568,
+    "n_pos": 105,
+    "n_neg": 97,
+    "rank_at_90_sens": 50000,
+    "rank_at_youden": 2448,
+    "rank_at_90_spec": 270
+  },
+  "SUPPORT_DEVICES": {
+    "source": "CheXpert",
+    "auroc": 0.749,
+    "n_pos": 99,
+    "n_neg": 103,
+    "rank_at_90_sens": 194,
+    "rank_at_youden": 25,
+    "rank_at_90_spec": 9
+  },
+  "PNEUMONIA": {
+    "source": "NIH",
+    "auroc": 0.64,
+    "n_pos": 60,
+    "n_neg": 616,
+    "rank_at_90_sens": 3036,
+    "rank_at_youden": 57,
+    "rank_at_90_spec": 15
+  },
+  "LUNG_NODULE": {
+    "source": "NIH",
+    "auroc": 0.573,
+    "n_pos": 82,
+    "n_neg": 594,
+    "rank_at_90_sens": 3904,
+    "rank_at_youden": 1009,
+    "rank_at_90_spec": 5
+  },
+  "LUNG_MASS": {
+    "source": "NIH",
+    "auroc": 0.632,
+    "n_pos": 79,
+    "n_neg": 597,
+    "rank_at_90_sens": 50000,
+    "rank_at_youden": 49,
+    "rank_at_90_spec": 73
+  },
+  "EMPHYSEMA": {
+    "source": "NIH",
+    "auroc": 0.829,
+    "n_pos": 68,
+    "n_neg": 608,
+    "rank_at_90_sens": 486,
+    "rank_at_youden": 486,
+    "rank_at_90_spec": 15
+  },
+  "FIBROSIS": {
+    "source": "NIH",
+    "auroc": 0.768,
+    "n_pos": 68,
+    "n_neg": 608,
+    "rank_at_90_sens": 2649,
+    "rank_at_youden": 239,
+    "rank_at_90_spec": 28
+  },
+  "PLEURAL_THICKENING": {
+    "source": "NIH",
+    "auroc": 0.648,
+    "n_pos": 85,
+    "n_neg": 591,
+    "rank_at_90_sens": 50000,
+    "rank_at_youden": 232,
+    "rank_at_90_spec": 29
+  },
+  "HERNIA": {
+    "source": "NIH",
+    "auroc": 0.879,
+    "n_pos": 30,
+    "n_neg": 646,
+    "rank_at_90_sens": 4924,
+    "rank_at_youden": 480,
+    "rank_at_90_spec": 480
+  }
+}

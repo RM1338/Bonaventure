@@ -98,6 +98,27 @@ class Api:
     def engine_status(self):
         return self._engine.status
 
+    def drop_uris(self, uris):
+        """file:// links from a drag (Wayland file managers send these instead of File objects) -> staged inputs."""
+        import time as _time
+        from urllib.parse import unquote, urlparse
+        staged, now = [], _time.monotonic()
+        recent = getattr(self, "_recent_drops", {})
+        for u in uris:
+            path = str(Path(unquote(urlparse(u).path) if u.startswith("file://") else u).resolve())
+            # GTK delivers each dropped file twice (plain path, then file:// URI): ignore a repeat within 2 s
+            if not Path(path).is_file() or now - recent.get(path, -10) < 2:
+                continue
+            recent[path] = now
+            if Path(path).suffix.lower() in HISTORY_TYPES and any(h.get("source") == path for h in self._histories):
+                continue  # already attached
+            if Path(path).suffix.lower() in HISTORY_TYPES:
+                staged.append(dict(kind="history", items=[self._stage_history(path)]))
+            else:
+                staged.append(dict(kind="scan", items=[self._stage_scan(path)]))
+        self._recent_drops = recent
+        return staged
+
     # ----- intake -----
     def pick_scan(self):
         paths = self._dialog(False, "Chest radiographs (*.png;*.jpg;*.jpeg;*.dcm;*.dicom;*.bmp;*.tif;*.tiff;*.webp)")
@@ -155,7 +176,7 @@ class Api:
         except context.HistoryParseError:
             return dict(ok=False, name=name, error="This document could not be read.")
         has_text = any(p.strip() for p in pages)
-        entry = dict(id=uuid.uuid4().hex[:8], path=str(path), name=name)
+        entry = dict(id=uuid.uuid4().hex[:8], path=str(path), name=name, source=str(Path(path).resolve()))
         self._histories.append(entry)
         return dict(ok=True, id=entry["id"], name=name, pages=len(pages), kind=path.suffix[1:].upper(), size=_size(path),
                     doc_type=context.doc_type("\n".join(pages), name) if has_text else None, has_text=has_text)
@@ -198,6 +219,49 @@ class Api:
     def new_case(self):
         self._launcher.evaluate_js("window.resetLauncher && (resetLauncher(), expand())")
         _hypr(f'hl.dsp.focus({{ window = "title:^{ISLAND_TITLE}$" }})')
+
+    # ----- dictation (offline Whisper) -----
+    def start_dictation(self):
+        if not hasattr(self, "_dictation"):
+            from .dictation import Dictation
+            self._dictation = Dictation()
+        if not self._dictation.available():
+            return dict(error="Speech model not installed (see README).")
+        self._dictation.start()
+        return dict(ok=True)
+
+    def stop_dictation(self):
+        try:
+            return dict(text=self._dictation.stop())
+        except Exception as e:
+            return dict(error=f"Could not transcribe: {e}")
+
+    # ----- clinician challenges a finding -----
+    def challenge(self, case_id, finding_id, verdict, note):
+        from PIL import Image
+        from . import reconcile
+        result = self.get_case(case_id)
+        f = next(x for x in result["findings"] if x["id"] == finding_id)
+        second = None
+        mg = self._engine.models.get("reasoning") if not self._engine.mock else None
+        if mg:
+            with self._engine._lock:
+                second = mg.second_look(Image.open(pipeline.CASES / case_id / "scan.png"), f["canonical_name"], verdict, note)
+        d = reconcile.discuss(f, verdict, result["quality"], second)
+        d.update(note=note, finding=f["display_name"], bonaventure_status=f["status"])
+        return d
+
+    def record_override(self, case_id, finding_id, verdict, note, discussion):
+        """The clinician's verdict is final: store it with the case (and the report) next to what Bonaventure said."""
+        from datetime import datetime
+        path = pipeline.CASES / case_id / "result.json"
+        result = json.loads(path.read_text())
+        result.setdefault("overrides", {})[finding_id] = dict(verdict=verdict, note=note, at=datetime.now().isoformat(timespec="seconds"),
+                                                             discussion=discussion)
+        path.write_text(json.dumps(result, indent=2))
+        if case_id in self._cases and self._cases[case_id].result:
+            self._cases[case_id].result["overrides"] = result["overrides"]
+        return result["overrides"]
 
     # ----- outputs -----
     def export_report(self, case_id):
@@ -246,6 +310,36 @@ def _serve_toggle(api):
                 _hypr(f'hl.dsp.focus({{ window = "title:^{ISLAND_TITLE}$" }})')
 
 
+def _bind_file_drops(api):
+    """Native GTK drop handling. File managers deliver a text/uri-list; pywebview reads it with get_text(), which is empty
+    for URI lists, so dropped files never arrived. Read the WebKit widget's drop with get_uris() instead."""
+    from gi.repository import GLib
+    from webview.platforms.gtk import BrowserView
+
+    def on_data(_widget, _ctx, _x, _y, data, _info, _time):
+        uris = list(data.get_uris() or []) or [u for u in (data.get_text() or "").splitlines() if u.strip()]
+        print(f"[drop] native uris: {uris}", flush=True)
+        if uris:  # stage off the GTK thread; evaluate_js from inside a GTK callback would block the main loop
+            threading.Thread(target=lambda: _deliver(api, uris), daemon=True).start()
+        return False
+
+    def connect():
+        view = BrowserView.instances.get(api._launcher.uid)
+        if view is None:
+            return True  # not created yet: try again
+        view.webview.connect("drag-data-received", on_data)
+        print("[drop] native handler connected", flush=True)
+        return False
+
+    GLib.timeout_add(200, connect)
+
+
+def _deliver(api, uris):
+    staged = api.drop_uris(uris)
+    if staged:
+        api._launcher.evaluate_js(f"window.onFilesStaged && onFilesStaged({json.dumps(staged)})")
+
+
 def _review_window(api, case_id):
     w = webview.create_window(REVIEW_TITLE.format(case_id), str(UI / "review.html"), js_api=api, width=1600, height=960,
                               min_size=(1200, 720), background_color="#000000", frameless=True, easy_drag=False)
@@ -287,6 +381,7 @@ def main():
         api._current = reopen
         api._review = _review_window(api, reopen)
     threading.Thread(target=_serve_toggle, args=(api,), daemon=True).start()
+    api._launcher.events.loaded += lambda: _bind_file_drops(api)
     if os.environ.get("BV_START") == "expand":
         api._launcher.events.loaded += lambda: threading.Timer(0.6, api._launcher.evaluate_js, ["expand()"]).start()
     if os.environ.get("BV_DEBUG_JS"):  # dev hook: drive the island for screenshots, e.g. BV_DEBUG_JS="expand()"

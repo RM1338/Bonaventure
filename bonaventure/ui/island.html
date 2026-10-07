@@ -16,6 +16,7 @@
   #pill .name { font-weight: 600; font-size: 13px; letter-spacing: -0.01em; }
   #pill .sub { margin-left: auto; color: rgba(255,255,255,.5); font-size: 12px; display: flex; align-items: center; gap: 6px; }
   #pill:hover .sub { color: rgba(255,255,255,.85); }
+
   .glyph { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #5AC8FA, #0A84FF 60%, #0040A8); box-shadow: 0 0 10px rgba(10,132,255,.55); flex: none; }
   .glyph.busy { animation: breathe 1.4s ease-in-out infinite; }
   @keyframes breathe { 50% { transform: scale(.78); box-shadow: 0 0 2px rgba(10,132,255,.3); } }
@@ -45,7 +46,7 @@
   .tile.filled:hover .x { display: block; }
   .docs { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
   .docs div { font-size: 11.5px; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tile textarea { flex: 1; margin-top: 8px; resize: none; border: 0; outline: 0; background: transparent; color: #fff; font: inherit; font-size: 13px; line-height: 1.4; padding: 0; user-select: text; }
+  .tile textarea { flex: 1; margin-top: 8px; padding-right: 34px; resize: none; border: 0; outline: 0; background: transparent; color: #fff; font: inherit; font-size: 13px; line-height: 1.4; padding: 0; user-select: text; }
   .tile textarea::placeholder { color: rgba(255,255,255,.35); }
   .foot { display: flex; align-items: center; margin-top: 12px; gap: 14px; }
   .status { display: flex; gap: 14px; font-size: 11.5px; color: rgba(255,255,255,.5); }
@@ -55,12 +56,18 @@
   .go:hover { background: #E8E8ED; }
   .go:disabled { background: rgba(255,255,255,.14); color: rgba(255,255,255,.35); }
 
+  .mic { position: absolute; right: 10px; bottom: 10px; width: 30px; height: 30px; border-radius: 15px; border: 0; background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.8); display: grid; place-items: center; }
+  .mic:hover { background: rgba(255,255,255,.18); color: #fff; }
+  .mic.rec { background: #FF453A; color: #fff; animation: pulse 1.2s ease-in-out infinite; }
+  .mic.busy { opacity: .5; pointer-events: none; }
+  .mic svg { width: 15px; height: 15px; }
   /* ---- processing ---- */
   .step { margin-top: 14px; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
   .step .n { color: rgba(255,255,255,.4); font-weight: 500; font-size: 13px; margin-left: 6px; }
   .bar { margin-top: 12px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
   .bar i { display: block; height: 100%; width: 0; border-radius: 2px; background: #fff; transition: width .45s ease; }
-  .ticks { display: flex; gap: 6px; margin-top: 10px; font-size: 11px; color: rgba(255,255,255,.4); flex-wrap: wrap; }
+  .ticks { display: flex; gap: 4px 10px; margin-top: 10px; white-space: nowrap; font-size: 11px; color: rgba(255,255,255,.4); flex-wrap: wrap; }
   .ticks span.done { color: rgba(255,255,255,.75); }
   .ticks span.run { color: #fff; }
 
@@ -92,7 +99,8 @@
     <div class="tile drop" id="histTile" data-kind="history"></div>
     <div class="tile" id="sympTile">
       <div class="ic"><svg class="i" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h6"/></svg></div>
-      <textarea id="symptoms" placeholder="Current presentation — e.g. breathless for 3 days, can't lie flat, ankle swelling, no fever"></textarea>
+      <textarea id="symptoms" placeholder="Type or dictate the presentation, in your own words"></textarea>
+      <button class="mic" title="Dictate" onclick="toggleMic(this, 'symptoms')"><svg class="i" viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 8a5 5 0 0010 0M8 13v2"/></svg></button>
     </div>
   </div>
   <div class="foot">
@@ -124,7 +132,7 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-const SIZES = { pill: [340, 40], intake: [660, 0], proc: [520, 0], err: [560, 0] };  // 0 = measure content
+const SIZES = { pill: [340, 40], intake: [660, 0], proc: [580, 0], err: [560, 0] };  // 0 = measure content
 const ICON = {
   scan: '<svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="2" width="11" height="12" rx="2"/><path d="M8 4.5v7M5.5 6.5c-1 .5-1.5 2-1.2 3.5M10.5 6.5c1 .5 1.5 2 1.2 3.5M6 8h4"/></svg>',
   doc: '<svg class="i" viewBox="0 0 16 16"><path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3M6 8.5h4M6 11h4"/></svg>',
@@ -176,22 +184,43 @@ function bindDrops() {
     t.ondragover = (e) => { e.preventDefault(); t.classList.add("over"); };
     t.ondragleave = () => t.classList.remove("over");
   });
-  document.addEventListener("dragenter", () => expand());
-  document.addEventListener("dragover", (e) => e.preventDefault());
-  document.addEventListener("drop", async (e) => {
-    e.preventDefault();
+  // never resize the window during a drag: on Wayland a moving/resizing target cancels the drop. Highlight instead.
+  let dragDepth = 0;
+  document.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; document.body.classList.add("dragging"); });
+  document.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("dragging"); } });
+  document.addEventListener("dragover", (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; });
+  // files are delivered by Python (pywebview reads the real path); the page only shows the drop target
+  document.addEventListener("drop", (e) => {
+    e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragging");
     document.querySelectorAll(".tile.over").forEach((t) => t.classList.remove("over"));
-    const target = e.target.closest(".tile.drop")?.dataset.kind;
-    for (const f of e.dataTransfer.files) {
-      // route by tile, or by file type when dropped anywhere else
-      const kind = target || (/\.(pdf|txt|md)$/i.test(f.name) ? "history" : "scan");
-      const b64 = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
-      const out = await pywebview.api.drop_file(kind, f.name, b64);
-      if (kind === "scan") scan = out; else histories.push(...out);
-    }
-    render();
+    // the files themselves arrive natively (app.py reads the drop's URI list); nothing to do here
   });
 }
+
+
+// ---------- dictation: press to record, press again to transcribe (offline Whisper) ----------
+async function toggleMic(btn, target) {
+  if (btn.classList.contains("rec")) {
+    btn.classList.remove("rec"); btn.classList.add("busy");
+    const r = await pywebview.api.stop_dictation();
+    btn.classList.remove("busy");
+    if (r.text) { const t = document.getElementById(target); t.value = (t.value ? t.value.trimEnd() + " " : "") + r.text; t.dispatchEvent(new Event("input")); }
+    else if (r.error) btn.title = r.error;
+    return;
+  }
+  const r = await pywebview.api.start_dictation();
+  if (r.error) { btn.title = r.error; return; }
+  btn.classList.add("rec");
+}
+
+window.onFilesStaged = (staged) => {
+  expand();
+  for (const s of staged) {
+    if (s.kind === "scan") scan = s.items[0];
+    else histories.push(...s.items);
+  }
+  render();
+};
 
 async function pick(kind) {
   if (kind === "scan") { const s = await pywebview.api.pick_scan(); if (s) scan = s; }
@@ -233,7 +262,10 @@ async function poll(id) {
   $("procCount").textContent = `${Math.min(done + 1, total)} of ${total}`;
   $("procStep").innerHTML = run ? `${esc(run.label)}…` : done === total ? "Review ready" : "Preparing clinical evidence";
   $("procBar").style.width = `${((done + (run ? 0.5 : 0)) / total) * 100}%`;
+  const before = $("proc").getBoundingClientRect().height;
   $("procTicks").innerHTML = p.steps.map((s) => `<span class="${s.state === "complete" ? "done" : s.state === "running" ? "run" : ""}">${s.state === "complete" ? "✓" : s.state === "running" ? "●" : "○"} ${esc(s.label.split(" ")[0])}</span>`).join("");
+  const after = $("proc").getBoundingClientRect().height;   // content grew (steps wrapped)? grow the island with it
+  if (Math.abs(after - before) > 1 && view === "proc") pywebview.api.island(SIZES.proc[0], Math.ceil(after));
   if (p.state === "REVIEW_READY") {
     $("procStep").textContent = "Review ready";
     $("procBar").style.width = "100%";

@@ -51,6 +51,9 @@
   .mark.red text { fill: var(--marker-red); }
   @keyframes ink { to { opacity: 1; } }
   .mark.dim { opacity: .55; } .mark.dim:hover { opacity: 1; }
+  .mark.approx .ink { stroke-dasharray: none; opacity: .8; }
+  .mark.approx path.draw { stroke-dasharray: 1; }
+  .ctl button:disabled { opacity: .3; pointer-events: none; }
   .raw polygon, .raw rect { fill: rgba(10,132,255,.14); stroke: #0A84FF; stroke-dasharray: 5 4; }
   .raw text { fill: #64B5FF; font-family: var(--mono); paint-order: stroke; stroke: #000; }
 
@@ -79,6 +82,18 @@
   .na .why { font-size: 12px; color: var(--t3); margin-top: 3px; }
   .na p { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: rgba(255,255,255,.86); }
   .focus { flex: 1; min-height: 0; overflow-y: auto; }
+  .idbar { position: fixed; z-index: 6; top: 58px; left: calc(var(--lm, 24px) + (100vw - var(--lm, 24px) - 412px) / 2); transform: translateX(-50%); max-width: 58vw;
+    padding: 9px 16px; border-radius: 16px; background: rgba(255,69,58,.16); border: 1px solid rgba(255,69,58,.45); color: #FF9C94; font-size: 13px; display: none; }
+  .idbar b { color: #FF6961; }
+  .iv .row { display: grid; grid-template-columns: 96px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .iv .row:first-of-type { border-top: 0; }
+  .chg { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; padding: 2px 7px; border-radius: 8px; justify-self: start; align-self: start; }
+  .chg-NEW { color: #FF9F0A; background: rgba(255,159,10,.14); } .chg-KNOWN { color: var(--t2); background: rgba(255,255,255,.08); }
+  .chg-NOT { color: #64D2FF; background: rgba(100,210,255,.12); }
+  .iv .q { display: block; font-size: 11.5px; color: var(--t3); margin-top: 2px; }
+  .rj { display: grid; grid-template-columns: 18px 1fr; gap: 8px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .rj:first-of-type { border-top: 0; }
+  .rj .x { color: #FF453A; font-weight: 700; } .rj .by { font-size: 11.5px; color: var(--t3); margin-top: 2px; }
   .focus h2 { margin: 2px 0 0; font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
   .verdict { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--t2); }
   .say { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.86); }
@@ -92,6 +107,26 @@
   .readers span { display: inline-flex; align-items: center; gap: 6px; }
   .more { margin-top: 14px; width: 100%; height: 32px; border-radius: 16px; border: 0; background: var(--tile-2); color: var(--t2); font-size: 12.5px; font-weight: 500; }
   .more:hover { color: #fff; }
+  .verdictrow { display: flex; gap: 8px; margin-top: 10px; }
+  .verdictrow button { flex: 1; height: 30px; border-radius: 15px; border: 0; background: var(--tile-2); color: var(--t2); font-size: 12.5px; font-weight: 500; }
+  .verdictrow button:hover { color: #fff; }
+  .override { margin-top: 10px; padding: 9px 12px; border-radius: 12px; background: rgba(10,132,255,.12); color: #8DC4FF; font-size: 12.5px; line-height: 1.4; }
+  .seg2 { display: flex; gap: 8px; margin: 12px 0; }
+  .seg2 button { flex: 1; height: 34px; border-radius: 17px; border: 1px solid var(--line); background: var(--tile-2); color: var(--t2); font-size: 13px; }
+  .seg2 button.on { background: #fff; color: #000; }
+  .note { width: 100%; min-height: 70px; resize: vertical; background: var(--tile-2); border: 0; border-radius: 12px; color: #fff; padding: 10px 12px; font: inherit; font-size: 13px; user-select: text; outline: none; }
+  .disc h4 { margin: 14px 0 4px; font-size: 12px; color: var(--t3); font-weight: 500; }
+  .disc li { font-size: 13px; line-height: 1.45; color: rgba(255,255,255,.86); margin: 3px 0; }
+  .disc .lean { margin-top: 12px; font-size: 14px; line-height: 1.45; }
+  .disc .res { margin-top: 8px; font-size: 13px; color: #FFB340; }
+  .mic { position: absolute; right: 8px; bottom: 8px; width: 30px; height: 30px; border-radius: 15px; border: 0; background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.8); display: grid; place-items: center; }
+  .mic:hover { background: rgba(255,255,255,.18); color: #fff; }
+  .mic.rec { background: #FF453A; color: #fff; animation: pulse 1.2s ease-in-out infinite; }
+  .mic.busy { opacity: .5; pointer-events: none; }
+  .mic svg { width: 15px; height: 15px; }
+  .notewrap { position: relative; }
+  @keyframes pulse { 50% { opacity: .55; } }
   .ev { display: none; margin-top: 12px; }
   .ev.open { display: block; }
   .ev .g { margin-top: 12px; }
@@ -113,6 +148,10 @@
   .ghost { height: 32px; padding: 0 14px; border-radius: 16px; border: 0; background: var(--tile-2); color: var(--t2); font-size: 13px; font-weight: 500; }
   .ghost:hover { color: #fff; }
   .acts .grow { flex: 1; }
+  .acts button { white-space: nowrap; }
+  .links { display: flex; gap: 16px; margin-top: 10px; }
+  .links a { font-size: 12px; color: var(--t3); cursor: pointer; }
+  .links a:hover { color: #fff; }
   .fine { margin-top: 10px; font-size: 11px; color: var(--t3); }
 
   /* ---------- patient context drawer (hidden until asked for) ---------- */
@@ -124,6 +163,8 @@
   .sym { display: flex; justify-content: space-between; padding: 5px 8px; margin: 0 -8px; border-radius: 9px; font-size: 13px; color: var(--t2); transition: background .25s; }
   .sym.neg { color: var(--t3); text-decoration: line-through; text-decoration-color: rgba(255,255,255,.25); }
   .sym .d { color: var(--t3); font-size: 12px; }
+  .how { font-size: 11px; color: var(--t3); text-decoration: none; margin-top: 1px; }
+  .unk { font-size: 13px; color: #FFB340; padding: 3px 0; }
   .hx { padding: 7px 8px; margin: 0 -8px; border-radius: 10px; cursor: pointer; transition: background .25s; }
   .hx:hover { background: rgba(255,255,255,.05); }
   .hx .dt { font-size: 11.5px; color: var(--t3); }
@@ -172,6 +213,7 @@
   </div>
 
   <div class="qbar" id="qbar"></div>
+  <div class="idbar" id="idbar"></div>
   <div class="stagewrap" id="wrap"><div class="stage" id="stage"><img id="img" alt="Chest X-ray"><svg id="ov"></svg></div></div>
   <div class="ctl">
     <button onclick="toggleCtx()" id="ctxBtn">Context</button><span class="sep"></span>
@@ -187,10 +229,11 @@
     <div class="tile"><div class="k" id="sumLine">Findings</div><div class="fl" id="flist"></div></div>
     <div class="tile focus" id="focus"></div>
     <div id="naSlot"></div>
+    <div id="ivSlot"></div>
     <div class="tile">
       <div class="k">Impression</div><div class="imp" id="imp"></div>
-      <div class="acts"><button class="ghost" onclick="openTech()">Models</button><span class="grow"></span>
-        <button class="ghost" onclick="pywebview.api.new_case()">New case</button><button class="go" onclick="exportReport()">Export report</button></div>
+      <div class="acts"><button class="ghost" onclick="pywebview.api.new_case()">New case</button><span class="grow"></span><button class="go" onclick="exportReport()">Export report</button></div>
+      <div class="links"><a onclick="openTech()">How the models read it</a><a id="rjBtn" onclick="openRejected()">Rejected claims</a></div>
       <div class="fine">Decision support only — review by a qualified clinician is required.</div>
     </div>
   </div>
@@ -237,6 +280,18 @@ window.addEventListener("pywebviewready", async () => {
   $("naSlot").innerHTML = (C.not_assessable || []).map((n) => `<div class="tile na"><div class="k">Not assessable on a chest X-ray</div><h3>${esc(n.name)}</h3>
       <div class="why">Raised by: ${esc(n.because.join(", ").toLowerCase() || "the clinical context")}</div><p>${esc(n.advice)}</p></div>`).join("");
   $("imp").innerHTML = impression();
+  const anyModelOutline = C.findings.some((f) => f.localization && f.localization.type !== "zone");
+  $("rawBtn").disabled = !anyModelOutline;
+  $("rawBtn").title = anyModelOutline ? "Show the raw model boxes / MedSAM outlines" : "No model outline on this film — marks show approximate zones";
+  if (C.identity?.status === "mismatch") { $("idbar").style.display = "block"; $("idbar").innerHTML = `<b>Identity mismatch.</b> ${esc(C.identity.message)} — the history was not used.`; }
+  const iv = C.interval;
+  if (iv && iv.status === "ok" && iv.rows.length) {
+    const lbl = { NEW: ["NEW", "chg-NEW"], KNOWN: ["KNOWN", "chg-KNOWN"], "NOT SEEN NOW": ["NOT SEEN", "chg-NOT"] };
+    $("ivSlot").innerHTML = `<div class="tile iv"><div class="k">Since last report · ${esc(fmtDate(iv.compared_to))}</div><div style="margin-top:6px">` + iv.rows.map((r) =>
+      `<div class="row"><span class="chg ${lbl[r.change][1]}">${lbl[r.change][0]}</span><span>${esc(r.finding)}${r.now ? ` · now ${STATE[r.now].toLowerCase()}` : ""}
+        <span class="q">Prior: “${esc(r.prior_quote)}” — ${esc(r.prior_file)} p.${r.prior_page}</span></span></div>`).join("") + `</div></div>`;
+  }
+  $("rjBtn").textContent = `Rejected claims · ${(C.rejected || []).length}`;
   renderCtx(); loadImage();
   setTimeout(() => select(C.findings.find((f) => f.status !== "INSUFFICIENT_EVIDENCE")?.id || C.findings[0]?.id || null), 500);
 });
@@ -276,7 +331,9 @@ function renderFocus() {
     </div>
     <div class="readers">${rd(f.technical.primary_model, lvl(f.signals.image), f.signals.image)}${f.technical.verifier_model ? rd(f.technical.verifier_model, lvl(f.signals.verifier), f.signals.verifier) : ""}
       ${rd("MedGemma", desc ? desc.level !== "absent" : null, desc ? (desc.level === "absent" ? "not seen" : "sees it") : "—")}
-      ${rd("MedSAM", f.localization?.contour ? true : f.localization ? "w" : null, f.localization?.contour ? "outlined" : f.localization ? "box" : "—")}</div>
+      ${rd("MedSAM", f.localization?.contour ? true : f.localization?.type === "bbox" ? "w" : null, f.localization?.contour ? "outlined" : f.localization?.type === "bbox" ? "box only" : "not used")}</div>
+    ${(C.overrides || {})[f.id] ? `<div class="override">Clinician verdict: <b>${C.overrides[f.id].verdict === "absent" ? "not present" : C.overrides[f.id].verdict === "present" ? "present" : "agrees"}</b>${C.overrides[f.id].note ? ` — “${esc(C.overrides[f.id].note)}”` : ""}</div>` : ""}
+    <div class="verdictrow"><button onclick="agree()">Agree</button><button onclick="openChallenge()">Disagree…</button></div>
     <button class="more" onclick="toggleEv()">${evOpen ? "Hide evidence" : "Show evidence"}</button>
     <div class="ev ${evOpen ? "open" : ""}" id="ev">${evidence(f)}</div>`;
   bindLinks();
@@ -304,8 +361,13 @@ function renderCtx() {
   const present = C.symptoms.filter((x) => x.state === "present"), denied = C.symptoms.filter((x) => x.state === "denied");
   let h = `<button class="x" onclick="toggleCtx(false)">×</button><div class="k">Presentation</div>`;
   h += C.presentation_text ? `<div class="quote">“${esc(C.presentation_text)}”</div>` : `<div class="muted">Not recorded.</div>`;
-  h += `<div class="sec">` + present.map((x) => `<div class="sym" data-concept="${x.concept}"><span>${esc(x.label)}</span><span class="d">${esc(x.duration || "")}</span></div>`).join("")
-    + denied.map((x) => `<div class="sym neg" data-concept="${x.concept}"><span>${esc(x.label)}</span><span class="d">denied</span></div>`).join("") + `</div>`;
+  const how = (x) => x.source ? `<div class="how">${esc(x.source)}</div>` : "";
+  h += `<div class="sec">` + present.map((x) => `<div class="sym" data-concept="${x.concept}"><span>${esc(x.label)}${how(x)}</span><span class="d">${esc(x.duration || "")}</span></div>`).join("")
+    + denied.map((x) => `<div class="sym neg" data-concept="${x.concept}"><span>${esc(x.label)}${how(x)}</span><span class="d">denied</span></div>`).join("") + `</div>`;
+  if ((C.understanding_flags || []).length) h += `<div class="sec"><div class="k">Please check</div>` +
+    C.understanding_flags.map((u) => `<div class="unk">${esc(u)}</div>`).join("") + `</div>`;
+  if ((C.unrecognised || []).length) h += `<div class="sec"><div class="k">Not understood — not used</div>` +
+    C.unrecognised.map((u) => `<div class="unk">“${esc(u)}”</div>`).join("") + `<div class="muted" style="font-size:11.5px">Nothing in Bonaventure's vocabulary matches these phrases, so they did not affect any finding.</div></div>`;
   h += `<div class="sec"><div class="k">History</div>`;
   if (!C.history_provided) h += `<div class="muted">No records supplied.</div>`;
   else if (!C.timeline.length) h += `<div class="muted">Nothing relevant on file.</div>`;
@@ -454,12 +516,29 @@ function renderMarks() {
     const L = f.localization;
     if (!L) continue;
     const [bx0, by0, bx1, by1] = L.coordinates;
-    if (showRaw) {
+    if (showRaw && L.type !== "zone") {
       s += L.contour ? `<g class="raw"><polygon points="${L.contour.map(([x, y]) => `${x * W},${y * H}`).join(" ")}" stroke-width="${1.2 * k}"/>` : `<g class="raw"><rect x="${bx0 * W}" y="${by0 * H}" width="${(bx1 - bx0) * W}" height="${(by1 - by0) * H}" stroke-width="${1.2 * k}"/>`;
       s += `<text x="${bx0 * W + 4 * k}" y="${by0 * H - 6 * k}" font-size="${11 * k}" stroke-width="${3 * k}">${f.canonical_name} · ${esc(L.source || "")}</text></g>`;
     }
     if (!showMarks || f.status === "INSUFFICIENT_EVIDENCE") continue;
     const r = rng(seedOf(f.id + C.case_id));
+    if (L.type === "zone") {   // no trustworthy model outline: shade the named anatomical zone(s), visibly approximate
+      const isSelZ = sel && sel.id === f.id, red = isRed(f) ? "red" : "";
+      const ux = (L.coordinates[0] + L.coordinates[2]) / 2 * W, uy = (L.coordinates[1] + L.coordinates[3]) / 2 * H;
+      if (!isSelZ) {
+        s += `<g class="mark ${red} dim" data-id="${f.id}" onclick="select('${f.id}')"><path class="ink" d="${handEllipse(ux, uy, 15 * k, 15 * k, r, 0)}" stroke-width="${sw * 0.8}"/>
+          <text x="${ux}" y="${uy + fs * 0.32}" font-size="${fs * 0.9}" text-anchor="middle" stroke-width="${fs / 6}" style="opacity:1;animation:none">${num(f)}</text></g>`;
+        continue;
+      }
+      s += `<g class="mark approx ${red}" data-id="${f.id}" onmousemove="tip(event,'${f.id}')" onmouseleave="$('tip').style.display='none'">`;
+      (L.zone_boxes || [L.coordinates]).forEach((b, zi) => {
+        const zx = (b[0] + b[2]) / 2 * W, zy = (b[1] + b[3]) / 2 * H, zrx = (b[2] - b[0]) / 2 * W * 0.92, zry = (b[3] - b[1]) / 2 * H * 0.92;
+        s += `<path class="ink ${zi ? "" : "ring"} draw" pathLength="1" style="animation-delay:${0.2 + zi * 0.15}s" d="${handEllipse(zx, zy, zrx, zry, r, 0)}" stroke-width="${sw * 0.8}" stroke-dasharray="0.012 0.008"/>`;
+      });
+      const lx = Math.min(Math.max(ux, fs * 4), W - fs * 4), ly = Math.max(L.coordinates[1] * H - fs * 0.6, fs * 1.2);
+      s += `<text x="${lx}" y="${ly}" font-size="${fs}" text-anchor="middle" stroke-width="${fs / 6}" style="animation-delay:.4s">${num(f)}. ${esc(f.display_name)} <tspan font-size="${fs * 0.6}">(approx. zone)</tspan></text></g>`;
+      continue;
+    }
     const x0 = bx0 * W, y0 = by0 * H, x1 = bx1 * W, y1 = by1 * H, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     const rx = (x1 - x0) / 2 * 1.08, ry = (y1 - y0) / 2 * 1.08;
     const isSel = sel && sel.id === f.id, red = isRed(f) ? "red" : "";
@@ -503,6 +582,60 @@ function openTech() {
   h += kv(Object.fromEntries([["Image quality", C.quality.state], ...Object.entries(C.quality.metrics)]));
   if (t.raw_reasoning?.length) h += `<div class="k">MedGemma raw output</div><pre>${esc(t.raw_reasoning.join("\n\n"))}</pre>`;
   $("modalBox").innerHTML = h; $("modal").classList.add("show");
+}
+
+
+// ---------- dictation: press to record, press again to transcribe (offline Whisper) ----------
+async function toggleMic(btn, target) {
+  if (btn.classList.contains("rec")) {
+    btn.classList.remove("rec"); btn.classList.add("busy");
+    const r = await pywebview.api.stop_dictation();
+    btn.classList.remove("busy");
+    if (r.text) { const t = document.getElementById(target); t.value = (t.value ? t.value.trimEnd() + " " : "") + r.text; t.dispatchEvent(new Event("input")); }
+    else if (r.error) btn.title = r.error;
+    return;
+  }
+  const r = await pywebview.api.start_dictation();
+  if (r.error) { btn.title = r.error; return; }
+  btn.classList.add("rec");
+}
+
+// ---------------- clinician challenges a finding ----------------
+let chVerdict = "absent";
+function agree() { pywebview.api.record_override(C.case_id, sel.id, "agree", "", null).then((o) => { C.overrides = o; renderFocus(); hud("Recorded: you agree"); }); }
+function openChallenge() {
+  chVerdict = sel.status === "SUPPORTED" ? "absent" : "present";
+  $("modalBox").innerHTML = `<div class="k">Challenge · ${esc(sel.display_name)} · Bonaventure says ${STATE[sel.status].toLowerCase()}</div><h3>What is your read?</h3>
+    <div class="seg2"><button id="vAbs" onclick="setV('absent')">It is not there</button><button id="vPre" onclick="setV('present')">It is there</button></div>
+    <div class="notewrap"><textarea class="note" id="chNote" placeholder="Why? Type or dictate, e.g. the opacity is breast tissue, not an effusion"></textarea>
+      <button class="mic" title="Dictate" onclick="toggleMic(this, 'chNote')"><svg class="i" viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 8a5 5 0 0010 0M8 13v2"/></svg></button></div>
+    <div class="acts"><span class="grow"></span><button class="ghost" onclick="$('modal').classList.remove('show')">Cancel</button><button class="go" id="chGo" onclick="runChallenge()">Discuss with Bonaventure</button></div>
+    <div class="disc" id="disc"></div>`;
+  setV(chVerdict); $("modal").classList.add("show"); setTimeout(() => $("chNote").focus(), 50);
+}
+function setV(v) { chVerdict = v; $("vAbs").classList.toggle("on", v === "absent"); $("vPre").classList.toggle("on", v === "present"); }
+async function runChallenge() {
+  $("chGo").textContent = "Looking again…"; $("chGo").disabled = true;
+  const d = await pywebview.api.challenge(C.case_id, sel.id, chVerdict, $("chNote").value);
+  const list = (xs) => xs.length ? `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p class="muted">Nothing.</p>`;
+  $("disc").innerHTML = `<div class="lean">${esc(d.lean)}</div>
+    <h4>Agrees with you</h4>${list(d.agree)}<h4>Points the other way</h4>${list(d.against)}<div class="res">${esc(d.resolve)}</div>
+    <div class="acts"><span class="grow"></span><button class="go" onclick='recordChallenge(${JSON.stringify(d).replace(/'/g, "&#39;")})'>Record my verdict</button></div>`;
+  $("chGo").textContent = "Discuss again"; $("chGo").disabled = false;
+}
+async function recordChallenge(d) {
+  C.overrides = await pywebview.api.record_override(C.case_id, sel.id, chVerdict, $("chNote").value, d);
+  $("modal").classList.remove("show"); renderFocus(); hud("Your verdict is recorded with the case and the report");
+}
+
+// ---------------- claims the readers refused ----------------
+function openRejected() {
+  const r = C.rejected || [];
+  $("modalBox").innerHTML = `<div class="k">${esc(C.case_id)}</div><h3>Checked and rejected</h3>
+    <p class="muted" style="margin:4px 0 12px">Every claim a model made that another reader or a consistency check refused. None of these reached the findings.</p>`
+    + (r.length ? r.map((x) => `<div class="rj"><span class="x">✕</span><span>${esc(x.claim)}<div class="by">${esc(x.by)} — ${esc(x.reason)}</div></span></div>`).join("")
+               : `<p class="muted">Nothing was rejected on this film — every reader agreed with what is shown.</p>`);
+  $("modal").classList.add("show");
 }
 
 // ---------------- export ----------------
