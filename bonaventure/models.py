@@ -301,7 +301,13 @@ class MedGemma:
                                                     return_tensors="pt").to(self.model.device, dtype=self.model.dtype)
         out = generate_with_budget(self.model, inputs, max_new_tokens,
                                    image_generation_seconds(self.model.device.type), "MedGemma image")
-        return self.processor.decode(out[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
+        tokens = out[0][inputs["input_ids"].shape[-1]:]
+        text = self.processor.decode(tokens, skip_special_tokens=True)
+        if not text.strip():
+            special = self.processor.decode(tokens, skip_special_tokens=False)
+            raise RuntimeError(f"MedGemma returned no image response (device={self.model.device}, "
+                               f"dtype={self.model.dtype}, generated={special!r}); reasoning unavailable")
+        return text
 
     @torch.inference_mode()
     def describe(self, img, finding_ids):

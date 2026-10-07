@@ -9,7 +9,7 @@ from bonaventure.model_runtime import medgemma_device, image_generation_seconds,
 class ModelRuntimeTests(unittest.TestCase):
     def torch(self, cuda=False, mps=False):
         return S(cuda=S(is_available=lambda: cuda), backends=S(mps=S(is_available=lambda: mps)),
-                 float16="fp16", bfloat16="bf16")
+                 float16="fp16", bfloat16="bf16", float32="fp32", empty=Mock())
 
     def test_mac_auto_uses_mps(self):
         with patch.dict(os.environ, {"BV_MEDGEMMA_DEVICE": "auto"}), patch("bonaventure.model_runtime.sys.platform", "darwin"):
@@ -29,15 +29,23 @@ class ModelRuntimeTests(unittest.TestCase):
         with patch.dict(os.environ, {"BV_MEDGEMMA_DEVICE": "cpu"}), patch("bonaventure.model_runtime.sys.platform", "darwin"):
             self.assertEqual(medgemma_device(self.torch(mps=True)), "cpu")
 
-    def test_mps_load_uses_fp16_eager_and_no_cuda_quantization(self):
+    def test_mps_load_uses_bf16_eager_and_no_cuda_quantization(self):
         loader, quantization = Mock(), Mock()
         with patch.dict(os.environ, {"BV_MEDGEMMA_DEVICE": "auto"}), patch("bonaventure.model_runtime.sys.platform", "darwin"):
             load_medgemma(self.torch(mps=True), loader, quantization, "local-model")
         options = loader.from_pretrained.call_args.kwargs
         self.assertEqual(options["device_map"], {"": "mps"})
-        self.assertEqual(options["dtype"], "fp16")
+        self.assertEqual(options["dtype"], "bf16")
         self.assertEqual(options["attn_implementation"], "eager")
         quantization.assert_not_called()
+
+    def test_old_mps_uses_float32_instead_of_overflowing_float16(self):
+        torch = self.torch(mps=True)
+        torch.empty.side_effect = TypeError("bfloat16 unsupported")
+        loader = Mock()
+        with patch.dict(os.environ, {"BV_MEDGEMMA_DEVICE": "mps"}), patch("bonaventure.model_runtime.sys.platform", "darwin"):
+            load_medgemma(torch, loader, Mock(), "local-model")
+        self.assertEqual(loader.from_pretrained.call_args.kwargs["dtype"], "fp32")
 
     def test_cuda_quantization_preserved(self):
         loader, quantization = Mock(), Mock()

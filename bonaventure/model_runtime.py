@@ -22,13 +22,19 @@ def image_generation_seconds(device):
 
 def load_medgemma(torch, loader, quantization, path):
     device = medgemma_device(torch)
-    dtype = torch.float16 if device == "mps" else torch.bfloat16
+    dtype = torch.bfloat16
+    if device == "mps":
+        try:
+            torch.empty(1, dtype=torch.bfloat16, device="mps")
+        except (RuntimeError, TypeError):
+            # Gemma can overflow in float16. Older macOS needs float32 instead.
+            dtype = torch.float32
     options = dict(device_map={"": 0} if device == "cuda" else {"": "mps"} if device == "mps" else None,
                    dtype=dtype,
                    quantization_config=quantization(load_in_4bit=True, bnb_4bit_quant_type="nf4",
                                                     bnb_4bit_compute_dtype=torch.bfloat16) if device == "cuda" else None)
     if device == "mps":
-        # Avoid bfloat16 OS restrictions and backend-specific fused attention paths.
+        # Avoid backend-specific fused attention paths.
         options["attn_implementation"] = "eager"
     model = loader.from_pretrained(path, **options).eval()
     print(f"[models] MedGemma device={model.device}, dtype={model.dtype}, "

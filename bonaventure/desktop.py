@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import uuid
 from pathlib import Path
@@ -260,8 +261,13 @@ class Api:
             path = report.generate(self.get_case(case_id))
         except Exception as e:
             return dict(error="The evidence report could not be generated.", details=repr(e))
-        _open(path)
-        return dict(path=str(path.relative_to(pipeline.ROOT)))
+        result = dict(path=str(path.relative_to(pipeline.ROOT)))
+        try:
+            _open(path)
+            result["opened"] = True
+        except Exception as e:
+            result.update(opened=False, warning="Report saved, but could not open it in the default PDF viewer.", details=repr(e))
+        return result
 
     def open_source(self, path):
         if Path(path).exists():
@@ -281,9 +287,14 @@ def _size(path):
 
 
 def _open(path):
-    opener = shutil.which("xdg-open")
-    if opener:
-        subprocess.Popen([opener, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    path = str(Path(path).resolve())
+    if sys.platform == "win32":
+        os.startfile(path)
+        return
+    opener = "/usr/bin/open" if sys.platform == "darwin" else shutil.which("xdg-open")
+    if not opener:
+        raise RuntimeError("No default document opener found (install xdg-utils on Linux)")
+    subprocess.run([opener, path], check=True, timeout=15, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 SOCKET = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "bonaventure.sock"

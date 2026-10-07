@@ -230,6 +230,15 @@ BV_START=expand ./run.sh    # open intake immediately
 scripts/bonaventure-toggle  # Linux only: toggle/start the pill using a key or bar binding
 ```
 
+Export report saves the PDF and opens it in the default document viewer (macOS
+`open`, Linux `xdg-open`). If opening fails, the report remains saved and the UI
+shows a warning with its path. Linux needs `xdg-utils` and a configured PDF viewer.
+
+“How the models read it” shows saved MedGemma image responses separately from
+clinical rewrites. Cases created with empty responses display an explicit missing
+output message; rerun analysis to obtain new output. Empty MedGemma image
+responses now fail inference instead of silently appearing as successful reasoning.
+
 ### Diagnose slow stages and model inference
 
 Stage 3 is **Structuring current presentation**. Known clinical phrases use the
@@ -245,7 +254,9 @@ accepting partial reasoning. These budgets are checked
 between decoding steps, so a slow CPU step can exceed the limit. Override with
 `BV_PRESENTATION_SECONDS` or `BV_IMAGE_GENERATION_SECONDS` when starting the app.
 MedGemma automatically selects CUDA, then Apple MPS on supported Macs, then CPU.
-MPS loads float16 weights with eager attention; CUDA retains four-bit weights.
+MPS uses bfloat16 with eager attention when supported, otherwise float32;
+float16 is avoided because Gemma can overflow and produce empty responses.
+CUDA retains four-bit weights.
 The startup log prints the actual device, dtype and image-generation budget.
 Set `BV_MEDGEMMA_DEVICE=cpu` to force CPU, or `mps`/`cuda` to require that backend;
 an unavailable explicit backend reports a loading error. MPS needs sufficient

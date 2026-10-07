@@ -583,7 +583,12 @@ function openTech() {
   h += kv(Object.fromEntries([...t.models.map((m) => [cap(m.role), m.model]), ...Object.entries(t.timing).map(([k, v]) => [k, v + " s"]), ["Total", t.total_seconds + " s"]]));
   if (t.top_concepts?.length) h += `<div class="k">CLEAR — closest of 368,294 concepts</div>` + kv(Object.fromEntries(t.top_concepts.map(([c, r, v]) => [`#${r}  ${c}`, v])));
   h += kv(Object.fromEntries([["Image quality", C.quality.state], ...Object.entries(C.quality.metrics)]));
-  if (t.raw_reasoning?.length) h += `<div class="k">MedGemma raw output</div><pre>${esc(t.raw_reasoning.join("\n\n"))}</pre>`;
+  const raw = (Array.isArray(t.raw_reasoning) ? t.raw_reasoning : [t.raw_reasoning]).filter((x) => typeof x === "string" && x.trim());
+  const imageRaw = raw.filter((x) => !x.startsWith("[natural-language understanding]"));
+  h += `<div class="k">MedGemma raw output</div>`;
+  h += imageRaw.length ? `<pre>${esc(imageRaw.join("\n\n"))}</pre>` : `<div class="muted">No MedGemma image response was saved for this case. Clinical rewriting output is separate below.</div>`;
+  const clinicalRaw = raw.filter((x) => x.startsWith("[natural-language understanding]"));
+  if (clinicalRaw.length) h += `<div class="k">Clinical rewriting output</div><pre>${esc(clinicalRaw.join("\n\n"))}</pre>`;
   $("modalBox").innerHTML = h; $("modal").classList.add("show");
 }
 
@@ -630,7 +635,7 @@ function openRejected() {
 async function exportReport() {
   hud("Generating evidence report…");
   const r = await pywebview.api.export_report(C.case_id);
-  hud(r.error ? r.error : `Saved ${r.path}`, 3500);
+  hud(r.error ? r.error : r.warning ? `${r.warning} Saved ${r.path}` : `Saved ${r.path} — opened in your PDF viewer`, 5000);
 }
 let hudT;
 function hud(msg, ms = 2500) { const t = $("hud"); t.textContent = msg; t.classList.add("show"); clearTimeout(hudT); hudT = setTimeout(() => t.classList.remove("show"), ms); }

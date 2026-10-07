@@ -6,7 +6,7 @@ interpreter and cannot execute here. Native Mac results remain unverified.
 
 ## Automated results
 
-All **92 Python tests** and the Node launcher checks pass. Context and evidence
+All **99 Python tests** and all three Node suites pass. Context and evidence
 reconciliation self-checks also pass. These tests use fake native APIs, clocks,
 recorders, and speech decoders where the real platform or models are unavailable.
 
@@ -26,6 +26,8 @@ recorders, and speech decoders where the real platform or models are unavailable
 | Voice recording lifecycle | Final/live decoder fallback, typed-text preservation, live captions, final replacement, cancellation, saved WAV, recorder exit race, kill/reap, pending start/stop, serialized restart, stale captions, quit cleanup | Real microphone capture and Whisper decoding |
 | Stage 3 latency/failure | Known phrases bypass rewriting; lock wait, decoding budget/partial-output rejection, malformed rewrite, original-text preservation, semantic fallback failure, full pipeline completion, persisted failure and timeout/load/memory error classification tests | Time CPU generation on the Mac |
 | Model health | Per-model statuses, no automatic mock fallback; diagnostic timeout/exit codes and shared-weight checks tested | Run real per-model inference command below |
+| MedGemma raw output | Saved BV-004 contains five empty image responses; empty-image-output rejection, escaped readout, clinical/image separation, MPS precision fallback tests pass | Run a new case with bfloat16/float32 MPS; historical empty output cannot be recovered |
+| Export and open PDF | Real export/opener methods tested with mocked macOS open, Linux xdg-open, PDF generation failure and saved-file/open failure separation | Confirm default PDF viewer opens after export |
 | Local imaging setup | Existing source/config/checkpoint file-presence checks pass; MedGemma/Whisper safetensors headers and tensor offsets fit file sizes | Load weights and run inference; file checks do not verify tensor values or quality |
 
 Python syntax, shell syntax, README links/anchors, and `git diff --check` pass.
@@ -49,6 +51,7 @@ From the repository root with your working virtual environment and Node:
 .venv/bin/python -m unittest discover -s tests -v
 node tests/island_state.test.cjs
 node tests/dictation_state.test.cjs
+node tests/review_outputs.test.cjs
 .venv/bin/python -m bonaventure.context
 .venv/bin/python -m bonaventure.reconcile
 .venv/bin/python scripts/check_setup.py
@@ -80,7 +83,7 @@ A Stage 3 run now records stage boundaries in Terminal and
 so a single slow forward pass can exceed it. Timed-out text rewriting falls back
 to original phrases with warnings; image generation fails instead of accepting
 partial output. MedGemma now selects Apple MPS on supported Macs, with a longer CPU budget
-otherwise. Backend selection, MPS dtype/attention configuration, CUDA
+otherwise. Backend selection, MPS bfloat16/float32 selection and attention configuration, CUDA
 quantization preservation and budget overrides have mocked regression coverage.
 Actual MPS loading/inference remains unverified here. The full application's combined
 memory pressure is not reproduced by sequential model checks.
