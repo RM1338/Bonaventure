@@ -89,6 +89,7 @@ class ImagingEngine:
         self.mock = os.environ.get("BV_MOCK") == "1"
         self.status = {"imaging": "loading", "reasoning": "loading"}
         self.models = {}
+        self.load_error = None
         self._loaded = threading.Event()  # status flips to "ready" per model; this fires only once self.models is complete
         self._lock = threading.Lock()
         threading.Thread(target=self._load, daemon=True).start()
@@ -102,9 +103,9 @@ class ImagingEngine:
             from . import models  # heavy: torch + checkpoints
             self.models = models.load_all(self.status)
         except Exception as e:
-            print(f"[imaging] real models unavailable, using mock: {e!r}")
-            self.mock = True
-            self.status = {"imaging": "mock", "reasoning": "mock"}
+            self.load_error = str(e)
+            print(f"[imaging] real models unavailable: {e!r}")
+            self.status = {"imaging": "unavailable", "reasoning": "unavailable"}
         finally:
             self._loaded.set()
 
@@ -114,6 +115,8 @@ class ImagingEngine:
     def analyze(self, img, scan_path):
         self._loaded.wait()
         with self._lock:  # one GPU, one case at a time
+            if self.load_error:
+                raise RuntimeError(f"Model startup failed: {self.load_error}")
             if self.mock:
                 return _mock_analyze(img, scan_path)
             from . import models

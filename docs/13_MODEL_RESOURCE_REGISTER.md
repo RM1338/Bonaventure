@@ -13,6 +13,15 @@ The HackNex rules require teams to declare external APIs, datasets, pretrained m
 | DINOv2 (code only) | Backbone architecture loaded by CLEAR through `torch.hub` | facebookresearch/dinov2 `main` | github.com/facebookresearch/dinov2 | Apache-2.0 | Local | Weights come from the CLEAR checkpoint |
 | MedSAM (SAM ViT-B, medical fine-tune) | Segmentation: MedGemma's box → mask; the mask outline is what the grease pencil traces | `medsam_vit_b.pth` | github.com/bowang-lab/MedSAM (`d71e8a1`) | Apache-2.0 | Local (GPU fp16, CPU fallback) | Masks outside 0.08–1.6× the box area are rejected and the box is kept |
 
+### Google Drive checkpoint links and local fingerprints
+
+The project READMEs publish these download folders. The SHA-256 values below identify the files currently present in this workspace. No upstream checksum was available in the project READMEs for comparing the local bytes, so their download origin is not independently verified.
+
+| Checkpoint | Project-published folder | Local file | Size (bytes) | Local SHA-256 |
+|---|---|---|---:|---|
+| CheXzero `best_128_0.0002_original_15000_0.859.pt` | [Google Drive](https://drive.google.com/drive/folders/1makFLiEMbSleYltaRxw81aBhEDMpVwno?usp=sharing) ([README](https://github.com/rajpurkarlab/CheXzero/blob/main/README.md)) | `models/CheXzero/checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt` | 353548709 | `620ee11d836f65104cd77c3764fd11ee787d709b0873ea58ca1acbf89c40c50c` |
+| MedSAM `medsam_vit_b.pth` | [Google Drive](https://drive.google.com/drive/folders/1ETWmi4AiniJeWOt6HAsYgTjYv_fkgzoN?usp=drive_link) ([README](https://github.com/bowang-lab/MedSAM/blob/main/README.md)) | `models/MedSAM/work_dir/MedSAM/medsam_vit_b.pth` | 375049145 | `34b34b78c1d18cb8c6bf84cf9c00e135d6d6c965699f3c0e31ef1bc9dcb5be74` |
+
 ## 2. Datasets
 
 No dataset was used for training.

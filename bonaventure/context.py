@@ -133,6 +133,12 @@ def read_pages(path):
     if path.suffix.lower() == ".pdf":
         try:
             raw = subprocess.run(["pdftotext", str(path), "-"], capture_output=True, text=True, timeout=60, check=True).stdout
+        except FileNotFoundError:
+            try:
+                from pypdf import PdfReader
+                return [page.extract_text() or "" for page in PdfReader(path).pages]
+            except Exception as e:
+                raise HistoryParseError(f"{path.name}: could not read PDF ({e})") from e
         except (subprocess.SubprocessError, OSError) as e:
             raise HistoryParseError(f"{path.name}: could not read PDF ({e})") from e
         return raw.split("\f")[:-1] or [raw]

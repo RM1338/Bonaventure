@@ -71,8 +71,9 @@ def lung_diagram(findings, w=300, h=320):
         boxes = [ZONES[z] for z in zones] or [loc["coordinates"]]
         for z, b in zip(zones or [None] * len(boxes), boxes):
             lung_zone = z not in ("HEART", "MEDIASTINUM", "SUBDIAPHRAGM")
+            clip_attr = 'clip-path="url(#lungs)"' if lung_zone else ""
             parts.append(f'<ellipse cx="{X((b[0] + b[2]) / 2)}" cy="{Y((b[1] + b[3]) / 2)}" rx="{X((b[2] - b[0]) / 2)}" ry="{Y((b[3] - b[1]) / 2)}" '
-                         f'fill="{colour}" fill-opacity=".28" stroke="{colour}" stroke-width="1.5" {"clip-path=\"url(#lungs)\"" if lung_zone else ""}/>')
+                         f'fill="{colour}" fill-opacity=".28" stroke="{colour}" stroke-width="1.5" {clip_attr}/>')
         for b in boxes:  # a numbered marker on every zone the finding covers
             cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
             parts.append(f'<circle cx="{X(cx)}" cy="{Y(cy)}" r="9" fill="{colour}"/><text x="{X(cx)}" y="{Y(cy) + 3.5}" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">{i}</text>')
@@ -117,6 +118,14 @@ def render_html(case):
     models = ", ".join(f"{m['model']} ({m['role']})" for m in case["technical"]["models"])
     if "MedGemma" in case["technical"].get("timing", {}):
         models += ", MedGemma 1.5 4B (localization and visual description)"
+
+    def discussion_html(override):
+        discussion = override.get("discussion")
+        if not discussion:
+            return ""
+        return ("<br><span class='src'>" + escape(discussion.get("lean", "")) + " "
+                + escape(discussion.get("resolve", "")) + "</span>")
+
     return f"""<!doctype html><html><head><meta charset="utf-8"><style>
     @page {{ size: A4; margin: 16mm 15mm 18mm; @bottom-center {{ content: "Bonaventure Evidence Report · {case['case_id']} · page " counter(page); font: 8pt sans-serif; color: #6b7a90; }} }}
     body {{ font-family: "Inter", "DejaVu Sans", sans-serif; color: #14233a; font-size: 9.5pt; line-height: 1.45; }}
@@ -170,7 +179,7 @@ def render_html(case):
         f"<p><b>{escape(next((x['display_name'] for x in findings if x['id'] == fid), fid))}</b> — Bonaventure: {STATUS_LABEL.get(next((x['status'] for x in findings if x['id'] == fid), ''), '')}; "
         f"clinician: <b>{'not present' if o['verdict'] == 'absent' else 'present' if o['verdict'] == 'present' else 'agrees'}</b>"
         f"{(' — “' + escape(o['note']) + '”') if o.get('note') else ''} <span class='src'>{escape(o['at'])}</span>"
-        f"{('<br><span class=\'src\'>' + escape((o.get('discussion') or {}).get('lean', '')) + ' ' + escape((o.get('discussion') or {}).get('resolve', '')) + '</span>') if o.get('discussion') else ''}</p>"
+        f"{discussion_html(o)}</p>"
         for fid, o in case['overrides'].items())) if case.get('overrides') else ''}
     {('<h2>Checked and rejected</h2><ul>' + ''.join(f"<li>{escape(x['claim'])} <span class='src'>{escape(x['by'])} — {escape(x['reason'])}</span></li>" for x in case['rejected']) + '</ul>') if case.get('rejected') else ''}
     <h2>Limitations</h2>
@@ -184,8 +193,45 @@ def render_html(case):
 
 
 def generate(case):
-    from weasyprint import HTML
     REPORTS.mkdir(exist_ok=True)
     out = REPORTS / f"{case['case_id']}.pdf"
-    HTML(string=render_html(case)).write_pdf(out)
+    import os
+    if os.name == "nt":
+        _windows_pdf(render_html(case), out)
+    else:
+        from weasyprint import HTML
+        HTML(string=render_html(case)).write_pdf(out)
     return out
+
+
+def _windows_pdf(html, out):
+    """Render locally with Edge, without requiring GTK/Pango on Windows."""
+    import os
+    import subprocess
+    import tempfile
+    import time
+
+    candidates = [Path(root) / "Microsoft/Edge/Application/msedge.exe"
+                  for key in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA")
+                  if (root := os.environ.get(key))]
+    edge = next((p for p in candidates if p.is_file()), None)
+    if edge is None:
+        raise RuntimeError("Microsoft Edge is required for PDF export on Windows.")
+    with tempfile.TemporaryDirectory(prefix="pdf-", dir=REPORTS, ignore_cleanup_errors=True) as folder:
+        folder = Path(folder).resolve()
+        source, target = folder / "report.html", folder / "report.pdf"
+        source.write_text(html, encoding="utf-8")
+        subprocess.run([str(edge), "--headless=new", "--disable-gpu", "--no-first-run",
+                        "--no-default-browser-check", "--no-pdf-header-footer",
+                        f"--user-data-dir={folder / 'profile'}", f"--print-to-pdf={target}", source.as_uri()],
+                       check=True, timeout=60, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       creationflags=subprocess.CREATE_NO_WINDOW)
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if target.is_file():
+                data = target.read_bytes()
+                if data.startswith(b"%PDF-") and b"%%EOF" in data[-1024:]:
+                    os.replace(target, out)
+                    return
+            time.sleep(0.2)
+        raise RuntimeError("Edge did not finish writing the PDF report.")

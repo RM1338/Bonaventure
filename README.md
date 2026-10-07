@@ -9,7 +9,7 @@ showing exactly where on the film, which history fact (document + page + quote) 
 
 ## What it looks like
 
-- **Island launcher** — a Dynamic-Island-style pill at the top of the screen (`Super + Alt + B` or the bar icon).
+- **Island launcher** — a centered floating input panel on Windows (`Ctrl + Alt + B` to show/hide).
   Drop the X-ray, the history PDFs, type the presentation, *Analyse*. Progress is shown inside the island.
 - **Reading room** — the result opens in a dark reading room: the film on a wall viewbox with grease-pencil marks traced
   along MedSAM's outline, a patient-context panel (complaint, symptoms, dated history with sources) and an evidence panel
@@ -89,57 +89,158 @@ Other guards: a finding needs one reader at *moderate* or both at *weak* (a sing
 suppresses its overlapping parent (cardiomegaly → widened mediastinum, consolidation → pneumonia); when the image readers
 disagree MedGemma breaks the tie (2–1 → UNCERTAIN). Both normal sample films produce **no findings**.
 
-## Install (Linux, tested on Arch/Omarchy + Hyprland, RTX 3050 6 GB)
+## Windows setup
 
-```bash
-sudo pacman -S --needed webkit2gtk-4.1 python-gobject poppler      # system deps
-uv venv --python /usr/bin/python3 --system-site-packages .venv      # system site-packages for GTK bindings
-uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu128
-uv pip install --python .venv/bin/python -r requirements.txt
+The current Windows setup was exercised with **Python 3.11**, an **NVIDIA RTX 4050 with 6 GB VRAM**, and the existing `.venv`. The desktop uses pywebview; Windows PDF export uses Microsoft Edge. PDF history extraction falls back to `pypdf` when Poppler is absent.
 
-# model code + weights (see docs/13_MODEL_RESOURCE_REGISTER.md)
-git clone https://github.com/peterhan91/CLEAR
-git clone https://github.com/rajpurkarlab/CheXzero      # weights → CheXzero/checkpoints/chexzero_weights/
-git clone https://github.com/bowang-lab/MedSAM          # medsam_vit_b.pth → MedSAM/work_dir/MedSAM/
-hf download peterhan91/CLEAR best_model.pt concept_embeddings_368294.pt mimic_concepts.csv --local-dir ~/bonaventure/models/clear
-hf download google/medgemma-1.5-4b-it                   # gated: accept the licence + `hf auth login` first
+### Run on this already configured computer
+
+Open **PowerShell** and run:
+
+```powershell
+cd C:\Users\jebas\projects\Hacknex_phase_1\Bonaventure
+$env:BV_MEDGEMMA = (Resolve-Path 'models/medgemma-1.5-4b-it').Path
+$env:HF_HUB_OFFLINE = '1'
+$env:TRANSFORMERS_OFFLINE = '1'
+$env:PYTHONIOENCODING = 'utf-8'
+Remove-Item Env:BV_MOCK -ErrorAction SilentlyContinue
+.\.venv\Scripts\python.exe -m bonaventure.app
 ```
 
-`BV_MEDGEMMA=/path/to/medgemma` points at a local copy; `BV_MOCK=1` runs the UI without models (clearly labelled demo mode).
+Use your checkout path if it differs. Calling the virtual environment's Python directly avoids PowerShell activation-policy issues. These environment variables apply to the current terminal session.
 
-## Run
+1. Start **one instance**. Windows does not currently prevent duplicate launches; each instance loads its own models.
+2. Wait for **Image AI loaded** and **Reasoning AI loaded**. These indicators mean models are loaded, not that files are attached.
+3. Press **Ctrl + Alt + B** to show/hide the centered input panel. `Escape` collapses the expanded intake panel.
+4. Click **Chest X-ray** to select a scan, or drag the file into the panel. PNG, JPEG, DICOM, BMP, TIFF and WebP are accepted.
+5. Optionally attach text-based PDF/TXT/MD history and type the current symptoms. Scanned PDFs require OCR outside this app.
+6. Click **Analyse**. The review displays the scan, findings, context, and model activity. Completed inputs are cleared for the next case.
+7. Choose **Export report** to save a PDF under `reports/`. The PDF opens with the Windows default application.
 
-```bash
-./run.sh                    # island launcher (models load in the background, ~20 s)
-./run.sh BV-001             # reopen a saved case in the reading room
-scripts/bonaventure-toggle  # show/hide the island (bind it to a key; starts the app if needed)
+Keep the launching terminal open. To stop the application, use `Ctrl+C` in that terminal; hiding the panel or closing the review does not stop the model process.
+
+Reopen an existing saved case using its actual folder name (with the same environment variables set):
+
+```powershell
+.\.venv\Scripts\python.exe -m bonaventure.app BV-014
 ```
 
-Reproduce the three acceptance demo cases (docs/11) on the real models:
+### Preparing another Windows computer
 
-```bash
-PYTHONPATH=. .venv/bin/python scripts/run_demo_cases.py
+Prerequisites:
+
+- 64-bit Python 3.11 and Git.
+- An NVIDIA GPU/driver compatible with the CUDA 12.8 PyTorch build used here. The tested GPU has 6 GB VRAM; the full pipeline has not been verified on CPU alone.
+- Microsoft Edge and its WebView2 runtime for the desktop web view; Edge is also used for PDF export.
+- The model code, checkpoints, tokenizer files and cached backbone source described below.
+
+The existing `.venv` was created with `--system-site-packages` and also uses installed user packages. Do not overwrite it just to follow these instructions. For a **new checkout**, create an isolated environment:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
+.\.venv\Scripts\python.exe -m pip install pywebview==6.2.1 pythonnet==3.2.0 pydicom==3.0.2 pypdf==6.7.5 pillow==12.3.0 numpy==2.3.5
+.\.venv\Scripts\python.exe -m pip install transformers==5.19.0 accelerate==1.15.0 bitsandbytes==0.50.2 huggingface_hub==1.33.0
+.\.venv\Scripts\python.exe -m pip install ftfy==6.3.1 regex==2026.9.29 pandas==2.3.3 scikit-learn==1.8.0 scipy==1.17.1 h5py==3.15.1 tqdm==4.70.1 einops==0.8.2 sentencepiece==0.2.1 protobuf==6.33.6
 ```
 
-| Case | Input | Result |
+These pins were read from the working environment; a clean installation with these commands has **not** been independently tested. `requirements.txt` contains different NumPy, pandas, SciPy, scikit-learn and h5py pins, so it is not the Windows Python 3.11 environment lock. Windows export does not require WeasyPrint's GTK/Pango dependencies.
+
+Check that the selected interpreter sees CUDA:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import torch; print(torch.__version__); print('CUDA available:', torch.cuda.is_available())"
+```
+
+### Model files and code
+
+Keep this layout relative to the repository root:
+
+```text
+CLEAR/src/clear/                         CLEAR Python source
+models/
+  clear/
+    best_model.pt
+    concept_embeddings_368294.pt
+    mimic_concepts.csv
+  CheXzero/
+    model.py
+    clip.py
+    checkpoints/chexzero_weights/best_128_0.0002_original_15000_0.859.pt
+  MedSAM/
+    segment_anything/
+    work_dir/MedSAM/medsam_vit_b.pth
+  medgemma-1.5-4b-it/                     Complete Hugging Face snapshot
+  .torch-cache/hub/facebookresearch_dinov2_main/
+```
+
+CLEAR also needs its local text/tokenizer assets and cached DINOv2 source. Preserve the configured CLEAR directory and caches when moving this setup; copying checkpoint files alone is insufficient for offline loading. The unused CLEAR `concepts_embeddings_sfr_mistral.pickle` is not required by this pipeline.
+
+Model sources, checkpoint fingerprints and Google Drive download links are recorded in [the model resource register](docs/13_MODEL_RESOURCE_REGISTER.md).
+
+For a new MedGemma download, accept Google's terms on its Hugging Face repository, authenticate locally, then download the complete snapshot:
+
+```powershell
+.\.venv\Scripts\hf.exe auth login
+.\.venv\Scripts\hf.exe download google/medgemma-1.5-4b-it --local-dir models/medgemma-1.5-4b-it
+```
+
+Run downloads before enabling offline mode. If you already set the offline variables in the same terminal, remove them first:
+
+```powershell
+Remove-Item Env:HF_HUB_OFFLINE -ErrorAction SilentlyContinue
+Remove-Item Env:TRANSFORMERS_OFFLINE -ErrorAction SilentlyContinue
+```
+
+Set `BV_MEDGEMMA` explicitly at launch as shown above. `BV_CLEAR_DIR` and `BV_CLEAR_CKPT` can override CLEAR's default model folder and checkpoint.
+
+## Windows verification and sample inputs
+
+After setting the launch environment variables, close other instances and run the native UI acceptance check:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_windows_pipeline
+```
+
+This starts the real application, attaches sample files through its drop handler, clicks Analyse, and checks model output and rendered findings. It creates saved cases and writes `reports/pipeline-acceptance-verification.json`; it leaves the positive case open. It uses real models, not demo output.
+
+The Windows run on **7 October 2026** verified:
+
+| Scenario | Inputs | Observed result |
 |---|---|---|
-| A · agreement | Kerley-B film + heart-failure history + breathlessness/orthopnoea | Cardiomegaly, pulmonary edema, pleural effusion **SUPPORTED · high**, localized; consolidation **CONFLICTING** (fever & cough denied) |
-| B · contradiction | *Same film* + history with a recent normal report | Everything **CONFLICTING** — quotes "Normal heart size", "Lungs clear", "No pleural effusion" |
-| C · poor image | Degraded film, no history | **INSUFFICIENT_EVIDENCE** — no forced conclusion |
-| D · not on X-ray | Normal film + post-op knee replacement + sudden pleuritic pain, racing heart, calf swelling | No image finding; **"Pulmonary embolism — not assessable on a chest X-ray"** with Wells/D-dimer/CTPA advice |
-| N · normal ×2 | Two normal films | No findings |
+| Positive | `kerley_b.jpg` + `case_a_history.pdf` + breathlessness/orthopnoea symptoms | Cardiomegaly and pulmonary edema supported; consolidation conflicting; two MedSAM outlines accepted |
+| Contradictory history | Same scan + `case_b_history.pdf` + the test's presentation | All three findings conflicting |
+| Normal sample | `Chest_Xray_PA_3-8-2010.png`, no history or symptoms | No accepted findings; localization and MedSAM skipped |
 
-A case takes ~18–20 s on an RTX 3050 (MedGemma dominates). GPU: MedGemma (4-bit) + MedSAM, peak ≈ 5.1 GB;
-CLEAR, its concept bank and CheXzero run on the CPU (~1.3 s). `run.sh` keeps WebKit's renderer on the Intel/Mesa GPU
-(`__EGL_VENDOR_LIBRARY_FILENAMES`, `WEBKIT_DISABLE_DMABUF_RENDERER`) — rendering through NVIDIA's EGL under VRAM pressure crashed it.
+Scans are under `sample_data/scans/`; synthetic histories are under `sample_data/histories/`. The test script contains the exact symptom text. These checks establish software behavior on the samples, not clinical accuracy.
 
-Self-checks: `python -m bonaventure.context`, `python -m bonaventure.reconcile`.
+Additional backend demo scenarios and parser checks:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.run_demo_cases
+.\.venv\Scripts\python.exe -m bonaventure.context
+.\.venv\Scripts\python.exe -m bonaventure.reconcile
+```
+
+## Windows troubleshooting
+
+- **Analyse is disabled:** attach a readable scan and wait for file staging to finish. History is optional. The model-loaded indicators do not indicate attached data.
+- **No accepted findings:** read the model activity and rejected claims in the result. Zero accepted findings does not establish that the scan is normal. History entries describe prior observations, not newly detected image findings.
+- **No outlines:** MedSAM needs an accepted bounding box. A skipped stage is reported when none is available; failed or unavailable components are shown as limitations.
+- **Model startup failure:** check paths, complete downloads and CUDA availability. Startup failure now reports an error rather than automatically returning simulated findings. `BV_MOCK=1` deliberately enables development-only simulated output; remove it for real inference.
+- **PDF export fails:** confirm Microsoft Edge is installed and `reports/` is writable. Windows uses headless Edge for export.
+- **History has no extracted text:** use a text-based document. OCR is not implemented.
+- **Shortcut does not respond:** check the launching terminal for a hotkey-registration warning and close duplicate instances. Another program may own `Ctrl+Alt+B`.
+- **Microphone dictation:** the current recording implementation uses Linux PipeWire and has not been ported to Windows. Type the presentation on Windows.
+
+The Linux entry points (`run.sh`, Hyprland toggle socket and GTK drop integration) remain in the repository. They are not the Windows launch commands.
 
 ## Repository
 
 ```
 bonaventure/
-  app.py          desktop client: island + reading room windows, Hyprland integration, toggle socket
+  app.py          desktop client: island + reading room, Windows hotkey, Linux Hyprland integration
   pipeline.py     case orchestration, progress states, failure capture
   imaging.py      scan loading (PNG/JPEG/DICOM), quality gate, model engine (+ mock)
   models.py       CLEAR (+ concept bank), CheXzero, MedGemma, MedSAM adapters
@@ -148,7 +249,7 @@ bonaventure/
   reconcile.py    evidence reconciliation engine
   report.py       PDF evidence report
   ui/             island.html, review.html (reading room), base.css, bundled fonts
-scripts/          demo cases, sample history generator, toggle script
+scripts/          Windows UI verification, demo cases, sample history generator, Linux toggle
 sample_data/      CC0 demo films, synthetic histories
 docs/             PRD, SRS, architecture, pipeline, UX, report spec, model register …
 ```

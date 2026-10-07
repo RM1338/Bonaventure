@@ -69,6 +69,8 @@ class Api:
         self._scan = None
         self._histories = []
         self._launcher = None
+        self._launcher_visible = True
+        self._launcher_screen = None
         self._review = None
 
     # ----- island geometry -----
@@ -84,6 +86,19 @@ class Api:
             _hypr(f"hl.dsp.window.move({{ x = {int(mx + (mw - w) / 2)}, y = {my + ISLAND_TOP}, {sel} }})")
         else:
             self._launcher.resize(w, h)
+            if os.name == "nt" and self._launcher_screen:
+                screen = self._launcher_screen
+                self._launcher.move(screen.x + (screen.width - w) // 2,
+                                    screen.y + (screen.height - h) // 2)
+
+    def toggle_launcher(self):
+        """Show or hide the launcher from the Windows global shortcut."""
+        if self._launcher_visible:
+            self._launcher.hide()
+        else:
+            self._launcher.show()
+            self._launcher.evaluate_js("window.expand && expand()")
+        self._launcher_visible = not self._launcher_visible
 
     # ----- review window controls (traffic lights) -----
     def window_close(self):
@@ -173,8 +188,8 @@ class Api:
             return dict(ok=False, name=name, error="Unsupported document. Use PDF or text.")
         try:
             pages = context.read_pages(path)
-        except context.HistoryParseError:
-            return dict(ok=False, name=name, error="This document could not be read.")
+        except context.HistoryParseError as e:
+            return dict(ok=False, name=name, error=str(e))
         has_text = any(p.strip() for p in pages)
         entry = dict(id=uuid.uuid4().hex[:8], path=str(path), name=name, source=str(Path(path).resolve()))
         self._histories.append(entry)
@@ -194,15 +209,18 @@ class Api:
         return self._cases[case_id].progress()
 
     def open_review(self, case_id):
-        self._scan, self._histories = None, []
         self._current = case_id
         _hypr_rules()
         if self._review is None:
             self._review = _review_window(self, case_id)
         else:
-            self._review.load_url(str(UI / "review.html"))
+            # WebView2 may skip navigation to the same URL. Give each case a
+            # distinct URL so scripts and the image are loaded for the new result.
+            review_url = self._review.real_url.split("?", 1)[0]
+            self._review.load_url(f"{review_url}?case={case_id}")
             self._review.set_title(REVIEW_TITLE.format(case_id))
             self._review.show()
+        self._scan, self._histories = None, []
 
     def _on_review_closed(self):
         self._review = None
@@ -290,6 +308,9 @@ def _size(path):
 
 
 def _open(path):
+    if os.name == "nt":
+        os.startfile(str(Path(path).resolve()))
+        return
     opener = shutil.which("xdg-open")
     if opener:
         subprocess.Popen([opener, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -300,6 +321,8 @@ SOCKET = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "bonaventure.sock"
 
 def _serve_toggle(api):
     """Single-instance control: `scripts/bonaventure-toggle` (bar button / keybind) writes 'toggle' here."""
+    if os.name == "nt":
+        return
     import socket
     SOCKET.unlink(missing_ok=True)
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -311,6 +334,26 @@ def _serve_toggle(api):
             if conn.recv(64).strip() == b"toggle":
                 api._launcher.evaluate_js("window.toggleIsland && toggleIsland()")
                 _hypr(f'hl.dsp.focus({{ window = "title:^{ISLAND_TITLE}$" }})')
+
+
+def _serve_windows_hotkey(api):
+    """Ctrl+Alt+B shows or hides the launcher from any Windows application."""
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    hotkey_id = 1
+    modifiers = 0x0001 | 0x0002 | 0x4000  # Alt, Ctrl, no key repeat
+    if not user32.RegisterHotKey(None, hotkey_id, modifiers, ord("B")):
+        print("[hotkey] Ctrl+Alt+B is unavailable (already in use).", flush=True)
+        return
+    try:
+        message = wintypes.MSG()
+        while user32.GetMessageW(ctypes.byref(message), None, 0, 0) > 0:
+            if message.message == 0x0312 and message.wParam == hotkey_id:
+                api.toggle_launcher()
+    finally:
+        user32.UnregisterHotKey(None, hotkey_id)
 
 
 def _bind_file_drops(api):
@@ -344,14 +387,26 @@ def _deliver(api, uris):
 
 
 def _review_window(api, case_id):
-    w = webview.create_window(REVIEW_TITLE.format(case_id), str(UI / "review.html"), js_api=api, width=1600, height=960,
-                              min_size=(1200, 720), background_color="#000000", frameless=True, easy_drag=False)
+    width, height, position = 1600, 960, {}
+    if os.name == "nt":
+        screen = api._launcher_screen or webview.screens[0]
+        area = screen.frame
+        left, top = (area.X, area.Y) if area else (screen.x, screen.y)
+        available_w, available_h = (area.Width, area.Height) if area else (screen.width, screen.height)
+        width, height = min(width, available_w - 32), min(height, available_h - 32)
+        position = dict(x=left + (available_w - width) // 2,
+                        y=top + (available_h - height) // 2, screen=screen)
+    w = webview.create_window(REVIEW_TITLE.format(case_id), str(UI / "review.html"), js_api=api, width=width, height=height,
+                              min_size=(min(1200, width), min(720, height)), background_color="#000000", frameless=True,
+                              easy_drag=False, **position)
     w.events.closed += api._on_review_closed
     return w
 
 
 def _already_running():
     """Single instance: two copies would each load ~5 GB of models onto a 6 GB GPU. Hand over to the running one."""
+    if os.name == "nt":
+        return False
     import socket
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as c:
@@ -376,15 +431,25 @@ def main():
     _hypr_rules()
     api = Api()
     reopen = sys.argv[1] if len(sys.argv) > 1 else None  # e.g. `./run.sh BV-002` reopens a saved case
+    window_position = {}
+    if os.name == "nt":
+        api._launcher_screen = webview.screens[0]
+        screen = api._launcher_screen
+        window_position = dict(x=screen.x + (screen.width - 340) // 2,
+                               y=screen.y + (screen.height - 40) // 2, screen=screen)
     api._launcher = webview.create_window(ISLAND_TITLE, str(UI / "island.html"), js_api=api, width=340, height=40,
-                                          frameless=True, easy_drag=False, resizable=True, background_color="#000000", min_size=(100, 24))
+                                          frameless=True, easy_drag=False, resizable=True, background_color="#000000", min_size=(100, 24),
+                                          **window_position)
     if reopen:
         if not (pipeline.CASES / reopen / "result.json").exists():
             sys.exit(f"No saved case {reopen} in {pipeline.CASES}")
         api._current = reopen
         api._review = _review_window(api, reopen)
     threading.Thread(target=_serve_toggle, args=(api,), daemon=True).start()
-    api._launcher.events.loaded += lambda: _bind_file_drops(api)
+    if os.name == "nt":
+        threading.Thread(target=_serve_windows_hotkey, args=(api,), daemon=True).start()
+    if sys.platform.startswith("linux"):
+        api._launcher.events.loaded += lambda: _bind_file_drops(api)
     if os.environ.get("BV_START") == "expand":
         api._launcher.events.loaded += lambda: threading.Timer(0.6, api._launcher.evaluate_js, ["expand()"]).start()
     if os.environ.get("BV_DEBUG_JS"):  # dev hook: drive the island for screenshots, e.g. BV_DEBUG_JS="expand()"

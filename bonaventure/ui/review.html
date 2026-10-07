@@ -229,6 +229,7 @@
   <div class="col">
     <div class="tile"><div class="k" id="sumLine">Findings</div><div class="fl" id="flist"></div></div>
     <div class="tile focus" id="focus"></div>
+    <div class="tile" id="analysisStatus" role="status" aria-live="polite" tabindex="0" style="max-height:140px;overflow-y:auto;flex-shrink:0;font-size:12px"></div>
     <div id="naSlot"></div>
     <div id="ivSlot"></div>
     <div class="tile">
@@ -264,6 +265,12 @@ window.addEventListener("pywebviewready", async () => {
   const id = await pywebview.api.current_case();
   if (!id) { $("empty").style.display = "grid"; return; }
   C = await pywebview.api.get_case(id);
+  const audit = C.technical.model_audit || [];
+  $("analysisStatus").innerHTML = `<div class="k">${C.technical.demo ? "Demo output — simulated findings" : "Analysis completed"}</div>`
+    + `<p>${esc(C.scan.file)} · ${C.history_files.length} history document(s) · ${C.presentation_text ? "Presentation included" : "No presentation supplied"}</p>`
+    + (audit.length ? audit.map((a) => `<p><b>${esc(a.model)} · ${esc(a.state)}</b><br>${esc(a.detail)}</p>`).join("")
+      : `<p>Detailed stage status was not saved for this older case. Open “How the models read it” for recorded timings.</p>`)
+    + (C.warnings || []).map((w) => `<p><b>Analysis limitation:</b> ${esc(w)}</p>`).join("");
   const dt = new Date(C.created);
   $("caseId").textContent = C.case_id;
   $("caseMeta").textContent = `${C.scan.view} · ${dt.getDate()} ${MONTHS[dt.getMonth()]} · ${C.created.slice(11, 16)}`;
@@ -314,7 +321,13 @@ function impression() {
 // ---------------- focus tile: one finding, summary first, detail on demand ----------------
 function chipState(sig) { return sig === "present" ? ["for", "Supports"] : sig === "against" ? ["against", "Against"] : sig === "not provided" ? ["none", "Not given"] : ["none", "Nothing"]; }
 function renderFocus() {
-  if (!sel) { $("focus").innerHTML = `<div class="k">No finding</div><p class="say">${esc(C.summary.message || "")}</p>`; return; }
+  if (!sel) {
+    $("focus").innerHTML = `<div class="k">No accepted image findings</div><p class="say">${esc(C.summary.message || "")}</p>
+      <p>This does not establish that the scan is normal. History entries are prior observations, not findings detected on this image.</p>
+      <p>${(C.rejected || []).length} proposed claims were rejected by cross-checks.</p>`
+      + (C.rejected || []).map((r) => `<p><b>${esc(r.claim)}</b><br>${esc(r.reason)}</p>`).join("");
+    return;
+  }
   const f = sel;
   const img = f.signals.agreement === "discordant" ? ["against", "Disagree"] : ["concordant", "partial"].includes(f.signals.agreement) ? ["for", cap(f.signals.image)] : ["none", "Weak"];
   const hx = chipState(f.signals.history), sx = chipState(f.signals.symptoms);
