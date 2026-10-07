@@ -225,6 +225,8 @@ already owns the shortcut, the menu reports that it is unavailable.
 The borderless panel reaches the screen's top edge and reserves the full camera
 and menu-bar height. Expansion grows a black shell with a smooth timing curve;
 content fades in after the shell starts opening, and disappears before collapse.
+Collapse keeps the transparent native window surface stable to avoid menu bar
+repaint flashes; the invisible idle area passes clicks through to the desktop.
 Reduce Motion disables these transitions. The interaction design is informed by
 [NotchBox](https://github.com/chrisdemir/notchBOX), implemented using the existing
 Python/AppKit frontend without bundling its source.

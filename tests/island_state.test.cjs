@@ -78,7 +78,7 @@ function advance(delay) {
   assert(!element('intake').classList.contains('show'));
   assert.equal(element('symptoms').value, 'Breathless for three days');
   advance(290); await settle();
-  assert.equal(calls.length, callsBeforeClose, 'native surface must not shrink before CSS completes');
+  assert.equal(calls.length, callsBeforeClose, 'idle click-through must wait until CSS completes');
   finishAnimation(); await settle();
   assert.deepEqual(calls.at(-1), [380, 0, 'idle']);
   shellAnimations = [];

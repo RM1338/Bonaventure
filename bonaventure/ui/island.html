@@ -178,7 +178,7 @@ async function finishCollapse(shell, epoch) {
     const animations = shell.getAnimations();
     await Promise.all(animations.map(animation => animation.finished.catch(() => {})));
     if (epoch !== motionEpoch || view !== "idle") return;
-    // Let the final shell shape paint before resizing the native WebKit surface.
+    // Paint the final shell shape before switching the panel to click-through.
     if (animations.length) await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   }
   if (epoch === motionEpoch && view === "idle") pywebview.api.island(layout.hit_width, 0, "idle");
