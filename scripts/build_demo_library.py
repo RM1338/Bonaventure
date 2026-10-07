@@ -1,6 +1,6 @@
 """Build a demo library: one folder per condition, each with its own NIH ChestX-ray14 film, a fictional patient-history PDF
 and a current-presentation text. Films are pre-screened with CLEAR + CheXzero so each shows its condition clearly; no film
-is used twice. Output goes outside the repository (~/bonaventure/demo_library).
+is used twice. Output goes to demo_data/ in the repository.
 
     PYTHONPATH=. .venv/bin/python scripts/build_demo_library.py
 NIH ChestX-ray14: Wang et al., CVPR 2017 — unrestricted use with citation. Patients and records below are fictional.
@@ -17,7 +17,7 @@ from weasyprint import HTML
 from bonaventure import models
 
 DATA = Path.home() / "bonaventure/data"
-OUT = Path.home() / "bonaventure/demo_library"
+OUT = Path(__file__).resolve().parent.parent / "demo_data"
 CANDIDATES = 25
 CSS = ("<style>body{font-family:'DejaVu Serif',serif;font-size:11pt;line-height:1.5} h1{font-size:15pt;border-bottom:1px solid #999}"
        " .pb{page-break-before:always} .hdr{color:#555;font-size:9pt}</style>")

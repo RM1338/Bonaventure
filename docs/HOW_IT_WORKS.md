@@ -343,7 +343,7 @@ review; checked and rejected; limitations; and a review statement. Example: `doc
 | `scripts/eval_concepts.py` | Same, for the concept-bank rank of each finding | `bonaventure/concept_calibration.json` |
 | `scripts/audit.py` | Runs the **full** pipeline (no history, no presentation) on 36 NIH films **not** used for calibration: 12 normal, 2 per label. Counts how often normal films get findings and how often the labelled disease is raised | `bonaventure/audit.json` |
 | `scripts/run_demo_cases.py` | Demo cases A–E plus two normal films | prints a summary per case |
-| `scripts/build_demo_library.py`, `run_demo_library.py` | 14 NIH films, one per disease, each with its own fictional history and presentation | `~/bonaventure/demo_library` |
+| `scripts/build_demo_library.py`, `run_demo_library.py` | `demo_data/`: 14 NIH films, one per disease, each with its own fictional history and presentation | `~/bonaventure/demo_library` |
 
 *Weak* = the score at which the reader catches 90 % of positives (sensitivity 0.9). *Moderate* = Youden's J, the
 best balance of sensitivity and specificity. *Strong* = the score at which 90 % of negatives fall below it (specificity

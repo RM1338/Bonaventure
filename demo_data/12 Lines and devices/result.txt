@@ -1,0 +1,6 @@
+BV-235
+Cardiomegaly: UNCERTAIN (moderate, image confidence 96 %)
+Pulmonary edema: UNCERTAIN (moderate, image confidence 64 %)
+Pleural effusion: UNCERTAIN (moderate, image confidence 58 %)
+Lines & devices: UNCERTAIN (moderate, image confidence 74 %)
+Atelectasis: UNCERTAIN (low, image confidence 44 %)

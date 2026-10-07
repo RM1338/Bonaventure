@@ -21,6 +21,20 @@ not back is listed under *Checked and rejected*.
 
 ---
 
+## See it working
+
+Recorded on the development laptop (Linux, Hyprland), running the real models on demo case 02 from [`demo_data/`](demo_data/).
+
+**The island:** the pill at the top of the screen expands; the film and the history PDF are dropped in, the presentation
+is typed, and *Analyse* runs the seven steps inside the island. The waiting is sped up 7×; the real case took about a minute,
+including model warm-up.
+
+![Island launcher: pill → intake → analysis](docs/media/island_demo.gif)
+
+**The reading room** that opens when the case is ready, with the occlusion heatmap toggled on and off (`H`):
+
+![Reading room with heatmap](docs/media/reading_room_demo.gif)
+
 ## What it does
 
 1. **Island launcher**: a black Dynamic-Island-style pill at the top of the screen (`Super + Alt + B` or the bar
@@ -67,23 +81,49 @@ Diagrams made in Lucidchart ([architecture](https://lucid.app/lucidchart/e5b6332
 [pipeline](https://lucid.app/lucidchart/b0a9129b-89d2-4667-a56d-17d0a5b11067/view)). Module-level detail, the reconciliation
 decision tree and the `result.json` contract are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-## Technologies, libraries and models
+## Models
+
+All models run locally on the laptop. None was trained or fine-tuned by us; they were **calibrated** on labelled data
+(see Evaluation).
+
+| Model | What Bonaventure uses it for | Links | Licence |
+|---|---|---|---|
+| **CLEAR** (DINOv2 ViT-B/14 image encoder + text encoder) | Primary image reader: zero-shot score per finding from a positive / negative prompt pair | [code](https://github.com/peterhan91/CLEAR) · [weights](https://huggingface.co/peterhan91/CLEAR) | Apache-2.0 |
+| **CLEAR concept bank** (368,294 report-phrase embeddings) | Ranks the film against real radiology phrases: specificity gate, third reader, quotes shown as evidence | [weights](https://huggingface.co/peterhan91/CLEAR) (`concept_embeddings_368294.pt`, `mimic_concepts.csv`) | Apache-2.0 |
+| **CheXzero** (CLIP ViT-B/32 trained on MIMIC-CXR) | Independent verifier with the same prompts; occlusion heatmap | [code + weights](https://github.com/rajpurkarlab/CheXzero) | MIT |
+| **MedGemma 1.5 4B-it** (4-bit NF4) | Open survey of the film, per-finding visibility + observations, bounding boxes, clinical rewrite of the presentation, second look when a clinician disagrees | [Hugging Face](https://huggingface.co/google/medgemma-1.5-4b-it) | Health AI Developer Foundations terms |
+| **MedSAM** (SAM ViT-B, medical) | Turns each box into an outline | [code + weights](https://github.com/bowang-lab/MedSAM) | Apache-2.0 |
+| **DINOv2** (code only) | Backbone architecture loaded by CLEAR | [code](https://github.com/facebookresearch/dinov2) | Apache-2.0 |
+| **Whisper base.en** | Live dictation captions | [Hugging Face](https://huggingface.co/openai/whisper-base.en) | MIT |
+| **Whisper small.en** | Final dictation transcript | [Hugging Face](https://huggingface.co/openai/whisper-small.en) | MIT |
+| **all-MiniLM-L6-v2** | Meaning-based fallback for presentation phrases no rule recognises | [Hugging Face](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | Apache-2.0 |
+
+## Datasets
+
+No dataset was used for training. The datasets below were used **only** to evaluate and calibrate the readers, to audit
+hallucinations, and to build the demo data.
+
+| Dataset | Used for | Where we pulled it from | Licence |
+|---|---|---|---|
+| **CheXpert v1.0** (validation split, 202 frontal films, radiologist consensus labels) | AUROC and calibration of CLEAR and CheXzero for 8 findings; confidence % (Platt scaling) | [danjacobellis/chexpert](https://huggingface.co/datasets/danjacobellis/chexpert) on Hugging Face · original: [Stanford ML Group](https://stanfordmlgroup.github.io/competitions/chexpert/) | Stanford CheXpert Research Use Agreement: **not redistributed here**, only the derived numbers |
+| **NIH ChestX-ray14** (test split, 2 shards; NLP-mined labels) | Calibration of pneumonia, nodule, mass, emphysema, fibrosis, pleural thickening, hernia; the 36-film hallucination audit; **the 14 demo-data films** | [timm/nih-chest-xray-14](https://huggingface.co/datasets/timm/nih-chest-xray-14) on Hugging Face · original: [NIH Clinical Center](https://nihcc.app.box.com/v/ChestXray-NIHCC) (Wang et al., CVPR 2017) | No restrictions (NIH Clinical Center) |
+| **MIMIC-CXR report phrases** | Inside the CLEAR concept bank (phrases only, as released by CLEAR) | via [CLEAR](https://huggingface.co/peterhan91/CLEAR) | as released by CLEAR |
+| **Wikimedia Commons** CC0 radiographs | The acceptance cases A–E in `sample_data/` | [Kerley B lines](https://commons.wikimedia.org/wiki/File:Chest_radiograph_of_a_lung_with_Kerley_B_lines.jpg), [normal PA](https://commons.wikimedia.org/wiki/File:Normal_posteroanterior_(PA)_chest_radiograph_(X-ray).jpg), [PA 3-8-2010](https://commons.wikimedia.org/wiki/File:Chest_Xray_PA_3-8-2010.png) | CC0 |
+
+All patient histories and presentations in this repository are **fictional**.
+
+## Technologies and libraries
 
 | Layer | Used |
 |---|---|
-| Image readers | **CLEAR** (DINOv2 ViT-B/14 + text encoder, Apache-2.0), **CheXzero** (CLIP ViT-B/32 on MIMIC-CXR, MIT) |
-| Concept retrieval | CLEAR concept bank: 368,294 MIMIC report phrases |
-| Visual reasoning | **MedGemma 1.5 4B-it**, 4-bit NF4 (Health AI Developer Foundations terms) |
-| Segmentation | **MedSAM** ViT-B (Apache-2.0) |
-| Speech | **Whisper** base.en (live) and small.en (final), MIT |
-| Meaning fallback | **all-MiniLM-L6-v2** (Apache-2.0) |
-| Runtime | Python 3.12+, PyTorch 2.11 (CUDA 12.8), transformers 5.19, bitsandbytes 0.50 |
-| Desktop | pywebview 6.2 on WebKitGTK (Linux), HTML/CSS/JS UI |
-| Documents | poppler `pdftotext`, WeasyPrint (PDF report), pydicom, Pillow, NumPy |
-| Calibration data | CheXpert v1.0 validation (202 frontal films), NIH ChestX-ray14 test split |
+| Runtime | Python 3.12+, PyTorch 2.11 (CUDA 12.8), transformers 5.19, bitsandbytes 0.50 (4-bit), accelerate |
+| Desktop | pywebview 6.2 on WebKitGTK (Linux), HTML/CSS/JS UI, Hyprland window rules |
+| Documents | poppler `pdftotext` / `pdfinfo`, WeasyPrint (PDF report), pydicom, Pillow, NumPy |
+| Audio | PipeWire `pw-record` |
+| Evaluation | scikit-learn (ROC, AUROC, logistic calibration), pandas (parquet datasets) |
 
-Everything runs **locally and offline**. No external API is called and no patient data leaves the machine. Details,
-versions and licences: [`docs/13_MODEL_RESOURCE_REGISTER.md`](docs/13_MODEL_RESOURCE_REGISTER.md).
+Everything runs **locally and offline**. No external API is called and no patient data leaves the machine. Versions and
+licences: [`docs/13_MODEL_RESOURCE_REGISTER.md`](docs/13_MODEL_RESOURCE_REGISTER.md).
 
 ---
 
@@ -147,33 +187,77 @@ Saved cases are in `cases/BV-xxx/` (inputs, `scan.png`, `result.json`); reports 
 
 ---
 
-## Sample input and output
+## Demo data
 
-**Input (demo case A):** `sample_data/scans/kerley_b.jpg` + `sample_data/histories/case_a_history.pdf` (fictional
-heart-failure patient: discharge summary, echo report, radiology report of 12 Aug 2026) + *"Worsening shortness of breath
-for 3 days, can't lie flat, waking up breathless at night, ankle swelling. No fever, no cough."*
+[`demo_data/`](demo_data/) holds **14 demo cases, one per condition**. Each case folder has the input files and what
+Bonaventure reported:
 
-**Output** ([`case_A_result.json`](docs/sample_output/case_A_result.json), [`case_A_report.pdf`](docs/sample_output/case_A_report.pdf)):
+```
+demo_data/02 Cardiomegaly/
+  film.png           the medical image (NIH ChestX-ray14 film 00004344_013, labelled "Cardiomegaly")
+  history.pdf        fictional patient record (cardiology note, echo report)
+  presentation.txt   fictional current presentation, as a clinician would type or dictate it
+  result.txt         what Bonaventure reported for this case
+```
 
-![Annotated film, case A](docs/sample_output/case_A_annotated.png)
+The films are real NIH ChestX-ray14 test-split images chosen by their dataset label
+([`scripts/build_demo_library.py`](scripts/build_demo_library.py)); every film is a different image, and every patient has
+a different, fictional history and presentation. To try one, drop `film.png` and `history.pdf` on the island and paste
+`presentation.txt`.
 
-| Finding | State | Strength · image confidence | Why |
+### Sample input and output: demo case 02 (cardiomegaly)
+
+**Input:**
+* `film.png`: NIH film labelled *Cardiomegaly*.
+* `history.pdf`: *"Dilated cardiomyopathy, LVEF 30 %. Hypertension since 2010."*; furosemide; echo with moderate
+  mitral regurgitation.
+* Presentation: *"Tired all the time for 3 weeks, breathless on climbing one flight of stairs, both ankles swollen by
+  evening."*
+
+**Output** ([result JSON](docs/sample_output/demo02_cardiomegaly_result.json) · [PDF report](docs/sample_output/demo02_cardiomegaly_report.pdf)):
+
+![Annotated film, demo case 02](docs/sample_output/demo02_cardiomegaly_annotated.png)
+
+| Finding | State | Strength · image confidence | Evidence shown to the clinician |
 |---|---|---|---|
-| Cardiomegaly | **SUPPORTED** | high · 90 % | CLEAR strong (0.958) + CheXzero strong (0.979); MedGemma: "the heart appears enlarged"; MedSAM outline; history: radiology report p.3 "Cardiomegaly…", CHF (LVEF 30 %), cardiomyopathy; symptoms: breathlessness 3 days, orthopnea, ankle swelling |
-| Pulmonary edema | **SUPPORTED** | high · 88 % | Both readers strong; closest report phrases "chronic recurrent pulmonary edema" (#3 of 368,294); prior "upper lobe venous diversion"; orthopnea, night-time breathlessness |
-| Consolidation | **CONFLICTING** | moderate · 31 % | Image signal present, but **fever and cough are denied**; shown as an approximate zone |
+| Cardiomegaly | **SUPPORTED** | high · 96 % (CLEAR 99, CheXzero 94) | MedGemma: "The heart appears enlarged, with a prominent cardiac silhouette"; MedSAM outline of the heart; echo report p.1 "Dilated cardiomyopathy, LVEF 30%"; fatigue for 3 weeks, breathlessness, ankle swelling |
+| Pulmonary edema | **SUPPORTED** | high · 82 % (CLEAR 92, CheXzero 73) | MedGemma: "increased opacity in the lung fields, suggestive of pulmonary edema"; furosemide in the record; breathlessness, ankle swelling |
+| Consolidation | **SUPPORTED** | high · 32 % (CLEAR 48, CheXzero 17) | Both readers above their cut-offs and breathlessness supports it, **but** MedGemma did not see it and the image confidence is only 32 %. It is drawn as an approximate zone. See Limitations |
 
-* Since last report (12 Aug 2026): cardiomegaly KNOWN, edema KNOWN, pleural effusion NOT SEEN NOW.
-* Also seen: interstitial thickening (MedGemma, confirmed by CLEAR 0.965).
-* Checked and rejected (9), for example: "sternal wires" (MedGemma; CLEAR disagrees 0.81 < 0.85) and "pleural effusion"
-  (high prompt score, but the best effusion phrase ranks only #354).
-* The case took 25.3 s on an RTX 3050 (about 4 s of that is the heatmap).
+* 10 model claims were checked and rejected, e.g. "right-sided central venous catheter" and "left lower lobe opacity"
+  (MedGemma's survey; CLEAR did not confirm them).
 
-Reading room with the heatmap on for pulmonary edema:
+### All 14 demo cases (current code)
 
-![Reading room, case A, heatmap for pulmonary edema](docs/sample_output/case_A_review_heatmap.png)
+| Case | What Bonaventure reports (state, strength, image confidence) |
+|---|---|
+| 01 Pleural effusion | Pleural effusion: SUPPORTED (high, image confidence 98 %); Consolidation: SUPPORTED (high, image confidence 84 %); Pleural thickening: SUPPORTED (high, image confidence 28 %); Atelectasis: SUPPORTED (moderate, image confidence 62 %); Cardiomegaly: SUPPORTED (high, image confidence 54 %); Pulmonary edema: UNCERTAIN (moderate, image confidence 74 %) |
+| 02 Cardiomegaly | Cardiomegaly: SUPPORTED (high, image confidence 96 %); Pulmonary edema: SUPPORTED (high, image confidence 82 %); Consolidation: SUPPORTED (high, image confidence 32 %) |
+| 03 Pulmonary edema | Pulmonary edema: SUPPORTED (high, image confidence 94 %); Consolidation: SUPPORTED (high, image confidence 48 %); Cardiomegaly: SUPPORTED (high, image confidence 92 %); Atelectasis: UNCERTAIN (low, image confidence 49 %) |
+| 04 Pneumonia | Pleural effusion: SUPPORTED (high, image confidence 98 %); Consolidation: SUPPORTED (high, image confidence 84 %); Pulmonary edema: UNCERTAIN (moderate, image confidence 60 %); Atelectasis: UNCERTAIN (moderate, image confidence 66 %); Pleural thickening: UNCERTAIN (low, image confidence 38 %); Lines & devices: UNCERTAIN (moderate, image confidence 56 %); Cardiomegaly: UNCERTAIN (moderate, image confidence 79 %) |
+| 05 Atelectasis | Atelectasis: SUPPORTED (high, image confidence 86 %); Widened mediastinum: CONFLICTING (low, image confidence 52 %) |
+| 06 Pneumothorax | Cardiomegaly: SUPPORTED (high, image confidence 32 %); Lines & devices: UNCERTAIN (low, image confidence 38 %); Pneumothorax: UNCERTAIN (moderate, image confidence 53 %); Atelectasis: UNCERTAIN (moderate, image confidence 75 %); Pleural effusion: UNCERTAIN (moderate, image confidence 64 %) |
+| 07 Lung mass | Widened mediastinum: CONFLICTING (low, image confidence 45 %); Consolidation: UNCERTAIN (moderate, image confidence 20 %); Lines & devices: UNCERTAIN (low, image confidence 32 %); Atelectasis: UNCERTAIN (moderate, image confidence 43 %); Also seen: Right upper lobe opacity; Also seen: Right lower lobe opacity |
+| 08 Emphysema | Emphysema: SUPPORTED (high); Atelectasis: UNCERTAIN (moderate, image confidence 34 %) |
+| 09 Pulmonary fibrosis | Pulmonary fibrosis: SUPPORTED (high); Cardiomegaly: SUPPORTED (high, image confidence 56 %); Consolidation: UNCERTAIN (moderate, image confidence 49 %); Pulmonary edema: UNCERTAIN (moderate, image confidence 70 %) |
+| 10 Pleural thickening | Pleural thickening: SUPPORTED (high, image confidence 44 %); Pleural effusion: SUPPORTED (high, image confidence 98 %); Atelectasis: SUPPORTED (high, image confidence 59 %); Cardiomegaly: SUPPORTED (high, image confidence 38 %); Consolidation: CONFLICTING (moderate, image confidence 54 %); Pulmonary edema: UNCERTAIN (low, image confidence 22 %); Also seen: Right lung opacity; Also seen: Elevated right hemidiaphragm |
+| 11 Hiatus hernia | Hiatus hernia: SUPPORTED (high, image confidence 70 %); Cardiomegaly: SUPPORTED (high, image confidence 61 %); Pleural thickening: SUPPORTED (moderate, image confidence 25 %); Atelectasis: INSUFFICIENT_EVIDENCE (low, image confidence 30 %); Lines & devices: INSUFFICIENT_EVIDENCE (low, image confidence 38 %) |
+| 12 Lines and devices | Cardiomegaly: UNCERTAIN (moderate, image confidence 96 %); Pulmonary edema: UNCERTAIN (moderate, image confidence 64 %); Pleural effusion: UNCERTAIN (moderate, image confidence 58 %); Lines & devices: UNCERTAIN (moderate, image confidence 74 %); Atelectasis: UNCERTAIN (low, image confidence 44 %) |
+| 13 Normal | No findings |
+| 14 Pulmonary embolism (not on X-ray) | Not assessable on X-ray: Pulmonary embolism |
 
-The full walkthrough of this case is in [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md).
+These are unedited outputs, including the imperfect ones. Of the 12 cases with a condition visible on X-ray, 11 raise
+it: pneumonia (04) appears as consolidation, and the pneumothorax (06) and the devices (12) only as *uncertain*. The lung
+mass (07) is not raised; masses are a known weak spot. Several cases
+also show extra findings. The normal film (13) gets no findings, and the pulmonary-embolism case (14) correctly gets no
+image finding, only the *not assessable on X-ray* advisory. Regenerate with `scripts/run_demo_library.py`.
+
+### Acceptance cases A–E
+
+[`sample_data/`](sample_data/) holds five scripted acceptance cases on CC0 Wikimedia films. They test the reasoning rather
+than the image models: the same film with agreeing vs. contradicting history (A/B), a degraded image (C), a condition an
+X-ray cannot show (D), and records from two different patients (E). Their outputs are in
+[`docs/sample_output/`](docs/sample_output/), and case A is followed step by step in [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md).
 
 ## Reproduce the demonstrated results
 
@@ -283,8 +367,9 @@ bonaventure/
   calibration.json, concept_calibration.json, audit.json
   ui/               island.html (launcher), review.html (reading room), fonts
 scripts/            calibration, audit, demo cases, demo library, setup checks, toggle
-sample_data/        CC0 demo films, fictional histories
-docs/               architecture, walkthrough, PS05 checklist, sample outputs, planning docs, model register
+demo_data/          14 demo cases (NIH films + fictional histories, presentations, results)
+sample_data/        acceptance cases A–E (CC0 films, fictional histories)
+docs/               architecture, walkthrough, PS05 checklist, sample outputs, diagrams, GIFs, planning docs, model register
 ```
 
 ## Original contribution vs. external components
