@@ -28,6 +28,16 @@ def _concept_source(fid, cr, concepts):
                 thresholds={fid: [to_score(cr["weak"]), to_score(cr["moderate"]), to_score(cr["strong"])]}, reliable={fid: True})
 
 
+def calibrated(source, fid, score):
+    """Reader's calibrated probability (0-100 %) that the finding is present, from Platt scaling on labelled films; None if uncalibrated."""
+    import math
+    c = (source or {}).get("platt", {}).get(fid)
+    if c is None or score is None:
+        return None
+    x = math.log(min(max(score, 1e-6), 1 - 1e-6) / (1 - min(max(score, 1e-6), 1 - 1e-6)))
+    return round(100 / (1 + math.exp(-(c["a"] * x + c["b"]))))
+
+
 def _image_agreement(p, v):
     """p, v are levels (v may be None when no verifier ran)."""
     rp = LEVELS.index(p)
@@ -156,7 +166,8 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
                               + ", ".join(f"{s['label'].lower()} denied" for s in key_denied) + ".")
     elif agreement == "concordant":
         # the thesis: pixels alone never make a finding "supported" — the patient has to agree (devices are hardware, exempt)
-        status = "SUPPORTED" if support >= 1 or spec.get("context_free") else "UNCERTAIN"
+        # devices are hardware, exempt from the context rule, but MedGemma (or the CLEAR-verified survey) must also see one
+        status = "SUPPORTED" if support >= 1 or (spec.get("context_free") and mg_sees) else "UNCERTAIN"
     elif agreement == "partial":
         status = "SUPPORTED" if support >= 2 else "UNCERTAIN"
         if v is not None:
@@ -171,6 +182,11 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
         status = "UNCERTAIN"
         notes.append("CLEAR's concept retrieval only weakly backs this" + (f" (best matching phrase ranked #{best_rank})." if best_rank < 10**9 else "."))
     if status == "UNCERTAIN" and support == 0:
+        no_context = not history_provided and not symptoms
+        if no_context and mg_sees is not True:
+            imaging.setdefault("rejected", []).append(dict(claim=spec["name"], by=" + ".join(x["model"] for x in (primary, verifier) if x),
+                reason="image signal only: no history or presentation was supplied and MedGemma did not confirm it on the film"))
+            return None
         notes.append("No supporting clinical context identified.")
 
     img_points = {"concordant": 2.5 + 0.5 * (p == v == "strong"), "partial": 1.5, "discordant": 1.0, "weak": 0.5}[agreement]
@@ -215,8 +231,21 @@ def _assess(fid, spec, p, p_score, v, v_score, primary, verifier, imaging, quali
                        verifier_thresholds=_thr(verifier, fid) if verifier else None,
                        verifier_model=verifier["model"] if verifier else None, verifier_score=None if v_score is None else round(v_score, 4),
                        localization_source=(loc or {}).get("source"), support_count=support, against_count=against),
+        confidence=_confidence(fid, primary, p_score, verifier, v_score),
         clinician_text=_clinician_text(spec["name"], status, region, agreement, support, mg_sees),
     )
+
+
+def _confidence(fid, primary, p_score, verifier, v_score):
+    """Image confidence as a percentage: mean of the voting readers' calibrated probabilities. Image only; the patient's
+    context is weighed by the evidence state, not folded into this number."""
+    readers = {x["model"]: calibrated(x, fid, sc) for x, sc in ((primary, p_score), (verifier, v_score)) if x}
+    readers = {m: v for m, v in readers.items() if v is not None}
+    if not readers:
+        return None
+    c = next(x["platt"][fid] for x in (primary, verifier) if x and fid in x.get("platt", {}))
+    return dict(image=round(sum(readers.values()) / len(readers)), readers=readers,
+                basis=f"calibrated on {c['n']} labelled films ({c['source']})")
 
 
 def _zone_localization(region):
@@ -388,4 +417,15 @@ if __name__ == "__main__":
     assert not not_assessable(parse_symptoms("Cough and fever for 3 days."), [])
     fs, _ = reconcile(img, dict(state="poor", warnings=["x"]), sym, ev, True)
     assert all(f["status"] == "INSUFFICIENT_EVIDENCE" for f in fs)
+    # bare film, no context, MedGemma silent: a partial signal is dropped (and logged), not shown as a finding
+    bare = dict(sources=[dict(role="primary", model="P", scores={"ATELECTASIS": .6}, thresholds=[.45, .55, .65]),
+                         dict(role="verifier", model="V", scores={"ATELECTASIS": .5}, thresholds=[.45, .55, .65])], localizations={}, descriptions={}, masks={})
+    fs, _ = reconcile(bare, q, [], [], False)
+    assert not fs and bare["rejected"][0]["claim"] == "Atelectasis", fs
+    # a device both image models see is not SUPPORTED until MedGemma confirms it
+    dev = lambda desc: dict(sources=[dict(role="primary", model="P", scores={"SUPPORT_DEVICES": .9}, thresholds=[.45, .55, .65]),
+                                     dict(role="verifier", model="V", scores={"SUPPORT_DEVICES": .9}, thresholds=[.45, .55, .65])],
+                            localizations={}, descriptions=desc, masks={})
+    assert reconcile(dev({"SUPPORT_DEVICES": ["Visual reasoning model did not identify this finding"]}), q, sym, [], False)[0][0]["status"] == "UNCERTAIN"
+    assert reconcile(dev({"SUPPORT_DEVICES": ["Right-sided central venous catheter"]}), q, sym, [], False)[0][0]["status"] == "SUPPORTED"
     print("reconcile ok", by)
