@@ -63,8 +63,15 @@ Every model claim has to pass an independent check. A claim that fails is not si
 
 ![Image evidence pipeline](docs/diagrams/image_evidence_pipeline.png)
 
-Diagrams made in Lucidchart ([architecture](https://lucid.app/lucidchart/e5b63320-38d0-43b9-97ed-96ebaa596446/view),
-[pipeline](https://lucid.app/lucidchart/b0a9129b-89d2-4667-a56d-17d0a5b11067/view)). Module-level detail, the reconciliation
+### Patient context and presentation understanding
+
+![Patient context](docs/diagrams/patient_context.png)
+
+### Reconciliation logic
+
+![Reconciliation logic](docs/diagrams/reconciliation_logic.png)
+
+Diagrams made in [Lucidchart](https://lucid.app/lucidchart/8c67717a-b926-4130-91e5-c5ecbcc7dcfd/view). Module-level detail, the reconciliation
 decision tree and the `result.json` contract are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Technologies, libraries and models
