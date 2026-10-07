@@ -514,7 +514,12 @@ a different, fictional history and presentation. To try one, drop `film.png` and
 |---|---|---|---|
 | Cardiomegaly | **SUPPORTED** | high · 96 % (CLEAR 99, CheXzero 94) | MedGemma: "The heart appears enlarged, with a prominent cardiac silhouette"; MedSAM outline of the heart; echo report p.1 "Dilated cardiomyopathy, LVEF 30%"; fatigue for 3 weeks, breathlessness, ankle swelling |
 | Pulmonary edema | **SUPPORTED** | high · 82 % (CLEAR 92, CheXzero 73) | MedGemma: "increased opacity in the lung fields, suggestive of pulmonary edema"; furosemide in the record; breathlessness, ankle swelling |
-| Consolidation | **SUPPORTED** | high · 32 % (CLEAR 48, CheXzero 17) | Reader cut-offs and breathlessness support the rule-based state. Image confidence is 32 % and MedGemma did not confirm consolidation, so the approximate zone and separate evidence signals guide clinician review. See Scope and interpretation |
+| Consolidation | **SUPPORTED** | high · 32 % (CLEAR 48, CheXzero 17) | Both readers pass their cut-offs and breathlessness supports it, so the rule-based state is SUPPORTED. The 32 % image confidence and MedGemma not confirming it are shown alongside, and it is drawn as an approximate zone, so the clinician can weigh it. See Scope and safeguards |
+
+**The exported PDF evidence report** for this case (*Export report* in the reading room), scrolled from the presentation
+and lung diagram through each finding's evidence:
+
+![Exported evidence report, demo case 02](docs/media/report_demo.gif)
 
 * 10 model claims were checked and rejected, e.g. "right-sided central venous catheter" and "left lower lobe opacity"
   (MedGemma's survey; CLEAR did not confirm them).
@@ -734,26 +739,19 @@ those 12 normal films and cases A–E, whose results were unchanged.
 | Evidence reconciliation → SUPPORTED / UNCERTAIN / CONFLICTING / INSUFFICIENT with reasons | |
 | Desktop review UI and PDF evidence report | |
 
-## Scope and interpretation
+## Scope and safeguards
 
-* **Focused MVP:** frontal chest X-rays and 16 catalogue findings, with image,
-  history and presentation evidence brought together for clinician review.
-  Nodule, mass and pneumothorax detection remain priorities for further validation;
-  their current sensitivity is limited, as shown in the evaluation results.
-* **Two complementary evidence measures:** the evidence strength summarizes
-  rule-based agreement and patient context; the image confidence percentage comes
-  from Platt scaling on CheXpert/NIH films. These describe different aspects of
-  evidence, so a supported rule-based state can coexist with low image confidence.
-  Each signal remains visible for clinician review.
-* **Calibration basis:** 202 CheXpert validation films (including 7 pneumothoraces)
-  and NIH labels derived from reports. These sample sizes and dataset prevalences
-  define the current calibration evidence; broader clinical validation is future work.
-* **Location transparency:** validated MedGemma boxes receive MedSAM outlines.
-  If a box conflicts with the described region, the system displays a labelled
-  approximate anatomical zone instead of treating it as exact localization.
-* **Traceable language handling:** text-based PDF/TXT/MD history is parsed with
-  negation, dates and quotes. Presentation rewriting is checked against rules;
-  unmatched wording is retained for review. Scanned PDF support is a future OCR extension.
+Bonaventure is built to say how sure it is and where its evidence ends. Each boundary below comes with the mechanism that
+handles it.
+
+| Area | Current scope | How Bonaventure handles it | Next step |
+|---|---|---|---|
+| Imaging | Frontal chest X-rays (PNG, JPEG, DICOM); 16 catalogue findings, 11 with a calibrated reader at AUROC 0.72–0.94 | Findings without a reliable reader are never raised from the pixels alone. MedGemma's unprompted survey can still surface them as *also seen*, but only when CLEAR independently confirms them | CT / MRI support; more sensitivity for nodules, masses and pneumothorax |
+| Confidence | Calibrated image confidence % per finding and per reader (Platt scaling on CheXpert / NIH films) | The percentage describes the image only. The patient's history and symptoms are weighed separately in the evidence state, so neither can hide the other | Re-calibrate on local data before clinical use, where prevalence differs |
+| Calibration data | 202 radiologist-labelled CheXpert films and an NIH ChestX-ray14 sample | Findings with too few positives (pneumothorax: 7) keep stricter hand-set thresholds instead of a fragile ROC point | Larger labelled validation sets |
+| Localization | MedSAM outlines from MedGemma boxes | Every box must sit where the model's own words place it, and every mask must fit its box. If either fails, an anatomical zone is shown and labelled *approx. zone* | Dedicated detection models for finer boxes |
+| Patient context | PDF / text histories with page-level citations; typed or dictated presentations | Negation and dates are handled per sentence. Phrases the rules do not recognise are rewritten by MedGemma and re-checked; anything still unclear is listed as *not understood*, never guessed. Records from two different patients are detected and set aside | OCR for scanned documents |
+
 * **Platform verification:** the integrated version has 111 passing Python tests,
   three passing JavaScript test files, and a real Linux/CUDA inference and PDF run.
   Native macOS and Windows GUI/backend checks are to be completed on those target
