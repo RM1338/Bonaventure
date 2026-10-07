@@ -19,10 +19,7 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")  # 
 import torch  # noqa: E402
 
 from .knowledge import FINDINGS, SUPPRESSED_BY
-from .model_paths import (
-    CLEAR_DIR, CLEAR_CODE, CLEAR_CKPT, CHEXZERO_DIR, CHEXZERO_CKPT,
-    MEDSAM_DIR, MEDSAM_CKPT, MEDGEMMA_ID,
-)
+from .model_paths import CHEXZERO_CKPT, CHEXZERO_DIR, CLEAR_CKPT, CLEAR_CODE, CLEAR_DIR, MEDGEMMA_ID, MEDSAM_CKPT, MEDSAM_DIR
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # 6 GB budget: MedGemma (4-bit) + MedSAM's 1024px encoder own the GPU; the two CLIP-style readers are quick enough on CPU
@@ -59,6 +56,32 @@ def _reliable():
 
 
 RELIABLE = _reliable()
+
+
+def _platt():
+    """{reader: {finding: {a, b, n, source}}}: P(finding | score) = sigmoid(a * logit(score) + b), fitted on the labelled films."""
+    if not CALIBRATION.exists():
+        return {}
+    cal = json.loads(CALIBRATION.read_text())
+    return {r: {f: dict(a=c["platt"][0], b=c["platt"][1], n=c["n_pos"] + c["n_neg"], source=cal["source"].get(f))
+                for f, c in per.items() if "platt" in c} for r, per in cal["readers"].items()}
+
+
+PLATT = _platt()
+CONCEPT_CAL = Path(__file__).resolve().parent / "concept_calibration.json"   # scripts/eval_concepts.py
+
+
+def _concept_reader():
+    """{finding: {reliable, strong, moderate, weak}} — concept-bank rank cut-offs measured on labelled films."""
+    if not CONCEPT_CAL.exists():
+        return {}
+    cal = json.loads(CONCEPT_CAL.read_text())
+    return {f: dict(reliable=c["auroc"] >= MIN_AUROC, auroc=c["auroc"], strong=c["rank_at_90_spec"],
+                    moderate=max(c["rank_at_youden"], c["rank_at_90_spec"]), weak=max(c["rank_at_90_sens"], c["rank_at_youden"]))
+            for f, c in cal.items()}
+
+
+CONCEPT_READER = _concept_reader()
 OPEN_VOCAB_MIN = 0.85  # CLEAR's prompt-pair probabilities run high, so an open-vocabulary claim must clear a high bar
 MAX_LOCALIZE = 3  # ~3 s of MedGemma per box on an RTX 3050
 
@@ -94,6 +117,37 @@ class ZeroShot:
         p = torch.sigmoid(self.scale * ((f @ self.pos.T) - (f @ self.neg.T)))[0]
         return {fid: float(v) for fid, v in zip(FINDINGS, p)}
 
+
+    @torch.inference_mode()
+    def occlusion(self, img, fids, n=8, batch=16):
+        """Heatmap by occlusion: grey out each cell of an n x n grid and measure how much each finding's score drops.
+        Model-agnostic and faithful (it shows what this reader actually depends on), at 1 + n*n forward passes for all findings at once.
+        -> {FINDING: n x n grid in 0..1} (findings whose score never depends on any one region are left out)."""
+        from PIL import ImageDraw
+        g = img.convert("L")
+        w, h = g.size
+        fill = int(np.asarray(g).mean())
+        batch_x = [self.preprocess(g)]
+        for i in range(n):          # occlude on the film itself, so the grid matches the image whatever padding the reader adds
+            for j in range(n):
+                o = g.copy()
+                ImageDraw.Draw(o).rectangle([j * w // n, i * h // n, (j + 1) * w // n, (i + 1) * h // n], fill=fill)
+                batch_x.append(self.preprocess(o))
+        feats = []
+        dtype = next(self.model.parameters()).dtype
+        for k in range(0, len(batch_x), batch):
+            f = self.model.encode_image(torch.stack(batch_x[k:k + batch]).to(CLIP_DEVICE, dtype)).float()
+            feats.append(f / f.norm(dim=-1, keepdim=True))
+        f = torch.cat(feats)
+        idx = [list(FINDINGS).index(fid) for fid in fids]
+        logit = self.scale * ((f @ self.pos[idx].T) - (f @ self.neg[idx].T))   # (1 + n*n, len(fids))
+        drop = (logit[0:1] - logit[1:]).clamp(min=0)                           # how much hiding each cell lowers the score
+        out = {}
+        for c, fid in enumerate(fids):
+            d = drop[:, c]
+            if float(d.max()) > 0.05 * max(float(logit[0, c].abs()), 1.0):
+                out[fid] = (d / d.max()).reshape(n, n).round(decimals=3).tolist()
+        return out
 
     @torch.inference_mode()
     def check(self, phrases, tokenize):
@@ -303,6 +357,42 @@ class MedGemma:
         return parse_survey(text), text
 
     @torch.inference_mode()
+    def rewrite_clinical(self, clauses):
+        """Translate each phrase of a natural note into standard clinical wording (negation kept, nothing added).
+        The deterministic parser reads the rewrites, so concept mapping stays rule-based and every concept keeps its source phrase."""
+        numbered = "\n".join(f"{i}. {c}" for i, c in enumerate(clauses, 1))
+        prompt = ("Rewrite each numbered phrase from a clinician's note in plain standard clinical terms, keeping any negation. "
+                  "Examples: 'gets winded on the stairs' -> 'shortness of breath on exertion'; 'sleeps propped up on pillows' -> "
+                  "'orthopnea, cannot lie flat'; 'no temperature' -> 'no fever'; 'heart pounding' -> 'palpitations, racing heart'. "
+                  "Do not add anything that is not in the phrase. Reply with the same numbers, one line each.\n" + numbered)
+        messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
+        chat = self.processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False) + "1."  # skip any 'thinking'
+        inputs = self.processor(text=chat, return_tensors="pt").to(self.model.device)
+        out = self.model.generate(**inputs, max_new_tokens=24 * len(clauses) + 20, do_sample=False)
+        reply = "1." + self.processor.decode(out[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
+        rewrites = {}
+        for line in reply.splitlines():
+            m = re.match(r"\s*(\d+)\.\s*(.+)", line)
+            if m and 1 <= int(m.group(1)) <= len(clauses):
+                rewrites[int(m.group(1)) - 1] = m.group(2).strip()
+        return [rewrites.get(i, "") for i in range(len(clauses))], reply
+
+    @torch.inference_mode()
+    def second_look(self, img, finding_id, verdict, note):
+        """A clinician disagrees: look again, given their reasoning. One model's opinion, shown as such."""
+        name = FINDINGS[finding_id]["name"].lower()
+        claim = f"there is no {name}" if verdict == "absent" else f"there is {name}"
+        text = self._ask(img, (f"A clinician reviewing this chest X-ray believes {claim}. Their reasoning: \"{note or 'not given'}\". "
+                               f"Look again carefully. Is {name} visible? Answer with JSON only: "
+                               '{"visible": true or false, "reason": "<one sentence naming what you see and where>"}'), 120)
+        m = re.search(r"\{.*?\}", text, re.S)
+        try:
+            out = json.loads(m.group(0))
+            return dict(visible=bool(out.get("visible")), reason=str(out.get("reason", "")).strip() or "no reason given")
+        except (AttributeError, json.JSONDecodeError):
+            return None
+
+    @torch.inference_mode()
     def locate(self, img, finding_id):
         text = self._ask(img, self.LOCATE.format(name=FINDINGS[finding_id]["name"].lower()), 80)
         return parse_box(text), text
@@ -360,6 +450,40 @@ def parse_survey(text):
     return out
 
 
+def ground_concepts(reply, text, symptom_ids, history_ids):
+    """Keep only concepts whose quote really occurs in the clinician's text (case-insensitive); everything else is discarded."""
+    m = re.search(r"\[.*\]", reply, re.S)
+    try:
+        items = json.loads(m.group(0)) if m else []
+    except json.JSONDecodeError:
+        items = []
+    from .knowledge import HISTORY_CONCEPTS, SYMPTOM_CONCEPTS
+    by_label = {v[0].lower(): k for k, v in {**SYMPTOM_CONCEPTS, **HISTORY_CONCEPTS}.items() if k in symptom_ids | history_ids}
+    words = re.findall(r"[a-z0-9']+", text.lower())
+    keep = []
+    for it in items if isinstance(items, list) else []:
+        if not isinstance(it, dict):
+            continue
+        cid = it.get("id") or it.get("concept")
+        cid = cid if cid in symptom_ids | history_ids else by_label.get(str(cid).lower())
+        state = str(it.get("state", "")).lower()
+        q = re.findall(r"[a-z0-9']+", str(it.get("quote", "")).lower())
+        if cid and state in ("present", "denied") and q and _in_order(q, words):
+            keep.append(dict(id=cid, kind="symptom" if cid in symptom_ids else "history", state=state, quote=it["quote"]))
+    return keep
+
+
+def _in_order(quote_words, text_words):
+    """Every word of the quote occurs in the clinician's text, in the same order (gaps allowed): copied, not invented."""
+    i = 0
+    for w in quote_words:
+        try:
+            i = text_words.index(w, i) + 1
+        except ValueError:
+            return False
+    return True
+
+
 def _selftest():
     multi = '{"findings": [{"name": "Pleural effusion", "visible": true, "region": "left base", "observations": ["blunted angle"]}]}\n{"findings": [{"name": "Cardiomegaly", "visible": false}]}'
     p = parse_medgemma(multi, ["PLEURAL_EFFUSION", "CARDIOMEGALY"])
@@ -377,6 +501,11 @@ def _selftest():
     assert concept_negated(t, t.index("pneumothorax")) and not concept_negated(t, t.index("chest tube"))
     t = "bilateral pneumonia with pleural effusions"
     assert not concept_negated(t, t.index("pleural effusion")) and not concept_negated(t, t.index("pneumonia"))
+    g = ground_concepts('[{"id": "orthopnea", "state": "present", "quote": "prop herself up on three pillows"}, {"id": "fever", "state": "present", "quote": "burning up"}]',
+                        "She has to prop herself up on three pillows at night", {"orthopnea", "fever"}, set())
+    assert [x["id"] for x in g] == ["orthopnea"], g   # 'burning up' is not in the note: invented, dropped
+    g = ground_concepts('[{"id": "Shortness of breath", "state": "present", "quote": "winded walking"}]', "gets completely winded walking to the bathroom", {"dyspnea"}, set())
+    assert [x["id"] for x in g] == ["dyspnea"], g
     sv = parse_survey('{"findings": [{"name": "left-sided central venous catheter", "region": "left chest"}, {"name": "elevated right hemidiaphragm", "region": "right base"}, {"name": "no pneumothorax"}]}')
     assert [(x["name"], x["maps_to"]) for x in sv] == [("Left-sided central venous catheter", "SUPPORT_DEVICES"), ("Elevated right hemidiaphragm", None)], sv
     sv = parse_survey('```json [ {"name": "Right upper lobe mass", "region": "Lung"}, {"name": "Possible left lower lobe opacity"} ] ```')
@@ -469,22 +598,26 @@ def analyze(models, img):
         m = models.get(role)
         if m:
             t = time.time()
-            sources.append(dict(role=role, model=m.name, scores=m.scores(img), thresholds=THRESHOLDS[m.name], reliable=RELIABLE[m.name]))
+            sources.append(dict(role=role, model=m.name, scores=m.scores(img), thresholds=THRESHOLDS[m.name], reliable=RELIABLE[m.name],
+                                platt=PLATT.get(m.name, {})))
             timing[m.name] = round(time.time() - t, 2)
     concepts, top_concepts = {}, []
     if models.get("concepts") and models["primary"].name == "CLEAR":
         t = time.time()
         concepts, top_concepts = models["concepts"].explain(models["primary"].last_features)
         timing["CLEAR concepts"] = round(time.time() - t, 2)
-    localizations, descriptions, raw, parsed, cands = {}, {}, [], {}, []
+    localizations, descriptions, raw, parsed, cands, rejected = {}, {}, [], {}, [], []
     mg = models.get("reasoning")
     other = []
     if mg:
         level = lambda s, f: sum(s["scores"][f] >= t for t in s["thresholds"][f])
         cands = [f for f in FINDINGS if (lv := [level(s, f) for s in sources if s["reliable"][f]]) and is_candidate(lv)]
         cands = [f for f in cands if SUPPRESSED_BY.get(f) not in cands]
-        if concepts:  # concept retrieval is the specificity check: nothing in the top 300 -> not worth MedGemma's time
-            cands = [f for f in cands if concept_rank(concepts, f) <= CONCEPT_WEAK or FINDINGS[f].get("context_free")]
+        if concepts:
+            # where the concept bank is a reliable reader it is also the specificity check, and it can raise a finding alone
+            cr = CONCEPT_READER
+            cands = [f for f in cands if not cr.get(f, {}).get("reliable") or concept_rank(concepts, f) <= max(cr[f]["weak"], CONCEPT_WEAK)]
+            cands += [f for f, c in cr.items() if c["reliable"] and f not in cands and concept_rank(concepts, f) <= c["strong"]]
         t = time.time()
         other, text = mg.survey(img)  # open-ended: whatever MedGemma sees, catalogue or not
         raw.append(text)
@@ -496,6 +629,9 @@ def analyze(models, img):
                 o["clear_agreement"] = round(pr, 3)
                 o["verified"] = pr >= OPEN_VOCAB_MIN
                 o["source"] = "MedGemma 1.5 · CLEAR agrees" if o["verified"] else "MedGemma 1.5 only"
+                if not o["verified"]:
+                    rejected.append(dict(claim=o["name"], by="MedGemma 1.5",
+                                         reason=f"CLEAR, reading the same phrase against the film, disagrees ({pr:.2f} < {OPEN_VOCAB_MIN})"))
         timing["MedGemma survey"] = round(time.time() - t, 2)
         if cands:
             t = time.time()
@@ -506,16 +642,24 @@ def analyze(models, img):
                 descriptions[fid] = r["observations"] if r and r["visible"] else ["Visual reasoning model did not identify this finding"]
             # box only what the image models actually support, strongest first
             voters = lambda f: [s for s in sources if s["reliable"][f]]
-            strength = {f: max(level(s, f) for s in voters(f)) + max(s["scores"][f] for s in voters(f)) for f in cands}
+            # image-model level, or for concept-only findings (emphysema, fibrosis) the concept bank's own level
+            def best_level(f):
+                if voters(f):
+                    return max(level(s, f) for s in voters(f))
+                c, r = CONCEPT_READER.get(f, {}), concept_rank(concepts, f)
+                return 3 if r <= c.get("strong", 0) else 2 if r <= c.get("moderate", 0) else 0
+            strength = {f: best_level(f) + (max(s["scores"][f] for s in voters(f)) if voters(f) else 1 / concept_rank(concepts, f)) for f in cands}
             # never ask for a box around something MedGemma just said it cannot see: the box would be meaningless
             seen = lambda f: (parsed.get(f) or {}).get("visible", True) or any(o.get("maps_to") == f for o in other)
-            to_locate = [f for f in sorted(cands, key=strength.get, reverse=True) if max(level(s, f) for s in voters(f)) >= 2 and seen(f)][:MAX_LOCALIZE]
+            to_locate = [f for f in sorted(cands, key=strength.get, reverse=True) if best_level(f) >= 2 and seen(f)][:MAX_LOCALIZE]
             for fid in to_locate:
                 box, text = mg.locate(img, fid)
                 raw.append(text)
                 r = parsed.get(fid) or {}
                 if box and not box_matches_region(box, r.get("region")):
                     raw.append(f"[box for {fid} discarded: it does not sit in '{r.get('region')}']")
+                    rejected.append(dict(claim=f"Outline for {FINDINGS[fid]['name'].lower()}", by="MedGemma 1.5",
+                                         reason=f"its box does not sit in the region it described ('{r.get('region')}')"))
                     box = None  # a wrong outline is worse than none; the named region is still reported
                 if box:
                     localizations[fid] = dict(bbox=box, region_name=r.get("region") or FINDINGS[fid]["region"], source="MedGemma 1.5")
@@ -523,9 +667,13 @@ def analyze(models, img):
     if models.get("segmentation") and localizations:
         t = time.time()
         try:
-            for fid, contour in models["segmentation"].outline(img, {f: l["bbox"] for f, l in localizations.items()}).items():
+            outlines = models["segmentation"].outline(img, {f: l["bbox"] for f, l in localizations.items()})
+            for fid, contour in outlines.items():
                 localizations[fid]["contour"] = contour
                 localizations[fid]["source"] += " + MedSAM"
+            for fid in set(localizations) - set(outlines):
+                rejected.append(dict(claim=f"Segmentation of {FINDINGS[fid]['name'].lower()}", by="MedSAM",
+                                     reason="mask was empty or spilled far outside the box; the box is kept"))
         except Exception as e:  # segmentation is a refinement: keep the box, but say so
             print(f"[models] MedSAM failed, keeping boxes: {e!r}")
             if DEVICE == "cuda":
@@ -533,4 +681,4 @@ def analyze(models, img):
         timing["MedSAM"] = round(time.time() - t, 2)
     regions = {f: r["region"] for f, r in (parsed if mg and cands else {}).items() if r.get("region")}
     return dict(sources=sources, localizations=localizations, descriptions=descriptions, concepts=concepts, top_concepts=top_concepts,
-                other_findings=other, regions=regions, masks={}, timing=timing, raw_reasoning=raw)
+                other_findings=other, regions=regions, rejected=rejected, concept_reader=CONCEPT_READER, masks={}, timing=timing, raw_reasoning=raw)

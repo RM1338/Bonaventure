@@ -1,0 +1,4 @@
+BV-225
+Cardiomegaly: SUPPORTED (high, image confidence 96 %)
+Pulmonary edema: SUPPORTED (high, image confidence 82 %)
+Consolidation: SUPPORTED (high, image confidence 32 %)

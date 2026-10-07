@@ -1,0 +1,1560 @@
+{
+  "case_id": "BV-152",
+  "state": "REVIEW_READY",
+  "created": "2026-10-07T14:34:06",
+  "scan": {
+    "file": "kerley_b.jpg",
+    "view": "Chest X-ray",
+    "color": 0.0,
+    "width": 1222,
+    "height": 1097
+  },
+  "quality": {
+    "state": "acceptable",
+    "warnings": [],
+    "metrics": {
+      "min_side": 1097,
+      "mean": 164.83,
+      "contrast": 36.66,
+      "sharpness": 57.51,
+      "color": 0.0
+    }
+  },
+  "history_files": [
+    {
+      "name": "case_b_history.pdf",
+      "pages": 2
+    }
+  ],
+  "history_provided": true,
+  "warnings": [],
+  "identity": {
+    "status": "consistent",
+    "sources": [
+      {
+        "file": "case_b_history.pdf",
+        "name": "A. Fernandes",
+        "mrn": null
+      }
+    ],
+    "message": null
+  },
+  "interval": {
+    "status": "ok",
+    "reason": null,
+    "rows": [
+      {
+        "finding": "Cardiomegaly",
+        "change": "NEW",
+        "now": "CONFLICTING",
+        "prior_date": "2026-09-02",
+        "prior_quote": "Impression: Normal heart size.",
+        "prior_file": "case_b_history.pdf",
+        "prior_page": 2
+      },
+      {
+        "finding": "Pulmonary edema",
+        "change": "NEW",
+        "now": "CONFLICTING",
+        "prior_date": "2026-09-02",
+        "prior_quote": "Lungs clear.",
+        "prior_file": "case_b_history.pdf",
+        "prior_page": 2
+      },
+      {
+        "finding": "Consolidation",
+        "change": "NEW",
+        "now": "CONFLICTING",
+        "prior_date": "2026-09-02",
+        "prior_quote": "Lungs clear.",
+        "prior_file": "case_b_history.pdf",
+        "prior_page": 2
+      }
+    ],
+    "compared_to": "2026-09-02"
+  },
+  "rejected": [
+    {
+      "claim": "Sternal wires",
+      "by": "MedGemma 1.5",
+      "reason": "CLEAR, reading the same phrase against the film, disagrees (0.81 < 0.85)"
+    },
+    {
+      "claim": "Right pleural effusion",
+      "by": "MedGemma 1.5",
+      "reason": "CLEAR, reading the same phrase against the film, disagrees (0.37 < 0.85)"
+    },
+    {
+      "claim": "Left pleural effusion",
+      "by": "MedGemma 1.5",
+      "reason": "CLEAR, reading the same phrase against the film, disagrees (0.73 < 0.85)"
+    },
+    {
+      "claim": "Pleural effusion",
+      "by": "CLEAR + CheXzero",
+      "reason": "prompt score was high, but no phrase among the film's top 300 of 368,294 report phrases names it (best #354)"
+    },
+    {
+      "claim": "Atelectasis",
+      "by": "CLEAR + CheXzero",
+      "reason": "prompt score was high, but no phrase among the film's top 300 of 368,294 report phrases names it (best #633)"
+    },
+    {
+      "claim": "Pulmonary fibrosis",
+      "by": "CLEAR concepts",
+      "reason": "the film's closest report phrases suggest it, but MedGemma did not confirm it on the image"
+    },
+    {
+      "claim": "Lines & devices",
+      "by": "CLEAR + CheXzero",
+      "reason": "prompt score was high, but no phrase among the film's top 300 of 368,294 report phrases names it (best #612)"
+    },
+    {
+      "claim": "Pneumonia",
+      "by": "label hierarchy",
+      "reason": "already explained by consolidation"
+    },
+    {
+      "claim": "Widened mediastinum",
+      "by": "label hierarchy",
+      "reason": "already explained by cardiomegaly"
+    }
+  ],
+  "unrecognised": [],
+  "understanding_flags": [],
+  "presentation_text": "Breathless for 2 days. Denies fever, cough and ankle swelling.",
+  "symptoms": [
+    {
+      "concept": "dyspnea",
+      "label": "Shortness of breath",
+      "state": "present",
+      "duration": "2 days",
+      "text": "Breathless for 2 days",
+      "source": "\u201cBreathless for 2 days\u201d \u2192 Shortness of breath for 2 days (MedGemma agrees)"
+    },
+    {
+      "concept": "fever",
+      "label": "Fever",
+      "state": "denied",
+      "duration": null,
+      "text": "Denies fever",
+      "source": "\u201cDenies fever\u201d \u2192 Denies fever (MedGemma agrees)"
+    },
+    {
+      "concept": "peripheral_edema",
+      "label": "Ankle / leg swelling",
+      "state": "present",
+      "duration": null,
+      "text": "ankle swelling",
+      "source": "\u201cankle swelling\u201d \u2192 Ankle swelling (MedGemma agrees)"
+    },
+    {
+      "concept": "cough",
+      "label": "Cough",
+      "state": "denied",
+      "duration": null,
+      "text": "Breathless for 2 days. Denies fever, cough and ankle swelling.",
+      "source": "rules"
+    }
+  ],
+  "timeline": [],
+  "findings": [
+    {
+      "canonical_name": "CARDIOMEGALY",
+      "display_name": "Cardiomegaly",
+      "status": "CONFLICTING",
+      "evidence_strength": "moderate",
+      "localization": {
+        "type": "contour",
+        "coordinates": [
+          0.35,
+          0.4,
+          0.65,
+          0.75
+        ],
+        "contour": [
+          [
+            0.6211,
+            0.5742
+          ],
+          [
+            0.6211,
+            0.582
+          ],
+          [
+            0.6211,
+            0.5938
+          ],
+          [
+            0.6211,
+            0.6055
+          ],
+          [
+            0.6211,
+            0.6133
+          ],
+          [
+            0.6211,
+            0.6289
+          ],
+          [
+            0.6172,
+            0.6406
+          ],
+          [
+            0.6133,
+            0.6484
+          ],
+          [
+            0.6055,
+            0.6562
+          ],
+          [
+            0.5977,
+            0.6641
+          ],
+          [
+            0.5898,
+            0.6758
+          ],
+          [
+            0.5859,
+            0.6875
+          ],
+          [
+            0.5781,
+            0.6953
+          ],
+          [
+            0.5625,
+            0.6992
+          ],
+          [
+            0.5547,
+            0.707
+          ],
+          [
+            0.543,
+            0.7148
+          ],
+          [
+            0.5312,
+            0.7148
+          ],
+          [
+            0.5195,
+            0.7227
+          ],
+          [
+            0.5039,
+            0.7266
+          ],
+          [
+            0.4922,
+            0.7305
+          ],
+          [
+            0.4766,
+            0.7266
+          ],
+          [
+            0.4648,
+            0.7266
+          ],
+          [
+            0.4531,
+            0.7188
+          ],
+          [
+            0.4375,
+            0.7188
+          ],
+          [
+            0.4258,
+            0.7109
+          ],
+          [
+            0.4141,
+            0.7031
+          ],
+          [
+            0.4023,
+            0.6953
+          ],
+          [
+            0.3945,
+            0.6836
+          ],
+          [
+            0.3867,
+            0.6719
+          ],
+          [
+            0.3828,
+            0.6602
+          ],
+          [
+            0.3867,
+            0.6406
+          ],
+          [
+            0.3867,
+            0.6289
+          ],
+          [
+            0.3906,
+            0.6133
+          ],
+          [
+            0.3906,
+            0.6055
+          ],
+          [
+            0.3906,
+            0.5938
+          ],
+          [
+            0.3945,
+            0.582
+          ],
+          [
+            0.3945,
+            0.5742
+          ],
+          [
+            0.3945,
+            0.5625
+          ],
+          [
+            0.3945,
+            0.5547
+          ],
+          [
+            0.3984,
+            0.543
+          ],
+          [
+            0.3984,
+            0.5352
+          ],
+          [
+            0.3984,
+            0.5234
+          ],
+          [
+            0.4023,
+            0.5117
+          ],
+          [
+            0.4062,
+            0.5039
+          ],
+          [
+            0.4141,
+            0.4961
+          ],
+          [
+            0.4141,
+            0.4844
+          ],
+          [
+            0.4297,
+            0.4805
+          ],
+          [
+            0.4297,
+            0.4648
+          ],
+          [
+            0.4414,
+            0.4648
+          ],
+          [
+            0.4453,
+            0.4492
+          ],
+          [
+            0.457,
+            0.4375
+          ],
+          [
+            0.4648,
+            0.4258
+          ],
+          [
+            0.4766,
+            0.4219
+          ],
+          [
+            0.4922,
+            0.418
+          ],
+          [
+            0.5039,
+            0.418
+          ],
+          [
+            0.5195,
+            0.4219
+          ],
+          [
+            0.5312,
+            0.418
+          ],
+          [
+            0.5469,
+            0.4219
+          ],
+          [
+            0.5586,
+            0.4258
+          ],
+          [
+            0.5664,
+            0.4375
+          ],
+          [
+            0.582,
+            0.4414
+          ],
+          [
+            0.5977,
+            0.4414
+          ],
+          [
+            0.6055,
+            0.4531
+          ],
+          [
+            0.6133,
+            0.4648
+          ],
+          [
+            0.6172,
+            0.4805
+          ],
+          [
+            0.6211,
+            0.4922
+          ],
+          [
+            0.6289,
+            0.5
+          ],
+          [
+            0.6289,
+            0.5156
+          ],
+          [
+            0.6289,
+            0.5273
+          ],
+          [
+            0.625,
+            0.5391
+          ],
+          [
+            0.6211,
+            0.5508
+          ],
+          [
+            0.6211,
+            0.5625
+          ]
+        ],
+        "region_name": "Heart",
+        "source": "MedGemma 1.5 + MedSAM",
+        "zones": [
+          "HEART"
+        ]
+      },
+      "mask": null,
+      "image_evidence": [
+        {
+          "text": "The heart appears enlarged",
+          "source": "description",
+          "level": null
+        },
+        {
+          "text": "Primary image signal: strong",
+          "source": "CLEAR",
+          "level": "strong"
+        },
+        {
+          "text": "Independent verifier: strong",
+          "source": "CheXzero",
+          "level": "strong"
+        },
+        {
+          "text": "\u201cchronic recurrent congestive heart failure\u201d",
+          "source": "CLEAR concept",
+          "rank": 1,
+          "level": "strong"
+        },
+        {
+          "text": "\u201cbackground changes of mild congestive heart failure\u201d",
+          "source": "CLEAR concept",
+          "rank": 15,
+          "level": "strong"
+        },
+        {
+          "text": "Localized to Heart \u00b7 segmented",
+          "source": "MedGemma 1.5 + MedSAM"
+        }
+      ],
+      "history_evidence": [],
+      "symptom_evidence": [
+        {
+          "text": "Shortness of breath",
+          "concept": "dyspnea",
+          "duration": "2 days"
+        },
+        {
+          "text": "Ankle / leg swelling",
+          "concept": "peripheral_edema",
+          "duration": null
+        }
+      ],
+      "negative_evidence": [
+        {
+          "text": "No cardiomegaly \u2014 Radiology report",
+          "kind": "history",
+          "source": {
+            "file": "case_b_history.pdf",
+            "path": "cases/BV-152/inputs/case_b_history.pdf",
+            "doc_type": "Radiology report",
+            "page": 2,
+            "quote": "Impression: Normal heart size."
+          },
+          "date": "2026-09-02"
+        },
+        {
+          "text": "No congestive heart failure \u2014 Progress note",
+          "kind": "history",
+          "source": {
+            "file": "case_b_history.pdf",
+            "path": "cases/BV-152/inputs/case_b_history.pdf",
+            "doc_type": "Progress note",
+            "page": 1,
+            "quote": "No history of heart failure."
+          },
+          "date": "2026-09-02"
+        }
+      ],
+      "contradictions": [
+        "Image signal present, but the patient's records argue against it: radiology report (2026-09-02) states \u201cImpression: Normal heart size.\u201d"
+      ],
+      "notes": [],
+      "signals": {
+        "image": "strong",
+        "verifier": "strong",
+        "agreement": "concordant",
+        "history": "against",
+        "symptoms": "present"
+      },
+      "contribution": {
+        "image": 0.957,
+        "verifier": 0.979,
+        "context": 0.5
+      },
+      "technical": {
+        "primary_model": "CLEAR",
+        "primary_score": 0.9575,
+        "thresholds": [
+          0.5076,
+          0.5472,
+          0.7291
+        ],
+        "verifier_thresholds": [
+          0.1943,
+          0.1943,
+          0.7168
+        ],
+        "verifier_model": "CheXzero",
+        "verifier_score": 0.9791,
+        "localization_source": "MedGemma 1.5 + MedSAM",
+        "support_count": 2,
+        "against_count": 2
+      },
+      "confidence": {
+        "image": 90,
+        "readers": {
+          "CLEAR": 94,
+          "CheXzero": 87
+        },
+        "basis": "calibrated on 202 labelled films (CheXpert)"
+      },
+      "clinician_text": "Evidence for cardiomegaly is inconsistent. Human review required.",
+      "id": "finding_01",
+      "heatmap": {
+        "grid": [
+          [
+            0.0,
+            0.026000000536441803,
+            0.0,
+            0.041999999433755875,
+            0.02199999988079071,
+            0.0020000000949949026,
+            0.003000000026077032,
+            0.0
+          ],
+          [
+            0.0,
+            0.024000000208616257,
+            0.0,
+            0.08799999952316284,
+            0.08399999886751175,
+            0.0,
+            0.0,
+            0.003000000026077032
+          ],
+          [
+            0.0,
+            0.0,
+            0.3179999887943268,
+            0.13199999928474426,
+            0.012000000104308128,
+            0.18299999833106995,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.3160000145435333,
+            0.17599999904632568,
+            0.31200000643730164,
+            0.17399999499320984,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.15000000596046448,
+            0.8230000138282776,
+            1.0,
+            0.6019999980926514,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.5929999947547913,
+            0.7039999961853027,
+            0.40799999237060547,
+            0.06800000369548798,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.10199999809265137,
+            0.05999999865889549,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.03200000151991844,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "model": "CheXzero",
+        "method": "occlusion"
+      }
+    },
+    {
+      "canonical_name": "PULMONARY_EDEMA",
+      "display_name": "Pulmonary edema",
+      "status": "CONFLICTING",
+      "evidence_strength": "moderate",
+      "localization": {
+        "type": "contour",
+        "coordinates": [
+          0.2,
+          0.4,
+          0.7,
+          0.8
+        ],
+        "contour": [
+          [
+            0.668,
+            0.6016
+          ],
+          [
+            0.6562,
+            0.6172
+          ],
+          [
+            0.6406,
+            0.6289
+          ],
+          [
+            0.6328,
+            0.6445
+          ],
+          [
+            0.6328,
+            0.6602
+          ],
+          [
+            0.6289,
+            0.6719
+          ],
+          [
+            0.6133,
+            0.6797
+          ],
+          [
+            0.6055,
+            0.6914
+          ],
+          [
+            0.5938,
+            0.6992
+          ],
+          [
+            0.582,
+            0.7109
+          ],
+          [
+            0.5742,
+            0.7188
+          ],
+          [
+            0.5586,
+            0.7188
+          ],
+          [
+            0.543,
+            0.7227
+          ],
+          [
+            0.5312,
+            0.7266
+          ],
+          [
+            0.5195,
+            0.7305
+          ],
+          [
+            0.5117,
+            0.7461
+          ],
+          [
+            0.5,
+            0.7461
+          ],
+          [
+            0.4844,
+            0.7461
+          ],
+          [
+            0.4727,
+            0.7422
+          ],
+          [
+            0.4609,
+            0.7422
+          ],
+          [
+            0.4492,
+            0.7461
+          ],
+          [
+            0.4375,
+            0.7383
+          ],
+          [
+            0.4258,
+            0.7344
+          ],
+          [
+            0.4141,
+            0.7266
+          ],
+          [
+            0.4062,
+            0.7188
+          ],
+          [
+            0.375,
+            0.7383
+          ],
+          [
+            0.3398,
+            0.7578
+          ],
+          [
+            0.3008,
+            0.7734
+          ],
+          [
+            0.2461,
+            0.7891
+          ],
+          [
+            0.2266,
+            0.7734
+          ],
+          [
+            0.2578,
+            0.7266
+          ],
+          [
+            0.293,
+            0.6836
+          ],
+          [
+            0.3125,
+            0.6602
+          ],
+          [
+            0.3008,
+            0.6484
+          ],
+          [
+            0.3047,
+            0.6289
+          ],
+          [
+            0.2969,
+            0.6172
+          ],
+          [
+            0.3047,
+            0.6016
+          ],
+          [
+            0.3047,
+            0.5859
+          ],
+          [
+            0.2773,
+            0.5664
+          ],
+          [
+            0.2969,
+            0.5547
+          ],
+          [
+            0.3125,
+            0.543
+          ],
+          [
+            0.3125,
+            0.5273
+          ],
+          [
+            0.3047,
+            0.5039
+          ],
+          [
+            0.3828,
+            0.5352
+          ],
+          [
+            0.3945,
+            0.5352
+          ],
+          [
+            0.4023,
+            0.5273
+          ],
+          [
+            0.3789,
+            0.4883
+          ],
+          [
+            0.4141,
+            0.5156
+          ],
+          [
+            0.418,
+            0.5039
+          ],
+          [
+            0.4219,
+            0.4883
+          ],
+          [
+            0.4297,
+            0.4805
+          ],
+          [
+            0.4375,
+            0.4648
+          ],
+          [
+            0.4453,
+            0.4492
+          ],
+          [
+            0.457,
+            0.4297
+          ],
+          [
+            0.4727,
+            0.4219
+          ],
+          [
+            0.4883,
+            0.4219
+          ],
+          [
+            0.5039,
+            0.4219
+          ],
+          [
+            0.5195,
+            0.4258
+          ],
+          [
+            0.5352,
+            0.4297
+          ],
+          [
+            0.5508,
+            0.4297
+          ],
+          [
+            0.5664,
+            0.4375
+          ],
+          [
+            0.5781,
+            0.4492
+          ],
+          [
+            0.6055,
+            0.4453
+          ],
+          [
+            0.6445,
+            0.4297
+          ],
+          [
+            0.6602,
+            0.4453
+          ],
+          [
+            0.6602,
+            0.4688
+          ],
+          [
+            0.6641,
+            0.4922
+          ],
+          [
+            0.6602,
+            0.5117
+          ],
+          [
+            0.6641,
+            0.5312
+          ],
+          [
+            0.6602,
+            0.5508
+          ],
+          [
+            0.6641,
+            0.5664
+          ],
+          [
+            0.6641,
+            0.582
+          ]
+        ],
+        "region_name": "Lung",
+        "source": "MedGemma 1.5 + MedSAM",
+        "zones": [
+          "R_UPPER",
+          "R_MID",
+          "R_LOWER",
+          "L_UPPER",
+          "L_MID",
+          "L_LOWER"
+        ]
+      },
+      "mask": null,
+      "image_evidence": [
+        {
+          "text": "Visual reasoning model did not identify this finding",
+          "source": "description",
+          "level": "absent"
+        },
+        {
+          "text": "Primary image signal: strong",
+          "source": "CLEAR",
+          "level": "strong"
+        },
+        {
+          "text": "Independent verifier: strong",
+          "source": "CheXzero",
+          "level": "strong"
+        },
+        {
+          "text": "\u201cchronic recurrent pulmonary edema\u201d",
+          "source": "CLEAR concept",
+          "rank": 3,
+          "level": "strong"
+        },
+        {
+          "text": "\u201cpulmonary edema superimposed on interstitial changes\u201d",
+          "source": "CLEAR concept",
+          "rank": 4,
+          "level": "strong"
+        },
+        {
+          "text": "Localized to Lung \u00b7 segmented",
+          "source": "MedGemma 1.5 + MedSAM"
+        }
+      ],
+      "history_evidence": [],
+      "symptom_evidence": [
+        {
+          "text": "Shortness of breath",
+          "concept": "dyspnea",
+          "duration": "2 days"
+        },
+        {
+          "text": "Ankle / leg swelling",
+          "concept": "peripheral_edema",
+          "duration": null
+        }
+      ],
+      "negative_evidence": [
+        {
+          "text": "No pulmonary edema \u2014 Radiology report",
+          "kind": "history",
+          "source": {
+            "file": "case_b_history.pdf",
+            "path": "cases/BV-152/inputs/case_b_history.pdf",
+            "doc_type": "Radiology report",
+            "page": 2,
+            "quote": "Lungs clear."
+          },
+          "date": "2026-09-02"
+        },
+        {
+          "text": "No congestive heart failure \u2014 Progress note",
+          "kind": "history",
+          "source": {
+            "file": "case_b_history.pdf",
+            "path": "cases/BV-152/inputs/case_b_history.pdf",
+            "doc_type": "Progress note",
+            "page": 1,
+            "quote": "No history of heart failure."
+          },
+          "date": "2026-09-02"
+        }
+      ],
+      "contradictions": [
+        "Image signal present, but the patient's records argue against it: radiology report (2026-09-02) states \u201cLungs clear.\u201d"
+      ],
+      "notes": [],
+      "signals": {
+        "image": "strong",
+        "verifier": "strong",
+        "agreement": "concordant",
+        "history": "against",
+        "symptoms": "present"
+      },
+      "contribution": {
+        "image": 0.996,
+        "verifier": 0.987,
+        "context": 0.5
+      },
+      "technical": {
+        "primary_model": "CLEAR",
+        "primary_score": 0.9964,
+        "thresholds": [
+          0.9196,
+          0.9509,
+          0.9828
+        ],
+        "verifier_thresholds": [
+          0.0951,
+          0.3809,
+          0.3809
+        ],
+        "verifier_model": "CheXzero",
+        "verifier_score": 0.9871,
+        "localization_source": "MedGemma 1.5 + MedSAM",
+        "support_count": 2,
+        "against_count": 2
+      },
+      "confidence": {
+        "image": 88,
+        "readers": {
+          "CLEAR": 79,
+          "CheXzero": 97
+        },
+        "basis": "calibrated on 202 labelled films (CheXpert)"
+      },
+      "clinician_text": "Evidence for pulmonary edema is inconsistent. Human review required.",
+      "id": "finding_02",
+      "heatmap": {
+        "grid": [
+          [
+            0.054999999701976776,
+            0.06199999898672104,
+            0.0,
+            0.0,
+            0.02800000086426735,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.09700000286102295,
+            0.10499999672174454,
+            0.1080000028014183,
+            0.05700000002980232,
+            0.03799999877810478,
+            0.0,
+            0.0
+          ],
+          [
+            0.00800000037997961,
+            0.2540000081062317,
+            0.7089999914169312,
+            0.10300000011920929,
+            0.3019999861717224,
+            0.7110000252723694,
+            0.21400000154972076,
+            0.01600000075995922
+          ],
+          [
+            0.0,
+            0.5569999814033508,
+            0.9829999804496765,
+            0.492000013589859,
+            0.6060000061988831,
+            0.8140000104904175,
+            0.34700000286102295,
+            0.07000000029802322
+          ],
+          [
+            0.0,
+            0.29499998688697815,
+            0.2800000011920929,
+            0.6859999895095825,
+            0.7910000085830688,
+            0.8220000267028809,
+            0.5979999899864197,
+            0.07000000029802322
+          ],
+          [
+            0.006000000052154064,
+            0.6700000166893005,
+            0.32600000500679016,
+            0.1420000046491623,
+            0.3230000138282776,
+            0.47600001096725464,
+            1.0,
+            0.17100000381469727
+          ],
+          [
+            0.0,
+            0.32100000977516174,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.4099999964237213,
+            0.3499999940395355
+          ],
+          [
+            0.0,
+            0.009999999776482582,
+            0.0,
+            0.0,
+            0.013000000268220901,
+            0.0,
+            0.02199999988079071,
+            0.13500000536441803
+          ]
+        ],
+        "model": "CheXzero",
+        "method": "occlusion"
+      }
+    },
+    {
+      "canonical_name": "CONSOLIDATION",
+      "display_name": "Consolidation",
+      "status": "CONFLICTING",
+      "evidence_strength": "low",
+      "localization": {
+        "type": "zone",
+        "coordinates": [
+          0.1,
+          0.12,
+          0.9,
+          0.84
+        ],
+        "zones": [
+          "R_UPPER",
+          "R_MID",
+          "R_LOWER",
+          "L_UPPER",
+          "L_MID",
+          "L_LOWER"
+        ],
+        "zone_boxes": [
+          [
+            0.14,
+            0.12,
+            0.47,
+            0.38
+          ],
+          [
+            0.12,
+            0.38,
+            0.47,
+            0.6
+          ],
+          [
+            0.1,
+            0.6,
+            0.47,
+            0.84
+          ],
+          [
+            0.53,
+            0.12,
+            0.86,
+            0.38
+          ],
+          [
+            0.53,
+            0.38,
+            0.88,
+            0.6
+          ],
+          [
+            0.53,
+            0.6,
+            0.9,
+            0.84
+          ]
+        ],
+        "contour": null,
+        "region_name": "Lung",
+        "source": "approximate zone"
+      },
+      "mask": null,
+      "image_evidence": [
+        {
+          "text": "Visual reasoning model did not identify this finding",
+          "source": "description",
+          "level": "absent"
+        },
+        {
+          "text": "Primary image signal: moderate",
+          "source": "CLEAR",
+          "level": "moderate"
+        },
+        {
+          "text": "Independent verifier: strong",
+          "source": "CheXzero",
+          "level": "strong"
+        },
+        {
+          "text": "\u201cpulmonary edema or pneumonia superimposed on chronic interstitial lung disease\u201d",
+          "source": "CLEAR concept",
+          "rank": 11,
+          "level": "strong"
+        },
+        {
+          "text": "\u201cdependent edema or superimposed pneumonia\u201d",
+          "source": "CLEAR concept",
+          "rank": 13,
+          "level": "strong"
+        }
+      ],
+      "history_evidence": [],
+      "symptom_evidence": [
+        {
+          "text": "Shortness of breath",
+          "concept": "dyspnea",
+          "duration": "2 days"
+        }
+      ],
+      "negative_evidence": [
+        {
+          "text": "No pneumonia \u2014 Radiology report",
+          "kind": "history",
+          "source": {
+            "file": "case_b_history.pdf",
+            "path": "cases/BV-152/inputs/case_b_history.pdf",
+            "doc_type": "Radiology report",
+            "page": 2,
+            "quote": "Lungs clear."
+          },
+          "date": "2026-09-02"
+        },
+        {
+          "text": "Fever denied",
+          "kind": "symptom",
+          "concept": "fever"
+        },
+        {
+          "text": "Cough denied",
+          "kind": "symptom",
+          "concept": "cough"
+        }
+      ],
+      "contradictions": [
+        "Image signal present, but the patient's records argue against it: radiology report (2026-09-02) states \u201cLungs clear.\u201d"
+      ],
+      "notes": [],
+      "signals": {
+        "image": "moderate",
+        "verifier": "strong",
+        "agreement": "concordant",
+        "history": "against",
+        "symptoms": "present"
+      },
+      "contribution": {
+        "image": 0.935,
+        "verifier": 0.927,
+        "context": 0.25
+      },
+      "technical": {
+        "primary_model": "CLEAR",
+        "primary_score": 0.9352,
+        "thresholds": [
+          0.8669,
+          0.8944,
+          0.9529
+        ],
+        "verifier_thresholds": [
+          0.7144,
+          0.7227,
+          0.925
+        ],
+        "verifier_model": "CheXzero",
+        "verifier_score": 0.9275,
+        "localization_source": null,
+        "support_count": 1,
+        "against_count": 3
+      },
+      "confidence": {
+        "image": 31,
+        "readers": {
+          "CLEAR": 28,
+          "CheXzero": 34
+        },
+        "basis": "calibrated on 202 labelled films (CheXpert)"
+      },
+      "clinician_text": "Evidence for consolidation is inconsistent. Human review required.",
+      "id": "finding_03",
+      "heatmap": {
+        "grid": [
+          [
+            0.07400000095367432,
+            0.24300000071525574,
+            0.35600000619888306,
+            0.01600000075995922,
+            0.2070000022649765,
+            0.27900001406669617,
+            0.1860000044107437,
+            0.007000000216066837
+          ],
+          [
+            0.07400000095367432,
+            0.32100000977516174,
+            0.20000000298023224,
+            0.414000004529953,
+            0.039000000804662704,
+            0.0,
+            0.10199999809265137,
+            0.03099999949336052
+          ],
+          [
+            0.17800000309944153,
+            0.5709999799728394,
+            0.2849999964237213,
+            0.503000020980835,
+            0.3479999899864197,
+            0.0,
+            0.04100000113248825,
+            0.0949999988079071
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.8799999952316284,
+            0.8690000176429749,
+            0.5789999961853027,
+            0.0,
+            0.21199999749660492
+          ],
+          [
+            0.0,
+            0.0,
+            0.6779999732971191,
+            0.42800000309944153,
+            0.24699999392032623,
+            0.2619999945163727,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.06700000166893005,
+            0.19200000166893005,
+            0.0,
+            0.20399999618530273,
+            0.0,
+            0.5619999766349792,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.3269999921321869,
+            0.3019999861717224
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "model": "CheXzero",
+        "method": "occlusion"
+      }
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "counts": {
+      "SUPPORTED": 0,
+      "CONFLICTING": 3,
+      "UNCERTAIN": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    },
+    "critical": 0,
+    "overall_quality": "moderate",
+    "message": "No sufficiently supported finding was identified from the supplied evidence."
+  },
+  "not_assessable": [],
+  "other_observations": [
+    {
+      "name": "Interstitial thickening",
+      "region": "lung fields",
+      "maps_to": null,
+      "source": "MedGemma 1.5 \u00b7 CLEAR agrees",
+      "clear_agreement": 0.965,
+      "verified": true
+    }
+  ],
+  "technical": {
+    "models": [
+      {
+        "role": "primary",
+        "model": "CLEAR"
+      },
+      {
+        "role": "verifier",
+        "model": "CheXzero"
+      }
+    ],
+    "timing": {
+      "CLEAR": 1.08,
+      "CheXzero": 0.08,
+      "CLEAR concepts": 0.11,
+      "MedGemma survey": 5.58,
+      "MedGemma": 10.07,
+      "MedSAM": 0.37
+    },
+    "raw_reasoning": [
+      "```json\n[\n  {\"name\": \"sternal wires\", \"region\": \"mediastinum\"},\n  {\"name\": \"cardiomegaly\", \"region\": \"cardiac silhouette\"},\n  {\"name\": \"pulmonary edema\", \"region\": \"lung fields\"},\n  {\"name\": \"right pleural effusion\", \"region\": \"right lower lung\"},\n  {\"name\": \"left pleural effusion\", \"region\": \"left lower lung\"},\n  {\"name\": \"interstitial thickening\", \"region\": \"lung fields\"}\n]\n```",
+      "{\"findings\": [{\"name\": \"Cardiomegaly\", \"visible\": true, \"region\": \"Heart\", \"observations\": [\"The heart appears enlarged\"]}, {\"name\": \"Consolidation\", \"visible\": false, \"region\": \"Lung\", \"observations\": []}, {\"name\": \"Pulmonary edema\", \"visible\": false, \"region\": \"Lung\", \"observations\": []}, {\"name\": \"Pulmonary fibrosis\", \"visible\": false, \"region\": \"Lung\", \"observations\": []}]}\n",
+      "```json\n[\n  {\"box_2d\": [400, 200, 800, 700], \"label\": \"pulmonary edema\"}\n]\n```",
+      "```json\n[\n  {\"box_2d\": [400, 350, 750, 650], \"label\": \"cardiomegaly\"}\n]\n```",
+      "[natural-language understanding] 1. Shortness of breath for 2 days\n2. Denies fever\n3. Ankle swelling"
+    ],
+    "top_concepts": [
+      [
+        "chronic recurrent congestive heart failure",
+        1,
+        0.7295
+      ],
+      [
+        "most likely related to elevated pulmonary venous pressure and chronic fibrosis",
+        2,
+        0.7217
+      ],
+      [
+        "chronic recurrent pulmonary edema",
+        3,
+        0.7134
+      ],
+      [
+        "pulmonary edema superimposed on interstitial changes",
+        4,
+        0.707
+      ],
+      [
+        "overall findings concerning for interstitial pulmonary edema",
+        5,
+        0.7051
+      ],
+      [
+        "potential differential includes background scarring, interstitial edema, inflammatory infectious processes",
+        6,
+        0.7036
+      ],
+      [
+        "dependent interstitial edema particularly in the left lung base",
+        7,
+        0.7007
+      ],
+      [
+        "interstitial fibrosis and pulmonary edema",
+        8,
+        0.6978
+      ],
+      [
+        "superimposed interstitial edema or areas of infection cannot be excluded",
+        9,
+        0.6958
+      ],
+      [
+        "bilateral interstitial edema with new kerley b lines",
+        10,
+        0.6943
+      ]
+    ],
+    "total_seconds": 21.89,
+    "engine_status": {
+      "imaging": "ready",
+      "reasoning": "ready"
+    }
+  }
+}

@@ -1,5 +1,6 @@
 """Case orchestration: run each pipeline stage, track progress for the UI, capture failures, persist the result."""
 import json
+import re
 import shutil
 import time
 import traceback
@@ -88,10 +89,80 @@ class Case:
                         warns.append(str(e))
                 return events, warns
             events, warnings = self._step("history", parse_histories)
+            # same patient? documents (and a DICOM header) must not name different people before any of them is used
+            identity = context.check_identity(
+                [context.document_identity(p, n) for p, n in self.histories]
+                + ([dict(file=meta["file"], name=meta.get("patient_name"), mrn=meta.get("patient_id"))] if meta.get("patient_name") or meta.get("patient_id") else []))
+            if identity["status"] == "mismatch":
+                warnings.append("History not used: " + identity["message"])
+                events = []
             if not self.histories:
                 self.steps["history"] = "skipped"
-            symptoms = self._step("symptoms", lambda: context.parse_symptoms(self.symptoms_text))
-            events += context.presentation_as_history(self.symptoms_text)
+            def understand():
+                """MedGemma reads every phrase and rewrites it in clinical language; the deterministic parser maps the rewrite to
+                concepts (auditable); the rules' own reading of the clinician's words checks it. Disagreements keep the safer
+                reading and are shown. Phrases nothing understood are reported, never silently dropped."""
+                from .knowledge import HISTORY_CONCEPTS, SYMPTOM_CONCEPTS
+                from . import semantic
+                text = self.symptoms_text
+                clauses = [c.strip() for c in re.split(r"[,.;]|\band\b", text) if len(c.strip().split()) >= 2]
+                mg = None if engine.mock else (engine.models.get("reasoning") if engine.ready() else None)
+                rewrites = [""] * len(clauses)
+                if mg and clauses:
+                    with engine._lock:
+                        rewrites, self._nl_raw = mg.rewrite_clinical(clauses)
+
+                found, hx, flags, unrecognised, have = [], [], [], [], {}
+
+                def add(kind, cid, state, clause, how, duration=None):
+                    if cid in have:
+                        return
+                    have[cid] = state
+                    if kind == "symptom":
+                        found.append(dict(concept=cid, label=SYMPTOM_CONCEPTS[cid][0], state=state, duration=duration, text=clause, source=how))
+                    else:
+                        label, category, _ = HISTORY_CONCEPTS[cid]
+                        hx.append(dict(concept=cid, label=label, category=category, state="present" if state == "present" else "negated", date=None,
+                                       source=dict(file="presentation", path="", doc_type="Current presentation", page=1, quote=clause)))
+
+                def read(t):
+                    out = {x["concept"]: ("symptom", x["state"], x.get("duration")) for x in context.parse_symptoms(t)}
+                    out.update({e["concept"]: ("history", "present" if e["state"] == "present" else "denied", None) for e in context.presentation_as_history(t)})
+                    return out
+
+                for clause, rw in zip(clauses, rewrites):
+                    rules, model = read(clause), read(rw) if rw else {}
+                    for cid, (kind, state, dur) in rules.items():
+                        m = model.get(cid)
+                        if m and m[1] != state:   # MedGemma and the rules disagree (usually a lost "no"): keep the rules, show it
+                            flags.append(f"“{clause}”: read as {state} {SYMPTOM_CONCEPTS.get(cid, HISTORY_CONCEPTS.get(cid))[0].lower()}, "
+                                         f"but the clinical rewrite (“{rw}”) says {m[1]} — please check")
+                        add(kind, cid, state, clause, f"“{clause}”" + (f" → {rw} (MedGemma agrees)" if m and m[1] == state else ""), dur)
+                    rules_saw_symptom = any(k == "symptom" for k, _s, _d in rules.values())
+                    for cid, (kind, state, dur) in model.items():
+                        # where the rules already read a symptom in this phrase, MedGemma's extra symptoms are looser paraphrase
+                        if cid not in rules and not (kind == "symptom" and rules_saw_symptom):
+                            add(kind, cid, state, clause, f"understood by MedGemma: “{clause}” → {rw}", dur)
+                    if not rules and not model and semantic.matcher():
+                        m = semantic.matcher().match(rw or clause) or semantic.matcher().match(clause)
+                        if m:
+                            denied = bool(re.match(r"\s*(?:no|not|never|denies|denied|without)\b", clause, re.I))
+                            add(m[0], m[1], "denied" if denied else "present", clause, f"matched by meaning ({m[2]:.2f}): “{clause}”")
+                            continue
+                    if not rules and not model:
+                        unrecognised.append(clause)
+                # whole-text rules catch anything split across phrases (durations, multi-clause negation)
+                for cid, (kind, state, dur) in read(text).items():
+                    add(kind, cid, state, text, "rules")
+                for x in found:  # durations are only visible to the rules on the full sentence
+                    if not x.get("duration"):
+                        x["duration"] = next((y["duration"] for y in context.parse_symptoms(text) if y["concept"] == x["concept"]), None)
+                if any(x["concept"] == "productive_cough" for x in found):   # "cough" is implied by "productive cough"
+                    found = [x for x in found if x["concept"] != "cough"]
+                self._unrecognised, self._nl_flags = unrecognised, flags
+                return found, hx
+            symptoms, presented = self._step("symptoms", understand)
+            events += presented
 
             try:
                 result = self._step("image", lambda: engine.analyze(img, self.scan))
@@ -102,6 +173,20 @@ class Case:
             findings, summary = self._step("reconcile", lambda: reconcile.reconcile(result, quality, symptoms, events, bool(self.histories)))
             not_assessable = reconcile.not_assessable(symptoms, events)
             other = reconcile.other_observations(result, findings)
+            reliable = {f for s in result["sources"] for f, ok in s.get("reliable", {}).items() if ok}
+            interval = reconcile.interval_changes(findings, events, identity, reliable)
+            # occlusion heatmap per shown finding: where the independent image reader's score actually comes from
+            reader = None if engine.mock else engine.models.get("verifier") or engine.models.get("primary")
+            shown = [f for f in findings if f["status"] != "INSUFFICIENT_EVIDENCE"][:6]
+            if reader and shown:
+                try:
+                    with engine._lock:
+                        heat = reader.occlusion(img, [f["canonical_name"] for f in shown])
+                    for f in shown:
+                        if f["canonical_name"] in heat:
+                            f["heatmap"] = dict(grid=heat[f["canonical_name"]], model=reader.name, method="occlusion")
+                except Exception as e:  # a visual aid only: never fail the case for it
+                    print(f"[pipeline] heatmap skipped: {e!r}")
 
             def prepare():
                 preview = img.copy()
@@ -111,12 +196,14 @@ class Case:
                     case_id=self.id, state="REVIEW_READY", created=datetime.now().isoformat(timespec="seconds"),
                     scan=meta, quality=quality,
                     history_files=[dict(name=n, pages=context.pdf_page_count(p) if p.suffix.lower() == ".pdf" else 1) for p, n in self.histories],
-                    history_provided=bool(self.histories), warnings=warnings,
+                    history_provided=bool(self.histories) and identity["status"] != "mismatch", warnings=warnings,
+                    identity=identity, interval=interval, rejected=result.get("rejected", []),
+                    unrecognised=getattr(self, "_unrecognised", []), understanding_flags=getattr(self, "_nl_flags", []),
                     presentation_text=self.symptoms_text, symptoms=symptoms,
                     timeline=context.build_timeline(events, reconcile.relevant_concepts(findings)),
                     findings=findings, summary=summary, not_assessable=not_assessable, other_observations=other,
                     technical=dict(models=[dict(role=s["role"], model=s["model"]) for s in result["sources"]],
-                                   timing=result.get("timing", {}), raw_reasoning=result.get("raw_reasoning") or [],
+                                   timing=result.get("timing", {}), raw_reasoning=(result.get("raw_reasoning") or []) + ([f"[natural-language understanding] {self._nl_raw}"] if getattr(self, "_nl_raw", None) else []),
                                    top_concepts=result.get("top_concepts") or [], total_seconds=round(time.time() - t0, 2), engine_status=dict(engine.status)),
                 )
                 (self.dir / "result.json").write_text(json.dumps(self.result, indent=2))

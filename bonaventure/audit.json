@@ -1,0 +1,633 @@
+{
+  "summary": {
+    "n_normals": 12,
+    "normals_with_supported_finding": 1,
+    "normals_with_any_finding": 9,
+    "normals_with_also_seen": 3,
+    "n_diseased": 24,
+    "disease_raised": 10,
+    "mean_extra_findings": 2.83,
+    "claims_rejected_total": 193,
+    "by_label": {
+      "Effusion": [
+        false,
+        true
+      ],
+      "Cardiomegaly": [
+        true,
+        true
+      ],
+      "Edema": [
+        true,
+        true
+      ],
+      "Consolidation": [
+        true,
+        true
+      ],
+      "Atelectasis": [
+        true,
+        true
+      ],
+      "Pneumothorax": [
+        false,
+        false
+      ],
+      "Pneumonia": [
+        false,
+        false
+      ],
+      "Mass": [
+        false,
+        false
+      ],
+      "Nodule": [
+        false,
+        false
+      ],
+      "Emphysema": [
+        false,
+        false
+      ],
+      "Fibrosis": [
+        false,
+        false
+      ],
+      "Pleural_Thickening": [
+        true,
+        false
+      ],
+      "Hernia": []
+    }
+  },
+  "rows": [
+    {
+      "image": "00001534_002",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "CARDIOMEGALY": "UNCERTAIN",
+        "HERNIA": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 4,
+      "case": "BV-115"
+    },
+    {
+      "image": "00004808_004",
+      "label": "Normal",
+      "target": null,
+      "raised": {},
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 2,
+      "case": "BV-116"
+    },
+    {
+      "image": "00007034_082",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "ATELECTASIS": "UNCERTAIN",
+        "PNEUMOTHORAX": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "PLEURAL_THICKENING": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [
+        "Elevated right hemidiaphragm",
+        "Thoracic spine hardware"
+      ],
+      "rejected": 8,
+      "case": "BV-117"
+    },
+    {
+      "image": "00007557_003",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "SUPPORT_DEVICES": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 3,
+      "case": "BV-118"
+    },
+    {
+      "image": "00001373_005",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "CARDIOMEGALY": "UNCERTAIN",
+        "SUPPORT_DEVICES": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 7,
+      "case": "BV-119"
+    },
+    {
+      "image": "00002856_001",
+      "label": "Normal",
+      "target": null,
+      "raised": {},
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 1,
+      "case": "BV-120"
+    },
+    {
+      "image": "00008295_032",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "ENLARGED_MEDIASTINUM": "CONFLICTING",
+        "SUPPORT_DEVICES": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 3,
+      "case": "BV-121"
+    },
+    {
+      "image": "00007735_049",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 10,
+      "case": "BV-122"
+    },
+    {
+      "image": "00005712_002",
+      "label": "Normal",
+      "target": null,
+      "raised": {},
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 1,
+      "case": "BV-123"
+    },
+    {
+      "image": "00008008_013",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "ENLARGED_MEDIASTINUM": "CONFLICTING",
+        "SUPPORT_DEVICES": "UNCERTAIN",
+        "PNEUMOTHORAX": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [
+        "Right lower lobe opacity"
+      ],
+      "rejected": 6,
+      "case": "BV-124"
+    },
+    {
+      "image": "00007735_000",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 6,
+      "case": "BV-125"
+    },
+    {
+      "image": "00006964_009",
+      "label": "Normal",
+      "target": null,
+      "raised": {
+        "ENLARGED_MEDIASTINUM": "CONFLICTING",
+        "PNEUMOTHORAX": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
+        "PLEURAL_THICKENING": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [
+        "Right-sided chest tube"
+      ],
+      "rejected": 6,
+      "case": "BV-126"
+    },
+    {
+      "image": "00007322_031",
+      "label": "Effusion",
+      "target": "PLEURAL_EFFUSION",
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "CONSOLIDATION": "CONFLICTING",
+        "PULMONARY_EDEMA": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": false,
+      "also_seen": [
+        "Right lower lobe opacity"
+      ],
+      "rejected": 15,
+      "case": "BV-127"
+    },
+    {
+      "image": "00007557_009",
+      "label": "Effusion",
+      "target": "PLEURAL_EFFUSION",
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "PNEUMOTHORAX": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN",
+        "PLEURAL_THICKENING": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": true,
+      "also_seen": [
+        "Elevated right hemidiaphragm"
+      ],
+      "rejected": 6,
+      "case": "BV-128"
+    },
+    {
+      "image": "00007735_038",
+      "label": "Cardiomegaly",
+      "target": "CARDIOMEGALY",
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": true,
+      "also_seen": [],
+      "rejected": 4,
+      "case": "BV-129"
+    },
+    {
+      "image": "00005066_036",
+      "label": "Cardiomegaly",
+      "target": "CARDIOMEGALY",
+      "raised": {
+        "CARDIOMEGALY": "UNCERTAIN",
+        "PULMONARY_EDEMA": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN",
+        "SUPPORT_DEVICES": "UNCERTAIN",
+        "HERNIA": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": true,
+      "also_seen": [],
+      "rejected": 5,
+      "case": "BV-130"
+    },
+    {
+      "image": "00004342_043",
+      "label": "Edema",
+      "target": "PULMONARY_EDEMA",
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "CARDIOMEGALY": "UNCERTAIN",
+        "PULMONARY_EDEMA": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": true,
+      "also_seen": [],
+      "rejected": 9,
+      "case": "BV-131"
+    },
+    {
+      "image": "00000032_024",
+      "label": "Edema",
+      "target": "PULMONARY_EDEMA",
+      "raised": {
+        "PULMONARY_EDEMA": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN",
+        "SUPPORT_DEVICES": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": true,
+      "also_seen": [],
+      "rejected": 13,
+      "case": "BV-132"
+    },
+    {
+      "image": "00006808_017",
+      "label": "Consolidation",
+      "target": "CONSOLIDATION",
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "ATELECTASIS": "UNCERTAIN",
+        "PULMONARY_EDEMA": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN",
+        "PLEURAL_EFFUSION": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": true,
+      "also_seen": [
+        "Right hemidiaphragm elevation"
+      ],
+      "rejected": 7,
+      "case": "BV-133"
+    },
+    {
+      "image": "00000467_002",
+      "label": "Consolidation",
+      "target": "CONSOLIDATION",
+      "raised": {
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
+        "PLEURAL_THICKENING": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": true,
+      "also_seen": [],
+      "rejected": 5,
+      "case": "BV-134"
+    },
+    {
+      "image": "00000583_043",
+      "label": "Atelectasis",
+      "target": "ATELECTASIS",
+      "raised": {
+        "ENLARGED_MEDIASTINUM": "CONFLICTING",
+        "SUPPORT_DEVICES": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": true,
+      "also_seen": [],
+      "rejected": 4,
+      "case": "BV-135"
+    },
+    {
+      "image": "00002350_012",
+      "label": "Atelectasis",
+      "target": "ATELECTASIS",
+      "raised": {
+        "ENLARGED_MEDIASTINUM": "CONFLICTING",
+        "ATELECTASIS": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": true,
+      "also_seen": [],
+      "rejected": 5,
+      "case": "BV-136"
+    },
+    {
+      "image": "00001006_001",
+      "label": "Pneumothorax",
+      "target": "PNEUMOTHORAX",
+      "raised": {
+        "ATELECTASIS": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 4,
+      "case": "BV-137"
+    },
+    {
+      "image": "00004858_080",
+      "label": "Pneumothorax",
+      "target": "PNEUMOTHORAX",
+      "raised": {
+        "ATELECTASIS": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 3,
+      "case": "BV-138"
+    },
+    {
+      "image": "00001247_011",
+      "label": "Pneumonia",
+      "target": "PNEUMONIA",
+      "raised": {},
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 2,
+      "case": "BV-139"
+    },
+    {
+      "image": "00005567_025",
+      "label": "Pneumonia",
+      "target": "PNEUMONIA",
+      "raised": {
+        "ATELECTASIS": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 3,
+      "case": "BV-140"
+    },
+    {
+      "image": "00007120_005",
+      "label": "Mass",
+      "target": "LUNG_MASS",
+      "raised": {
+        "ENLARGED_MEDIASTINUM": "CONFLICTING",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "PLEURAL_THICKENING": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
+        "HERNIA": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [
+        "Elevated left hemidiaphragm"
+      ],
+      "rejected": 5,
+      "case": "BV-141"
+    },
+    {
+      "image": "00008008_029",
+      "label": "Mass",
+      "target": "LUNG_MASS",
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "ENLARGED_MEDIASTINUM": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 5,
+      "case": "BV-142"
+    },
+    {
+      "image": "00004547_018",
+      "label": "Nodule",
+      "target": "LUNG_NODULE",
+      "raised": {
+        "SUPPORT_DEVICES": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 7,
+      "case": "BV-143"
+    },
+    {
+      "image": "00002424_001",
+      "label": "Nodule",
+      "target": "LUNG_NODULE",
+      "raised": {
+        "CARDIOMEGALY": "CONFLICTING",
+        "ATELECTASIS": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 2,
+      "case": "BV-144"
+    },
+    {
+      "image": "00002570_002",
+      "label": "Emphysema",
+      "target": "EMPHYSEMA",
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "ENLARGED_MEDIASTINUM": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 2,
+      "case": "BV-145"
+    },
+    {
+      "image": "00001555_000",
+      "label": "Emphysema",
+      "target": "EMPHYSEMA",
+      "raised": {},
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 4,
+      "case": "BV-146"
+    },
+    {
+      "image": "00003460_002",
+      "label": "Fibrosis",
+      "target": "FIBROSIS",
+      "raised": {
+        "ATELECTASIS": "CONFLICTING",
+        "PULMONARY_EDEMA": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 5,
+      "case": "BV-147"
+    },
+    {
+      "image": "00004822_018",
+      "label": "Fibrosis",
+      "target": "FIBROSIS",
+      "raised": {
+        "CONSOLIDATION": "CONFLICTING",
+        "ATELECTASIS": "UNCERTAIN",
+        "PULMONARY_EDEMA": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 5,
+      "case": "BV-148"
+    },
+    {
+      "image": "00007670_045",
+      "label": "Pleural_Thickening",
+      "target": "PLEURAL_THICKENING",
+      "raised": {
+        "SUPPORT_DEVICES": "SUPPORTED",
+        "PLEURAL_EFFUSION": "UNCERTAIN",
+        "PNEUMOTHORAX": "UNCERTAIN",
+        "CONSOLIDATION": "UNCERTAIN",
+        "ATELECTASIS": "UNCERTAIN",
+        "PLEURAL_THICKENING": "UNCERTAIN",
+        "CARDIOMEGALY": "UNCERTAIN"
+      },
+      "supported": [
+        "SUPPORT_DEVICES"
+      ],
+      "hit": true,
+      "also_seen": [
+        "Right lung opacity",
+        "Elevated right hemidiaphragm",
+        "Right upper lobe opacity",
+        "Right lower lobe opacity"
+      ],
+      "rejected": 9,
+      "case": "BV-149"
+    },
+    {
+      "image": "00000894_001",
+      "label": "Pleural_Thickening",
+      "target": "PLEURAL_THICKENING",
+      "raised": {},
+      "supported": [],
+      "hit": false,
+      "also_seen": [],
+      "rejected": 7,
+      "case": "BV-150"
+    }
+  ]
+}

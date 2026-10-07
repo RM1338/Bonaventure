@@ -4,36 +4,18 @@ Bonaventure is a clinician-facing chest X-ray evidence reconciliation assistant 
 
 This documentation set is organized to support implementation, evaluation, team coordination, and the final public repository.
 
-## Running the current application
+## Start here (as built)
 
-See the [repository README](../README.md) for current installation commands,
-[platform selection](../README.md#desktop-platforms),
-[shared model layout](../README.md#models-both-platforms),
-[macOS setup and background startup](../README.md#install-macos), and
-[launch commands](../README.md#run).
+* [`ARCHITECTURE.md`](ARCHITECTURE.md): the system as implemented, with component, data-pipeline, model and reconciliation diagrams
+* [`HOW_IT_WORKS.md`](HOW_IT_WORKS.md): a step-by-step walkthrough of one real case from input to report, plus likely judge questions
+* [`PS05_CHECKLIST.md`](PS05_CHECKLIST.md): every PS05 requirement and submission guideline, mapped to where it is met
+* [`sample_output/`](sample_output/): real outputs of demo cases A–E and a normal film (result JSON, PDF report, annotated film)
+* [`13_MODEL_RESOURCE_REGISTER.md`](13_MODEL_RESOURCE_REGISTER.md): every external model, dataset and library
 
-`./run.sh` selects the original Linux desktop (`bonaventure/linux_app.py` and
-`bonaventure/ui/island_linux.html`) on Linux, and the edited notch desktop
-(`bonaventure/macos_app.py` and `bonaventure/ui/island.html`) on macOS. Linux never
-imports the macOS desktop implementation or loads its launcher HTML.
-The notch panel, menu bar icon, Option + Command + B shortcut, hover activation,
-and app/login installer apply only to macOS. Linux keeps its original pill,
-Hyprland integration, and optional toggle-script shortcut/bar configuration.
+## Planning documents (written before implementation)
 
-The reading room, inference pipeline, reports, and model setup are shared.
-Put model assets directly under `models/`, not `models/Models/`, and run
-`.venv/bin/python scripts/check_setup.py` before real inference. Use
-`BV_MOCK=1 BV_START=expand ./run.sh` for a UI demo without model loading.
-The setup checker verifies dependencies and file presence; native GUI behavior
-and successful model inference require separate runtime checks on each platform.
-The original Linux runtime was tested on Arch/Omarchy with Hyprland; other
-distros and desktop environments are not confirmed by that result.
+These were written before the build. Where they differ from the code, `ARCHITECTURE.md` is authoritative.
 
-The numbered documents below contain product specifications and implementation
-plans. Use the repository README for the current executable file layout and
-platform-specific operating instructions.
-
-## Documentation Index
 
 1. `01_PRD.md` — Product Requirements Document
 2. `02_SRS.md` — Software Requirements Specification

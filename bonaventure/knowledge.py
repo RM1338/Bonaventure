@@ -16,7 +16,8 @@ HISTORY_CONCEPTS = {
     "malignancy": ("Malignancy", "Diagnosis", [r"\w*carcinoma", r"cancer", r"malignan\w*", r"metasta\w*", r"lymphoma"]),
     "renal_failure": ("Kidney disease", "Diagnosis", [r"chronic kidney disease", r"ckd", r"renal failure", r"esrd", r"dialysis"]),
     "trauma": ("Chest trauma", "Event", [r"chest trauma", r"rib fractures?", r"fell from", r"motor vehicle", r"road traffic accident", r"rta", r"blunt trauma"]),
-    "recent_surgery": ("Recent surgery", "Procedure", [r"post-?operative", r"thoracotomy", r"laparotomy", r"cabg", r"surgery", r"underwent .{0,40}?(?:repair|resection|ectomy)"]),
+    "recent_surgery": ("Recent surgery", "Procedure", [r"post-?operative", r"thoracotomy", r"laparotomy", r"cabg", r"surgery", r"operation",
+                                                        r"(?:hip|knee) replace(?:ment|d)", r"\w+ (?:was |were )?replaced", r"arthroplasty", r"underwent .{0,40}?(?:repair|resection|ectomy)"]),
     "procedure_line": ("Thoracic procedure / line", "Procedure", [r"central (?:venous )?(?:line|catheter)", r"thoracentesis", r"chest (?:tube|drain)", r"lung biopsy", r"pacemaker insertion"]),
     "diuretic": ("Diuretic therapy", "Medication", [r"furosemide", r"frusemide", r"lasix", r"torsemide", r"bumetanide", r"spironolactone"]),
     "immunosuppression": ("Immunosuppression", "Diagnosis", [r"hiv", r"chemotherapy", r"immunosuppress\w*", r"transplant"]),
@@ -28,7 +29,8 @@ HISTORY_CONCEPTS = {
     "hiatus_hernia": ("Hiatus hernia", "Diagnosis", [r"hiatal hernia", r"hiatus hernia"]),
     "aneurysm": ("Aortic aneurysm", "Diagnosis", [r"aortic aneurysm", r"\btaa\b", r"marfan"]),
     "vte": ("Venous thromboembolism", "Diagnosis", [r"deep vein thrombosis", r"\bdvt\b", r"pulmonary embol\w*", r"\bvte\b", r"thromboembol\w*"]),
-    "immobility": ("Recent immobility", "Risk factor", [r"immobili\w*", r"bed[- ]?bound", r"long[- ]haul flight", r"bed rest"]),
+    "immobility": ("Recent immobility / travel", "Risk factor", [r"immobili\w*", r"bed[- ]?bound", r"long[- ]haul flight", r"bed rest",
+                                                                  r"flight (?:back|home|from)", r"long (?:flight|drive|journey)", r"after (?:a |the )?flight"]),
     "anticoagulant": ("Anticoagulation", "Medication", [r"warfarin", r"apixaban", r"rivaroxaban", r"dabigatran", r"enoxaparin", r"heparin"]),
 }
 
@@ -40,8 +42,9 @@ SYMPTOM_CONCEPTS = {
     "weight_gain": ("Recent weight gain", [r"weight gain", r"gained weight"]),
     "productive_cough": ("Productive cough", [r"productive cough", r"sputum", r"phlegm"]),
     "cough": ("Cough", [r"cough(?:ing)?"]),
-    "fever": ("Fever", [r"fevers?", r"febrile", r"pyrexi\w*", r"chills", r"rigors"]),
-    "pleuritic_pain": ("Pleuritic chest pain", [r"pleuritic", r"pain (?:on|when) (?:deep )?breathing", r"sharp chest pain"]),
+    "fever": ("Fever", [r"fevers?", r"feverish", r"(?:high )?temperature", r"burning up", r"febrile", r"pyrexi\w*", r"chills", r"rigors"]),
+    "pleuritic_pain": ("Pleuritic chest pain", [r"pleuritic", r"pain (?:on|when) (?:deep )?breathing", r"sharp chest pain",
+                                                r"hurts (?:to |when (?:she|he|they|i) )(?:take a )?(?:deep )?breath(?:e|es|ing)?", r"painful (?:to )?breath\w*"]),
     "chest_pain": ("Chest pain", [r"chest pain", r"chest tightness"]),
     "sudden_onset": ("Sudden onset", [r"sudden(?:ly)?", r"abrupt(?:ly)?"]),
     "trauma": ("Chest trauma", [r"chest trauma", r"trauma", r"injury", r"fell", r"fall", r"accident"]),
@@ -49,7 +52,7 @@ SYMPTOM_CONCEPTS = {
     "fatigue": ("Fatigue", [r"fatigue", r"tiredness", r"tired"]),
     "weight_loss": ("Weight loss", [r"weight loss", r"lost weight", r"losing weight"]),
     "tachycardia": ("Fast heart rate", [r"tachycardi\w*", r"palpitations?", r"racing heart", r"heart (?:is )?racing", r"pounding heart", r"heart rate (?:of )?1[0-9]{2}"]),
-    "calf_swelling": ("Calf pain / swelling", [r"calf (?:pain|swelling|tenderness)", r"swollen calf", r"unilateral leg swelling"]),
+    "calf_swelling": ("Calf pain / swelling", [r"calf (?:pain|swelling|tenderness)", r"swollen (?:\w+ )?calf", r"calf (?:is |was |has been )?(?:swollen|tender|painful)", r"unilateral leg swelling"]),
     "syncope": ("Fainting", [r"syncope", r"faint(?:ed|ing)?", r"collapsed?"]),
     "tearing_pain": ("Tearing chest / back pain", [r"tearing (?:chest |back )?pain", r"ripping pain", r"pain radiating to the back"]),
     "heartburn": ("Heartburn / reflux", [r"heartburn", r"reflux", r"\bgerd\b", r"dyspepsia"]),
@@ -152,13 +155,60 @@ NOT_ASSESSABLE = {
         name="Pulmonary embolism",
         triggers=dict(history=["vte", "immobility", "recent_surgery", "malignancy"], symptoms=["suspected_pe", "pleuritic_pain", "tachycardia", "calf_swelling", "hemoptysis", "syncope", "sudden_onset"]),
         min_triggers=2, direct=["suspected_pe", "vte"],
+        specific=["calf_swelling", "recent_surgery", "immobility", "vte", "suspected_pe"],   # at least one PE-specific clue
         advice="A chest X-ray can neither confirm nor exclude pulmonary embolism — most PE films are normal or non-specific. "
                "Consider a validated pre-test score (Wells / PERC), D-dimer and CT pulmonary angiography."),
     "AORTIC_DISSECTION": dict(
         name="Aortic dissection",
         triggers=dict(history=["aneurysm", "hypertension"], symptoms=["tearing_pain", "syncope"]),
-        min_triggers=2, direct=["tearing_pain"],
+        min_triggers=2, direct=["tearing_pain"], specific=["tearing_pain", "aneurysm"],
         advice="A normal mediastinum on a chest X-ray does not exclude aortic dissection. CT aortography is the appropriate test."),
 }
+
+# The test that would settle a disputed finding (offered when a clinician challenges Bonaventure)
+RESOLVE = {
+    "PLEURAL_EFFUSION": "lateral decubitus film or bedside ultrasound", "CARDIOMEGALY": "echocardiogram",
+    "PULMONARY_EDEMA": "BNP and echocardiogram, or repeat film after diuresis", "CONSOLIDATION": "repeat film after treatment, CRP / sputum culture",
+    "PNEUMONIA": "CRP, sputum culture, repeat film after treatment", "ATELECTASIS": "repeat film after physiotherapy, or CT",
+    "PNEUMOTHORAX": "expiratory film, lung ultrasound or CT", "LUNG_NODULE": "CT chest", "LUNG_MASS": "contrast CT chest",
+    "EMPHYSEMA": "spirometry with gas transfer, or HRCT", "FIBROSIS": "HRCT chest and lung function tests",
+    "PLEURAL_THICKENING": "CT chest", "ENLARGED_MEDIASTINUM": "CT chest / CT aortography", "FRACTURE": "dedicated rib views or CT",
+    "HERNIA": "CT or barium swallow", "SUPPORT_DEVICES": "confirm tip position against the clinical record / a repeat film",
+}
+
+# Approximate anatomical zones on a standard frontal (PA) film, as [x0, y0, x1, y1] fractions of the image.
+# The patient's right is on the image's left. Used when no model outline is trustworthy, and for the report's lung diagram.
+ZONES = {
+    "R_UPPER": [0.14, 0.12, 0.47, 0.38], "R_MID": [0.12, 0.38, 0.47, 0.60], "R_LOWER": [0.10, 0.60, 0.47, 0.84],
+    "L_UPPER": [0.53, 0.12, 0.86, 0.38], "L_MID": [0.53, 0.38, 0.88, 0.60], "L_LOWER": [0.53, 0.60, 0.90, 0.84],
+    "R_CP": [0.07, 0.72, 0.30, 0.90], "L_CP": [0.70, 0.72, 0.93, 0.90],
+    "HEART": [0.38, 0.46, 0.74, 0.82], "MEDIASTINUM": [0.40, 0.10, 0.60, 0.50], "SUBDIAPHRAGM": [0.42, 0.78, 0.70, 0.95],
+}
+ZONE_NAMES = {"R_UPPER": "right upper zone", "R_MID": "right mid zone", "R_LOWER": "right lower zone", "L_UPPER": "left upper zone",
+              "L_MID": "left mid zone", "L_LOWER": "left lower zone", "R_CP": "right costophrenic angle", "L_CP": "left costophrenic angle",
+              "HEART": "cardiac silhouette", "MEDIASTINUM": "mediastinum", "SUBDIAPHRAGM": "retrocardiac / hiatus"}
+
+
+def region_zones(region):
+    """Free-text region ('right lower lobe', 'bilateral bases', 'cardiac silhouette') -> list of zone keys."""
+    import re
+    r = (region or "").lower()
+    if re.search(r"heart|cardiac|cardio", r):
+        return ["HEART"]
+    if re.search(r"mediastin|aort|\bhil", r):
+        return ["MEDIASTINUM"]
+    if re.search(r"hiat|retrocardiac|hernia|abdomen", r):
+        return ["SUBDIAPHRAGM"]
+    right, left = bool(re.search(r"\bright\b", r)), bool(re.search(r"\bleft\b", r))
+    if re.search(r"bilateral|both|diffuse|\blungs\b|lung fields|bibasal|bibasilar", r) or right == left:
+        sides = ["R", "L"]
+    else:
+        sides = ["R"] if right else ["L"]
+    if re.search(r"costophrenic|blunt", r):
+        return [f"{s}_CP" for s in sides]
+    levels = [lv for lv, rx in (("UPPER", r"upper|apex|apic"), ("MID", r"\bmid|middle|lingul|perihilar"), ("LOWER", r"lower|base|basal|basilar"))
+              if re.search(rx, r)] or ["UPPER", "MID", "LOWER"]
+    return [f"{s}_{lv}" for s in sides for lv in levels]
+
 
 STATES = ("SUPPORTED", "UNCERTAIN", "CONFLICTING", "INSUFFICIENT_EVIDENCE")

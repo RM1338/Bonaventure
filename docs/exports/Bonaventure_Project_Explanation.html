@@ -1,0 +1,700 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Bonaventure — Project Explanation and Judge Preparation</title><style>
+@page {
+  size: A4;
+  margin: 17mm 17mm 18mm;
+  @top-left { content: "BONAVENTURE"; font-family: "Liberation Sans"; font-size: 8pt; letter-spacing: 1.2pt; color: #60788b; }
+  @top-right { content: "Project explanation & judge preparation"; font-family: "Liberation Sans"; font-size: 8pt; color: #60788b; }
+  @bottom-left { content: "Complete response • 7 October 2026"; font-family: "Liberation Sans"; font-size: 8pt; color: #60788b; }
+  @bottom-right { content: counter(page) " / " counter(pages); font-family: "Liberation Sans"; font-size: 8pt; color: #60788b; }
+}
+body { font-family: "Liberation Sans", "Noto Sans", sans-serif; font-size: 10.4pt; line-height: 1.48; color: #203344; }
+h1 { font-size: 25pt; line-height: 1.12; color: #142d40; margin: 4mm 0 3mm; }
+.subtitle { color: #60788b; font-size: 10.5pt; margin: 0 0 7mm; padding-bottom: 5mm; border-bottom: 1pt solid #c5d5df; }
+h2 { font-size: 14.3pt; line-height: 1.25; color: #183e59; margin: 7mm 0 3mm; break-after: avoid; }
+p { margin: 0 0 3mm; orphans: 3; widows: 3; }
+a { color: #24597c; text-decoration: underline; overflow-wrap: anywhere; }
+strong { font-weight: 700; }
+ul, ol { margin: 1mm 0 4mm; padding-left: 6mm; }
+li { padding-left: 0.5mm; margin-bottom: 1mm; }
+blockquote { margin: 4mm 0; padding: 3mm 4mm; border-left: 2.4pt solid #6c98b5; background: #f1f6f9; break-inside: avoid; }
+blockquote p { margin: 0; }
+table { width: 100%; border-collapse: collapse; margin: 3mm 0 5mm; font-size: 9.4pt; line-height: 1.38; table-layout: fixed; }
+thead { display: table-header-group; }
+th { background: #e5eef4; font-weight: 700; color: #183e59; text-align: left; }
+td, th { padding: 2.4mm 2.8mm; border: 0.5pt solid #c6d4de; vertical-align: top; overflow-wrap: anywhere; }
+tbody tr:nth-child(even) { background: #f7f9fb; }
+tr { break-inside: avoid; }
+pre { font-family: "Liberation Mono", "Noto Sans", monospace; font-size: 9.1pt; line-height: 1.48; background: #f2f5f7; border: 0.5pt solid #d4dee5; padding: 3.5mm; margin: 3mm 0 4mm; white-space: pre-wrap; overflow-wrap: anywhere; break-inside: avoid; }
+code { font-family: "Liberation Mono", "Noto Sans", monospace; font-size: 0.91em; }
+.workflow { margin: 3mm 0 5mm; break-inside: avoid; }
+.workflow svg { width: 100%; height: auto; }
+</style></head><body><h1>Bonaventure</h1><p class="subtitle">Project explanation and judge preparation · Complete response</p><p><strong>Bonaventure takes a chest X-ray, the patient’s history, and their current symptoms, then checks whether those sources agree about possible findings.</strong> Its main output is an evidence review that a clinician can inspect—not an automatic final diagnosis.</p>
+<p>I read the implementation and saved results, and created a detailed <a href="file:///home/ronel/Work/Bonaventure/docs/JUDGE_STUDY_GUIDE.md">judge preparation guide</a>. It contains the full walkthrough, scoring equations, all 16 findings, limitations, a code map, and more than 40 judge questions with answers.</p>
+<p>Here is the explanation to learn first. One version detail matters: the current code includes <strong>image-confidence percentages and heatmaps</strong>, while the saved demo results and audit predate those additions.</p>
+<h2>1. Understand the problem your project solves.</h2>
+<p>Imagine a clinician has three pieces of information:</p>
+<ul>
+<li>An X-ray that looks abnormal.</li>
+<li>Previous records saying the patient has heart failure.</li>
+<li>Current symptoms such as breathlessness and ankle swelling.</li>
+</ul>
+<p>An image model can say, “This looks like pulmonary edema.” But the useful next questions are:</p>
+<ul>
+<li>Does another reader see it?</li>
+<li>What image evidence supports it?</li>
+<li>Does the patient’s history support it?</li>
+<li>Are their symptoms compatible?</li>
+<li>Is anything contradicting it?</li>
+<li>Is the image good enough?</li>
+<li>Where should the clinician look?</li>
+</ul>
+<p><strong>Bonaventure organizes those checks and shows their evidence.</strong></p>
+<p>You can introduce it to judges like this:</p>
+<blockquote>
+<p>“Bonaventure is a local chest-X-ray evidence assistant. It combines image-model predictions with patient records and current symptoms, identifies agreement and disagreement, shows the sources behind its conclusions, and produces a report for clinician review.”</p>
+</blockquote>
+<h2>2. Follow the complete input-to-output journey.</h2>
+<figure class="workflow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 922" role="img" aria-label="Complete input-to-output workflow"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#648098"/></marker></defs><polyline points="145.0,70 145.0,105" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="450.0,70 450.0,105" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="755.0,70 755.0,105" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="145.0,173 145,204 110,204 110.0,240" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="145.0,173 145,204 335,204 335.0,240" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="145.0,173 145,204 560,204 560.0,240" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="450.0,173 450,189 785,189 785.0,240" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="560.0,308 560.0,338" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="110.0,308 110,423 350,423 450.0,445" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="335.0,308 335,413 420,413 450.0,445" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="662,274.0 674,274 674,434 540,434 450.0,445" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="560.0,396 560,423 490,423 450.0,445" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="785.0,308 785,479 618,479.0" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="888,139.0 919,139 919,479 618,479.0" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="450.0,513 450.0,547" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="450.0,615 450.0,649" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="450.0,717 450.0,751" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><polyline points="450.0,809 450.0,843" fill="none" stroke="#648098" stroke-width="2.2" marker-end="url(#arrow)"/><rect x="12" y="12" width="266" height="58" rx="8" fill="#dfeaf2" stroke="#b8c9d6" stroke-width="1.4"/><text x="145.0" y="47.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Chest X-ray</text><rect x="317" y="12" width="266" height="58" rx="8" fill="#dfeaf2" stroke="#b8c9d6" stroke-width="1.4"/><text x="450.0" y="47.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Patient history documents</text><rect x="622" y="12" width="266" height="58" rx="8" fill="#dfeaf2" stroke="#b8c9d6" stroke-width="1.4"/><text x="755.0" y="47.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Typed or spoken symptoms</text><rect x="12" y="105" width="266" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="145.0" y="134.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Load image and</text><text x="145.0" y="156.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">check quality</text><rect x="317" y="105" width="266" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="450.0" y="134.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Extract facts, dates</text><text x="450.0" y="156.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">and source quotes</text><rect x="622" y="105" width="266" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="755.0" y="134.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Understand</text><text x="755.0" y="156.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">clinical concepts</text><rect x="8" y="240" width="204" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="110.0" y="269.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">CLEAR and</text><text x="110.0" y="291.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">CheXzero scores</text><rect x="233" y="240" width="204" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="335.0" y="269.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">CLEAR phrase</text><text x="335.0" y="291.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">retrieval</text><rect x="458" y="240" width="204" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="560.0" y="269.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">MedGemma observations</text><text x="560.0" y="291.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">and boxes</text><rect x="683" y="240" width="204" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="785.0" y="269.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Patient</text><text x="785.0" y="291.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">identity check</text><rect x="458" y="338" width="204" height="58" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="560.0" y="373.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">MedSAM outlines</text><rect x="282" y="445" width="336" height="68" rx="8" fill="#e9f1f7" stroke="#b8c9d6" stroke-width="1.4"/><text x="450.0" y="474.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Evidence reconciliation</text><text x="450.0" y="496.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">rules</text><rect x="282" y="547" width="336" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="450.0" y="576.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Findings, states and</text><text x="450.0" y="598.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">evidence strength</text><rect x="282" y="649" width="336" height="68" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="450.0" y="678.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Image confidence and</text><text x="450.0" y="700.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">optional heatmaps</text><rect x="282" y="751" width="336" height="58" rx="8" fill="#f5f8fa" stroke="#b8c9d6" stroke-width="1.4"/><text x="450.0" y="786.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Clinician review</text><rect x="282" y="843" width="336" height="58" rx="8" fill="#dfeaf2" stroke="#b8c9d6" stroke-width="1.4"/><text x="450.0" y="878.0" text-anchor="middle" font-family="Liberation Sans, sans-serif" font-size="17" fill="#203344">Saved case and PDF report</text></svg></figure><p>The user attaches a scan, optionally adds history documents, and types or dictates the current presentation. The application creates a case such as <code>BV-108</code>, copies the inputs into its case folder, and runs analysis in a background thread.</p>
+<p>The main pipeline is in <a href="file:///home/ronel/Work/Bonaventure/bonaventure/pipeline.py">pipeline.py</a>.</p>
+<h2>3. The first check is whether the image can be assessed.</h2>
+<p>For ordinary images, the application applies orientation information and converts the image to grayscale.</p>
+<p>For DICOM, it extracts pixel data, handles inverted grayscale when necessary, maps the image into an 8-bit intensity range, and reads available patient identifiers.</p>
+<p>It then checks image quality using rules:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>What it measures</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resolution</td>
+<td>Whether enough pixels exist to inspect details</td>
+</tr>
+<tr>
+<td>Brightness</td>
+<td>Possible underexposure or overexposure</td>
+</tr>
+<tr>
+<td>Contrast</td>
+<td>Whether structures are distinguishable</td>
+</tr>
+<tr>
+<td>Sharpness</td>
+<td>Possible blur or heavy compression</td>
+</tr>
+<tr>
+<td>Colour content</td>
+<td>Whether the input might be a non-radiograph</td>
+</tr>
+</tbody>
+</table>
+<p>The output is <strong>acceptable</strong>, <strong>limited</strong>, or <strong>poor</strong>.</p>
+<p>This is a heuristic quality check, not another AI model. Poor quality forces surviving candidate findings to <strong>INSUFFICIENT_EVIDENCE</strong>. Limited quality reduces evidence strength.</p>
+<p>A judge may ask whether this proves the input is a valid chest X-ray. The answer is <strong>no</strong>: it does not comprehensively recognize anatomy, positioning, inspiration, rotation, or the correct view.</p>
+<h2>4. Learn what every model actually does.</h2>
+<p>There are four main imaging models, with additional models supporting speech and text understanding.</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Job in Bonaventure</th>
+<th>What it produces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CLEAR</strong></td>
+<td>Primary image–text reader</td>
+<td>A score for each catalogue finding</td>
+</tr>
+<tr>
+<td><strong>CheXzero</strong></td>
+<td>Separately trained image reader</td>
+<td>Another score for each finding</td>
+</tr>
+<tr>
+<td><strong>CLEAR concept bank</strong></td>
+<td>Retrieves radiology phrases resembling the film</td>
+<td>Supporting/opposing phrases and ranks</td>
+</tr>
+<tr>
+<td><strong>MedGemma 1.5 4B-it</strong></td>
+<td>Describes observations, estimates locations, rewrites symptoms, provides a second look</td>
+<td>Text, visibility decisions, regions and boxes</td>
+</tr>
+<tr>
+<td><strong>MedSAM</strong></td>
+<td>Refines boxes into segmented regions</td>
+<td>Mask-derived outlines</td>
+</tr>
+<tr>
+<td><strong>Whisper base.en</strong></td>
+<td>Transcribes speech while recording</td>
+<td>Live captions</td>
+</tr>
+<tr>
+<td><strong>Whisper small.en</strong></td>
+<td>Transcribes the completed recording</td>
+<td>Final presentation text</td>
+</tr>
+<tr>
+<td><strong>MiniLM</strong></td>
+<td>Matches otherwise unrecognized phrases to clinical concepts</td>
+<td>A meaning match or no match</td>
+</tr>
+</tbody>
+</table>
+<p>Here is how to explain each one.</p>
+<p><strong>CLEAR converts the image and finding descriptions into comparable numerical representations.</strong> These representations are called embeddings.</p>
+<p>For cardiomegaly, it compares the film against:</p>
+<pre><code class="language-text">“cardiomegaly”
+“no cardiomegaly”
+</code></pre>
+<p>If the image embedding resembles the positive phrase more strongly, the model produces a higher score.</p>
+<p>Its image backbone is DINOv2 ViT-B/14. Bonaventure uses CLEAR’s image/text backbone and direct concept retrieval; it does not implement every part of the original CLEAR research framework. <a href="https://github.com/peterhan91/CLEAR">CLEAR source</a></p>
+<p><strong>CheXzero performs a similar comparison using different pretrained weights.</strong> It uses a CLIP ViT-B/32 checkpoint and provides another reading of the film.</p>
+<p>Its purpose is to reveal agreement or disagreement with CLEAR. However, separately trained models can still make correlated mistakes. Agreement improves the evidence available; it does not guarantee truth. <a href="https://github.com/rajpurkarlab/CheXzero">CheXzero source</a></p>
+<p><strong>The CLEAR concept bank asks, “Which radiology phrases most resemble this film?”</strong> It contains <strong>368,294 report-derived phrases</strong>.</p>
+<p>Examples include:</p>
+<pre><code class="language-text">“chronic recurrent pulmonary edema”
+“no pleural effusion”
+</code></pre>
+<p>The system ranks these phrases by similarity to the image embedding and identifies phrases relevant to each finding.</p>
+<p>A crucial distinction: these are <strong>reference phrases associated with the image</strong>, not statements from the current patient’s records. The concept bank also reuses CLEAR’s embedding, so it is not an independent additional imaging model.</p>
+<p><strong>MedGemma is the generative reasoning model.</strong> It performs five tasks:</p>
+<ol>
+<li>Surveys the film for abnormalities, including observations outside the catalogue.</li>
+<li>Describes candidate findings and whether it sees them.</li>
+<li>Estimates bounding boxes.</li>
+<li>Rewrites everyday presentation wording into clinical wording.</li>
+<li>Looks again when a clinician challenges a finding.</li>
+</ol>
+<p>For example:</p>
+<pre><code class="language-text">“sleeps propped up on pillows”
+             ↓
+“orthopnea, cannot lie flat”
+</code></pre>
+<p>Its observations can influence reconciliation, but they are checked against other evidence. In the normal full-model path, open-ended survey claims require CLEAR agreement of at least <strong>0.85</strong> before being marked verified.</p>
+<p>That cutoff is an authored safeguard, not a guarantee that every accepted observation is correct. <a href="https://huggingface.co/google/medgemma-1.5-4b-it">MedGemma model card</a></p>
+<p><strong>MedSAM answers a different question: “What region should be outlined inside this box?”</strong></p>
+<p>It receives MedGemma’s box and predicts a segmentation mask. The application converts an accepted mask into an outline.</p>
+<p>Remember this distinction:</p>
+<blockquote>
+<p>“MedGemma proposes a location. MedSAM refines the location. Neither a box nor a good-looking outline proves the diagnosis.”</p>
+</blockquote>
+<p>MedSAM does not calculate disease probability, cancer stage, lesion volume, or severity here. <a href="https://github.com/bowang-lab/MedSAM">MedSAM source</a></p>
+<p><strong>Whisper handles speech recognition.</strong> <code>base.en</code> produces live captions; <code>small.en</code> produces the final transcript. They do not diagnose or score images. <a href="https://github.com/openai/whisper">Whisper source</a></p>
+<p><strong>MiniLM provides optional meaning matching.</strong> If rules and the clinical rewrite do not recognize a phrase, it compares that phrase with the project’s clinical concept descriptions.</p>
+<p>It accepts a match only when:</p>
+<pre><code class="language-text">best similarity ≥ 0.40
+best similarity − second-best similarity ≥ 0.08
+</code></pre>
+<p>These are text-similarity thresholds, not disease probabilities. <a href="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2">MiniLM model card</a></p>
+<h2>5. Understand exactly how the images are scored.</h2>
+<p>You must distinguish these outputs:</p>
+<table>
+<thead>
+<tr>
+<th>Output</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Raw model score</td>
+<td>How strongly positive wording beats negative wording</td>
+</tr>
+<tr>
+<td>Weak/moderate/strong level</td>
+<td>Which calibrated cutoffs the raw score passes</td>
+</tr>
+<tr>
+<td>Concept rank</td>
+<td>How close a supporting phrase is to the top of the phrase bank</td>
+</tr>
+<tr>
+<td>Image-confidence percentage</td>
+<td>A fitted probability estimate based on image scores</td>
+</tr>
+<tr>
+<td>Evidence state</td>
+<td>Whether the collected sources support, conflict, remain uncertain, or are insufficient</td>
+</tr>
+<tr>
+<td>Evidence strength</td>
+<td>A rule-based summary of agreement and context</td>
+</tr>
+</tbody>
+</table>
+<p>They are related, but they are not interchangeable.</p>
+<p><strong>The raw score comes from image–text similarity.</strong></p>
+<p>The code effectively calculates:</p>
+<pre><code class="language-text">score = sigmoid(
+    scale × (
+        similarity(image, positive phrase)
+        − similarity(image, negative phrase)
+    )
+)
+</code></pre>
+<p>The sigmoid converts the result to a number between zero and one.</p>
+<p>A raw score of <code>0.95</code> means the positive phrase is strongly preferred over the negative phrase by that model. <strong>It does not automatically mean a 95% chance of disease.</strong></p>
+<p>Each finding is scored separately. Scores do not sum to one across diseases, so several findings can have high values.</p>
+<p><strong>The score becomes a signal level using finding-specific thresholds.</strong></p>
+<p>For cardiomegaly, the saved thresholds are:</p>
+<table>
+<thead>
+<tr>
+<th>Reader</th>
+<th style="text-align:right">Weak</th>
+<th style="text-align:right">Moderate</th>
+<th style="text-align:right">Strong</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLEAR</td>
+<td style="text-align:right">0.5076</td>
+<td style="text-align:right">0.5472</td>
+<td style="text-align:right">0.7291</td>
+</tr>
+<tr>
+<td>CheXzero</td>
+<td style="text-align:right">0.1943</td>
+<td style="text-align:right">0.1943</td>
+<td style="text-align:right">0.7168</td>
+</tr>
+</tbody>
+</table>
+<p>Therefore, CLEAR cardiomegaly score <code>0.9575</code> is strong because it exceeds <code>0.7291</code>.</p>
+<p>A universal cutoff such as <code>0.5</code> would be inappropriate because models and findings have different score distributions.</p>
+<p><strong>Those thresholds were selected using labelled images.</strong></p>
+<p>The calibration script builds ROC curves and chooses operating points targeting:</p>
+<ul>
+<li><strong>Weak:</strong> at least 90% sensitivity.</li>
+<li><strong>Moderate:</strong> the best sensitivity/specificity tradeoff using Youden’s J.</li>
+<li><strong>Strong:</strong> at least 90% specificity.</li>
+</ul>
+<p>Sensitivity means catching labelled positive cases. Specificity means correctly excluding labelled negative cases.</p>
+<p>The script sorts the selected numerical cutoffs before storing them. Those targets describe the calibration sample; they do not guarantee the same performance in another population.</p>
+<p>The data includes <strong>202 frontal CheXpert validation films</strong> and a <strong>676-film sampled NIH subset</strong> for additional findings.</p>
+<p>A reader normally gets a vote for a finding only if its recorded <strong>AUROC is at least 0.70</strong>. Pneumothorax has only seven positive CheXpert examples, so its raw-score cutoffs use manually chosen fallback values.</p>
+<p>See <a href="file:///home/ronel/Work/Bonaventure/scripts/calibrate.py">calibrate.py</a>.</p>
+<p><strong>The concept bank provides another specificity check.</strong></p>
+<p>Suppose a model gives pleural effusion a high raw score, but the best supporting effusion phrase is ranked very low.</p>
+<p>That means:</p>
+<blockquote>
+<p>“The positive prompt score is high, but the broader phrase retrieval does not strongly back that interpretation.”</p>
+</blockquote>
+<p>Where concept retrieval has adequate recorded performance, this can reject the candidate or downgrade it to uncertain. Cutoffs vary by finding; “top 300” is a common gate, not the universal rule for every finding.</p>
+<h2>6. The new percentage display uses Platt scaling.</h2>
+<p>The current code adds a fitted transformation:</p>
+<pre><code class="language-text">logit(score) = ln(score / (1 − score))
+
+image probability estimate =
+    sigmoid(a × logit(score) + b)
+</code></pre>
+<p>The coefficients <code>a</code> and <code>b</code> are fitted using logistic regression on labelled films.</p>
+<p>The application displays each voting reader’s estimate as a percentage, then averages the available reader percentages for overall image confidence.</p>
+<p>For example, applying the current coefficients to the older Case A scores gives:</p>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th style="text-align:right">CLEAR estimate</th>
+<th style="text-align:right">CheXzero estimate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cardiomegaly</td>
+<td style="text-align:right">94%</td>
+<td style="text-align:right">87%</td>
+</tr>
+<tr>
+<td>Pulmonary edema</td>
+<td style="text-align:right">79%</td>
+<td style="text-align:right">97%</td>
+</tr>
+<tr>
+<td>Consolidation</td>
+<td style="text-align:right">28%</td>
+<td style="text-align:right">34%</td>
+</tr>
+</tbody>
+</table>
+<p>These are arithmetic examples using saved scores—not newly generated case outputs.</p>
+<p>Notice that consolidation has a high raw score but a much lower fitted estimate. This demonstrates why raw prompt scores should not be interpreted directly as probabilities.</p>
+<p>Your explanation should be:</p>
+<blockquote>
+<p>“Image confidence estimates finding presence from image scores under the calibration data distribution. Patient history and symptoms affect the evidence state separately.”</p>
+</blockquote>
+<p>A percentage can therefore coexist with <strong>CONFLICTING</strong>.</p>
+<p>Also, fitting calibration does not establish that the estimates are reliable in a hospital population. The project has not demonstrated independent probability-calibration validation, and averaging calibrated readers does not automatically yield a calibrated ensemble. <a href="https://scikit-learn.org/stable/modules/calibration.html">Probability calibration documentation</a></p>
+<h2>7. Patient history and symptoms enter through explicit clinical mappings.</h2>
+<p>History PDFs are processed using text extraction, followed by rules for clinical concepts, negation, and dates.</p>
+<p>An extracted fact retains:</p>
+<pre><code class="language-text">Clinical concept
+Present or negated
+Date
+Document name
+Document type
+Page
+Source quote
+</code></pre>
+<p>For example:</p>
+<pre><code class="language-text">“No pleural effusion.”
+</code></pre>
+<p>becomes negative evidence rather than positive evidence.</p>
+<p>Scanned PDFs without a text layer are not supported through OCR.</p>
+<p>The presentation follows a layered process: original-text rules, MedGemma clinical rewriting, rules on the rewrite, and optional MiniLM fallback. Original-rule readings take precedence when a rewrite contradicts them, and disagreements are flagged.</p>
+<p>The relationship between a concept and a finding is authored in <a href="file:///home/ronel/Work/Bonaventure/bonaventure/knowledge.py">knowledge.py</a>.</p>
+<p>For example:</p>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Examples of related context</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cardiomegaly</td>
+<td>Previous cardiomegaly, heart failure, cardiomyopathy, breathlessness, orthopnea</td>
+</tr>
+<tr>
+<td>Pulmonary edema</td>
+<td>Heart failure, kidney disease, diuretic therapy, night-time breathlessness, ankle swelling</td>
+</tr>
+<tr>
+<td>Consolidation</td>
+<td>Pneumonia history, fever, cough, productive cough, breathlessness</td>
+</tr>
+<tr>
+<td>Atelectasis</td>
+<td>Previous atelectasis, recent surgery, breathlessness</td>
+</tr>
+</tbody>
+</table>
+<p>These are simplified relevance rules. They are not learned causal relationships or a complete clinical reasoning system.</p>
+<h2>8. The reconciliation engine decides the final state.</h2>
+<p>It first determines which image readers are eligible to vote.</p>
+<p>With two eligible readers, a finding can become a candidate when:</p>
+<pre><code class="language-text">at least one reader is moderate
+OR
+both readers are at least weak
+</code></pre>
+<p>With only one eligible reader, it generally needs a strong signal.</p>
+<p>The engine then examines image agreement, MedGemma visibility, concept evidence, supporting context, opposing context, and quality.</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Typical result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Poor image quality</td>
+<td>INSUFFICIENT_EVIDENCE</td>
+</tr>
+<tr>
+<td>Image readers disagree</td>
+<td>CONFLICTING, or UNCERTAIN if MedGemma supports one side</td>
+</tr>
+<tr>
+<td>Image agreement plus enough compatible context</td>
+<td>SUPPORTED</td>
+</tr>
+<tr>
+<td>Image agreement without sufficient context</td>
+<td>UNCERTAIN</td>
+</tr>
+<tr>
+<td>Image evidence contradicts relevant history or designated denied symptoms</td>
+<td>CONFLICTING</td>
+</tr>
+<tr>
+<td>Weak image evidence without support</td>
+<td>INSUFFICIENT_EVIDENCE</td>
+</tr>
+</tbody>
+</table>
+<p>Lines and devices have a context exception because they are hardware; the newer rules additionally require MedGemma or verified-survey visibility for that exception.</p>
+<p>The newer code also rejects some uncertain image-only claims when no clinical context was supplied and MedGemma did not confirm them.</p>
+<p><strong>SUPPORTED does not require every model to agree.</strong> MedSAM is not a diagnostic voter, and some findings have only one eligible raw reader.</p>
+<h2>9. Evidence strength has its own equation.</h2>
+<p>The rule is:</p>
+<pre><code class="language-text">E = image agreement points
+    + 0.5 × min(supporting context count, 3)
+    − 0.5 × opposing context count
+    − image-quality penalty
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Image agreement</th>
+<th style="text-align:right">Points</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Concordant, both reader levels strong</td>
+<td style="text-align:right">3.0</td>
+</tr>
+<tr>
+<td>Other concordant agreement</td>
+<td style="text-align:right">2.5</td>
+</tr>
+<tr>
+<td>Partial</td>
+<td style="text-align:right">1.5</td>
+</tr>
+<tr>
+<td>Discordant</td>
+<td style="text-align:right">1.0</td>
+</tr>
+<tr>
+<td>Weak</td>
+<td style="text-align:right">0.5</td>
+</tr>
+</tbody>
+</table>
+<p>Limited quality subtracts <code>0.5</code>.</p>
+<p>The resulting label is:</p>
+<ul>
+<li><strong>High:</strong> <code>E ≥ 3</code>, state is SUPPORTED, and supporting context exists.</li>
+<li><strong>Moderate:</strong> <code>E ≥ 2</code>, unless the state is insufficient.</li>
+<li><strong>Low:</strong> otherwise.</li>
+</ul>
+<p>Supporting history counts distinct concepts, so repeating the same diagnosis in several documents does not repeatedly add that diagnosis’s support points.</p>
+<p><strong>These constants are design choices. Evidence strength is not a probability or validated clinical score.</strong></p>
+<p>The rules are in <a href="file:///home/ronel/Work/Bonaventure/bonaventure/reconcile.py">reconcile.py</a>.</p>
+<h2>10. Work through the actual heart-failure example.</h2>
+<p>The saved Case A includes a heart-failure film, supporting fictional history, and:</p>
+<blockquote>
+<p>“Worsening shortness of breath for 3 days, can't lie flat, waking up breathless at night, ankle swelling. No fever, no cough.”</p>
+</blockquote>
+<p>For <strong>cardiomegaly</strong>:</p>
+<pre><code class="language-text">CLEAR:       0.9575 → strong
+CheXzero:    0.9791 → strong
+Support:    8
+Against:    0
+
+E = 3 + 0.5 × min(8, 3) = 4.5
+</code></pre>
+<p>Result: <strong>SUPPORTED · HIGH</strong>.</p>
+<p>For <strong>pulmonary edema</strong>:</p>
+<pre><code class="language-text">CLEAR:       0.9964 → strong
+CheXzero:    0.9871 → strong
+Support:    9
+Against:    0
+Best relevant concept rank: 3
+</code></pre>
+<p>Result: <strong>SUPPORTED · HIGH</strong>.</p>
+<p>For <strong>consolidation</strong>:</p>
+<pre><code class="language-text">CLEAR:       moderate
+CheXzero:    strong
+Support:    1
+Against:    2 — fever and cough denied
+
+E = 2.5 + 0.5 − 1 = 2.0
+</code></pre>
+<p>Result: <strong>CONFLICTING · MODERATE</strong>.</p>
+<p>That is the project’s central mechanism:</p>
+<blockquote>
+<p>“Two image readers can suggest a finding, while the final output still flags conflict because the patient evidence disagrees.”</p>
+</blockquote>
+<p>Clinically, absence of fever or cough does not exclude consolidation. The prototype’s rule flags tension; a clinician must interpret it.</p>
+<p>The saved example is <a href="file:///home/ronel/Work/Bonaventure/docs/sample_output/case_A_result.json">case_A_result.json</a>.</p>
+<h2>11. Understand outlines and heatmaps separately.</h2>
+<p>An <strong>outline</strong> identifies a proposed region:</p>
+<pre><code class="language-text">MedGemma box → consistency checks → MedSAM contour
+</code></pre>
+<p>The code rejects boxes that contradict their stated side or region and rejects implausibly small or large masks. When a trustworthy box is unavailable, it can show an explicitly approximate anatomical zone.</p>
+<p>A <strong>heatmap</strong> shows model sensitivity:</p>
+<pre><code class="language-text">Divide film into 8 × 8 cells.
+Hide one cell.
+Measure how much the reader’s signal falls.
+Repeat for all 64 cells.
+</code></pre>
+<p>Bright cells mean hiding that region reduced the reader’s positive-versus-negative <strong>logit</strong> more strongly.</p>
+<p>It uses CheXzero when available, otherwise the primary reader, and can cover up to six displayed findings.</p>
+<p>The heatmap does not establish an exact disease boundary or change the evidence state. It can also reveal dependence on irrelevant image features.</p>
+<h2>12. Know everything else the application produces.</h2>
+<p>Beyond individual findings, Bonaventure provides:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>What actually happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Patient identity warning</td>
+<td>Extracted names/IDs are compared; mismatched document history is discarded</td>
+</tr>
+<tr>
+<td>Relevant timeline</td>
+<td>Extracted, dated history facts are displayed with sources</td>
+</tr>
+<tr>
+<td>Since last report</td>
+<td>Current findings are compared with prior <strong>report text</strong>, not a prior image</td>
+</tr>
+<tr>
+<td>NEW / KNOWN / NOT SEEN NOW</td>
+<td>Describes the relationship to extracted prior-report facts</td>
+</tr>
+<tr>
+<td>Not-assessable advisories</td>
+<td>Context rules can raise separate advisories for pulmonary embolism or aortic dissection</td>
+</tr>
+<tr>
+<td>Also seen</td>
+<td>Survey observations outside the reconciled findings can be displayed</td>
+</tr>
+<tr>
+<td>Checked and rejected</td>
+<td>Dropped claims are listed with reasons</td>
+</tr>
+<tr>
+<td>Clinician challenge</td>
+<td>Evidence for/against the clinician’s interpretation and an optional MedGemma second look</td>
+</tr>
+<tr>
+<td>Recorded clinician verdict</td>
+<td>Stored alongside the original output</td>
+</tr>
+<tr>
+<td>PDF report</td>
+<td>Annotated film, lung diagram, evidence, sources, review and limitations</td>
+</tr>
+</tbody>
+</table>
+<p>Three particularly important answers:</p>
+<blockquote>
+<p>“NOT SEEN NOW means the pipeline did not raise it today; it does not prove resolution.”</p>
+</blockquote>
+<blockquote>
+<p>“The pulmonary-embolism advisory is triggered by context. It is not a pulmonary-embolism prediction from the X-ray.”</p>
+</blockquote>
+<blockquote>
+<p>“Clinician feedback is stored. It does not automatically retrain the models.”</p>
+</blockquote>
+<p>The advisory text mentions follow-up assessments, but the application does not implement a Wells/PERC calculator or a personalized treatment engine.</p>
+<h2>13. Be precise about scope and accuracy.</h2>
+<p>The catalogue contains 16 findings:</p>
+<p>Pleural effusion, cardiomegaly, pneumothorax, consolidation, pulmonary edema, atelectasis, pneumonia, lung nodule, lung mass, emphysema, fibrosis, pleural thickening, widened mediastinum, rib fracture, hiatus hernia, and lines/devices.</p>
+<p><strong>A catalogue entry does not mean reliable detection.</strong></p>
+<p>The current calibration permits:</p>
+<ul>
+<li>Both raw readers for several core findings.</li>
+<li>CLEAR alone for pneumonia.</li>
+<li>CheXzero alone for pleural thickening and hernia.</li>
+<li>Concept-based paths for emphysema and fibrosis, requiring MedGemma and positive history.</li>
+<li>No reliable catalogue voter for nodules, masses, or rib fracture; some may appear through survey observations.</li>
+</ul>
+<p>The saved pulmonary-edema average-score AUROC is <strong>0.935</strong>. Do not call this “93.5% accurate application.”</p>
+<p>AUROC measures how well scores rank labelled positives above negatives across thresholds. It does not measure complete report correctness.</p>
+<p>The older saved full-pipeline audit gives:</p>
+<table>
+<thead>
+<tr>
+<th>Measure</th>
+<th style="text-align:right">Saved result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Normal-labelled films</td>
+<td style="text-align:right">12</td>
+</tr>
+<tr>
+<td>Normal-labelled films with any raised finding</td>
+<td style="text-align:right">9</td>
+</tr>
+<tr>
+<td>Disease-labelled films</td>
+<td style="text-align:right">24</td>
+</tr>
+<tr>
+<td>Target disease raised</td>
+<td style="text-align:right">10</td>
+</tr>
+<tr>
+<td>Rejected claims</td>
+<td style="text-align:right">193</td>
+</tr>
+</tbody>
+</table>
+<p>These results expose substantial misses and extra candidates. They also predate the newer filtering rules, so they are not a fresh benchmark of today’s code.</p>
+<p>NIH labels are imperfect and do not establish that every extra observation is false. Nevertheless, the audit does not support a clinical-readiness claim. Rejecting 193 claims does not prove that every rejection was correct.</p>
+<p>Your accuracy answer should be:</p>
+<blockquote>
+<p>“We evaluate individual readers with per-finding AUROC and separately inspect the full pipeline. Some reader results are promising, but the saved audit shows misses and extra findings. We therefore claim an evidence-review prototype, not validated clinical diagnostic accuracy.”</p>
+</blockquote>
+<p>See <a href="file:///home/ronel/Work/Bonaventure/bonaventure/audit.json">audit.json</a>.</p>
+<h2>14. Explain what your team built and what it reused.</h2>
+<p>The foundation models and their weights are external pretrained components.</p>
+<p>Your project’s contribution is the workflow, model integration, context parsing, provenance, threshold evaluation, concept filtering, reconciliation rules, identity handling, interval comparison, clinician interaction, rejection logging, UI, and report generation.</p>
+<p>You did not train these foundation models. <strong>The current code does fit small logistic calibration models for image-confidence estimates.</strong> That distinction matters.</p>
+<p>The application uses Python with HTML/CSS/JavaScript inside a desktop webview. In the default Linux arrangement, CLEAR and CheXzero run on CPU, while MedGemma and MedSAM use CUDA. MedGemma uses 4-bit quantization to reduce GPU memory.</p>
+<p>Inference runs locally after model setup. Inputs and outputs are saved on disk; offline operation alone does not establish comprehensive privacy compliance.</p>
+<p>If no image reader loads, the engine can automatically switch to synthetic mock output. Check engine status before demonstrating real-model results.</p>
+<h2>15. Practise these judge answers until you can explain the reasoning.</h2>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Why multiple models?</td>
+<td>To expose agreement and disagreement and inspect claims through different mechanisms; their errors can still correlate.</td>
+</tr>
+<tr>
+<td>Why use patient history?</td>
+<td>Because image appearance alone does not provide the full patient context.</td>
+</tr>
+<tr>
+<td>Is this RAG?</td>
+<td>It retrieves radiology phrases, but the project is better described as image–text retrieval plus rule-based evidence fusion. History extraction is rule-based.</td>
+</tr>
+<tr>
+<td>Does MedSAM confirm disease?</td>
+<td>No. It segments a prompted region.</td>
+</tr>
+<tr>
+<td>Is the percentage final diagnostic certainty?</td>
+<td>No. It is an image-only fitted estimate; context affects the state separately.</td>
+</tr>
+<tr>
+<td>Can it predict future disease?</td>
+<td>No. It assesses candidate current-film findings and evidence states.</td>
+</tr>
+<tr>
+<td>Can it process CT/MRI?</td>
+<td>The implemented application is scoped to frontal chest X-rays.</td>
+</tr>
+<tr>
+<td>Does a doctor’s correction improve the model automatically?</td>
+<td>No. The correction is recorded without online learning.</td>
+</tr>
+<tr>
+<td>What happens with no history?</td>
+<td>Symptoms can still provide context; without either, disease findings generally remain uncertain or insufficient.</td>
+</tr>
+<tr>
+<td>What would you improve next?</td>
+<td>Independent evaluation, stronger detection, expert-reviewed error analysis, better temporal/context rules, OCR, and validated calibration.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The strongest preparation is to explain why Case A’s consolidation is conflicting, why the same film changes state with different history, and why a high score or convincing outline can still be wrong.</strong> Those explanations demonstrate understanding beyond memorizing model names.</p>
+<p>Use the <a href="file:///home/ronel/Work/Bonaventure/docs/JUDGE_STUDY_GUIDE.md">full study guide</a> for the detailed rules and question bank. I verified the worked arithmetic and saved audit totals, and the context, reconciliation, and model-parser self-checks passed; I did not rerun full model inference.</p>
+</body></html>

@@ -1,0 +1,5 @@
+BV-226
+Pulmonary edema: SUPPORTED (high, image confidence 94 %)
+Consolidation: SUPPORTED (high, image confidence 48 %)
+Cardiomegaly: SUPPORTED (high, image confidence 92 %)
+Atelectasis: UNCERTAIN (low, image confidence 49 %)
