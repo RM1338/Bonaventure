@@ -79,7 +79,12 @@ class Api:
         if sys.platform == "darwin":
             from .macos_launcher import launcher_layout
             return launcher_layout(self._launcher)
-        return dict(notched=False, top_inset=0, min_width=340)
+        return dict(notched=False, top_inset=0, min_width=340, managed=False)
+
+    def dismiss_launcher(self):
+        if self._mac_controls is not None:
+            from PyObjCTools import AppHelper
+            AppHelper.callAfter(self._mac_controls.hide)
 
     def island(self, w, h, view=None):
         """Resize the island, keeping it centred and joined to the Mac's notch."""
@@ -96,7 +101,9 @@ class Api:
             from PyObjCTools import AppHelper
             if self._mac_controls is not None and view is not None:
                 AppHelper.callAfter(setattr, self._mac_controls, "view", view)
-            resize_launcher(self._launcher, w, h, ISLAND_TOP)
+                AppHelper.callAfter(setattr, self._mac_controls, "expanded", view != "idle")
+                AppHelper.callAfter(self._mac_controls.update_menu)
+            resize_launcher(self._launcher, w, h, ISLAND_TOP, view)
         else:
             self._launcher.resize(w, h)
         self._launcher_ready = True
@@ -318,7 +325,7 @@ def main():
         api._current = reopen
         api._review = _review_window(api, reopen)
     threading.Thread(target=_serve_toggle, args=(api,), daemon=True).start()
-    if os.environ.get("BV_START") == "expand":
+    if os.environ.get("BV_START") == "expand" and sys.platform != "darwin":
         api._launcher.events.loaded += lambda: threading.Timer(0.6, api._launcher.evaluate_js, ["expand()"]).start()
     if os.environ.get("BV_DEBUG_JS"):  # dev hook: drive the island for screenshots, e.g. BV_DEBUG_JS="expand()"
         api._launcher.events.loaded += lambda: threading.Timer(1.0, api._launcher.evaluate_js, [os.environ["BV_DEBUG_JS"]]).start()

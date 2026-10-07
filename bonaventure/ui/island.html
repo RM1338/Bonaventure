@@ -10,9 +10,28 @@
     color: #fff; overflow: hidden; border-radius: 20px;
     background: #000;
   }
-  body.notch-attached { border-radius: 0 0 20px 20px; }
+  #islandShell { position: absolute; inset: 0; background: #000; border-radius: inherit; overflow: hidden; }
+  body.managed { background: transparent; border-radius: 0; }
+  .managed #islandShell {
+    inset: auto; top: 0; left: 50%; transform: translateX(-50%);
+    width: var(--shell-width); height: var(--shell-height);
+    border-radius: 0 0 26px 26px;
+    transition: width .32s cubic-bezier(.22,.8,.2,1), height .32s cubic-bezier(.22,.8,.2,1);
+    will-change: width, height;
+  }
+  .managed.idle #islandShell { border-radius: 0 0 9px 9px; transition-duration: .22s; transition-delay: .05s; }
   .view { position: absolute; inset: var(--notch-inset, 0px) 0 0; display: none; opacity: 0; transition: opacity .18s ease .08s; }
   .view.show { display: flex; opacity: 1; }
+  .managed .view {
+    display: flex; inset: auto; top: var(--notch-inset, 0px); left: 50%;
+    visibility: hidden; pointer-events: none;
+    transform: translateX(-50%) translateY(-5px) scale(.985);
+    transition: opacity .13s ease, transform .22s cubic-bezier(.22,.8,.2,1), visibility 0s .13s;
+  }
+  .managed .view.show {
+    visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0) scale(1);
+    transition: opacity .18s ease .1s, transform .26s cubic-bezier(.22,.8,.2,1) .06s, visibility 0s;
+  }
   @starting-style { .view.show { opacity: 0; } }
 
   /* ---- collapsed pill ---- */
@@ -78,12 +97,13 @@
   .eacts { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
   .link { background: none; border: 0; color: #64B5FF; font-size: 12px; padding: 0; margin-top: 6px; text-align: left; }
   @media (prefers-reduced-motion: reduce) {
-    .view, .tile, .bar i { transition: none; }
+    .view, .managed .view, .managed .view.show, .managed #islandShell, .managed.idle #islandShell, .tile, .bar i { transition: none; }
     .glyph.busy, .dot.loading { animation: none; }
   }
 </style>
 </head>
 <body>
+<div id="islandShell">
 
 <!-- collapsed -->
 <div class="view show" id="pill" onclick="expand()">
@@ -129,6 +149,7 @@
   <div class="eacts"><button class="pb" onclick="resetLauncher(); expand()">Start over</button><button class="go" onclick="analyse()">Retry</button></div>
 </div>
 
+</div>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -138,20 +159,62 @@ const ICON = {
   doc: '<svg class="i" viewBox="0 0 16 16"><path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3M6 8.5h4M6 11h4"/></svg>',
 };
 let view = "pill", scan = null, histories = [], lastSymptoms = "", currentCase = null;
+let managed = false, layout = {}, retainedView = "intake", motionEpoch = 0;
+
+async function refreshLayout() {
+  layout = await pywebview.api.launcher_layout();
+  managed = !!layout.managed;
+  document.body.classList.toggle("managed", managed);
+  document.body.classList.toggle("notch-attached", layout.notched);
+  document.documentElement.style.setProperty("--notch-inset", `${layout.top_inset}px`);
+  SIZES.pill[0] = Math.max(SIZES.pill[0], layout.min_width);
+}
 
 function show(v) {
+  if (managed && v === "pill") v = "idle";
   view = v;
-  document.querySelectorAll(".view").forEach((el) => el.classList.toggle("show", el.id === v));
+  const epoch = ++motionEpoch;
+  const classes = () => document.querySelectorAll(".view").forEach((el) => el.classList.toggle("show", el.id === v));
+  const shell = $("islandShell");
+  if (managed && v === "idle") {
+    document.activeElement?.blur();
+    classes(); document.body.classList.add("idle");
+    shell.style.setProperty("--shell-width", `${layout.idle_width}px`);
+    shell.style.setProperty("--shell-height", `${layout.idle_height}px`);
+    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 290;
+    setTimeout(() => {
+      if (epoch === motionEpoch && view === "idle") pywebview.api.island(layout.hit_width, 0, "idle");
+    }, delay);
+    return;
+  }
+  retainedView = v;
   const [w, h] = SIZES[v];
-  pywebview.api.island(w, h || Math.ceil($(v).getBoundingClientRect().height), v);
-  if (v === "intake") setTimeout(() => $("symptoms").focus(), 250);
+  if (managed) $(v).style.width = `${w}px`;
+  if (h) $(v).style.height = `${h}px`;
+  if (!managed) classes();
+  const height = h || $(v).offsetHeight;
+  pywebview.api.island(w, height, v).then(() => {
+    if (!managed || epoch !== motionEpoch) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (epoch !== motionEpoch) return;
+      document.body.classList.remove("idle");
+      shell.style.setProperty("--shell-width", `${Math.max(w, layout.min_width)}px`);
+      shell.style.setProperty("--shell-height", `${height + layout.top_inset}px`);
+      classes();
+    }));
+  });
+  if (v === "intake") setTimeout(() => { if (view === "intake") $("symptoms").focus(); }, 320);
 }
-function expand() { if (view === "pill") show("intake"); }
-function collapse() { show("pill"); }
+function expand() { if (view === "pill" || view === "idle") show("intake"); }
+function collapse() { if (managed) pywebview.api.dismiss_launcher(); else show("pill"); }
 window.expand = expand;
-window.revealIsland = () => { if (view === "pill") expand(); };
-window.dismissIsland = () => { if (view === "intake") collapse(); };
-window.toggleIsland = () => (view === "pill" ? show("intake") : view === "intake" ? collapse() : null);
+window.revealIsland = async () => {
+  const epoch = ++motionEpoch;
+  await refreshLayout();
+  if (epoch === motionEpoch) show(retainedView === "pill" ? "intake" : retainedView);
+};
+window.dismissIsland = () => { if (managed) show("idle"); else if (view === "intake") collapse(); };
+window.toggleIsland = () => (view === "pill" || view === "idle" ? expand() : view === "intake" ? collapse() : null);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && view === "intake") collapse(); });
 
 // ---------- intake tiles ----------
@@ -266,10 +329,11 @@ function showError(e, id) {
 }
 function toggleDetails() {
   $("eDetails").classList.toggle("show");
-  pywebview.api.island(SIZES.err[0], Math.ceil($("err").getBoundingClientRect().height), "err");
+  show("err");
 }
 
 window.resetLauncher = () => {
+  retainedView = "intake";
   scan = null; histories = []; lastSymptoms = ""; $("symptoms").value = "";
   window.pywebview && pywebview.api.clear_intake();
   $("pillSub").innerHTML = `New case <svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 6l4 4 4-4"/></svg>`;
@@ -278,13 +342,9 @@ window.resetLauncher = () => {
 };
 
 window.addEventListener("pywebviewready", async () => {
-  const layout = await pywebview.api.launcher_layout();
-  document.body.classList.toggle("notch-attached", layout.notched);
-  document.documentElement.style.setProperty("--notch-inset", `${layout.top_inset}px`);
-  SIZES.pill[0] = Math.max(SIZES.pill[0], layout.min_width);
+  await refreshLayout();
   render(); bindDrops(); pollEngine();
-  // Preserve the active view if the automatic expansion ran during startup.
-  show(view);
+  show(managed ? (layout.start_expanded ? "intake" : "idle") : view);
 });
 render();
 </script>

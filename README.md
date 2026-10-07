@@ -161,15 +161,39 @@ BV_MOCK=1 BV_START=expand ./run.sh
 ```
 
 Then close the mock app and run `BV_START=expand ./run.sh` for real inference.
-On macOS, `./run.sh` starts with the launcher hidden and a Bonaventure icon in the
-menu bar. Use the icon's **Open launcher / Hide launcher** action, or hover just
-below the notch for 0.2 seconds to reveal it. Hover reveals dismiss after the
-pointer leaves for 0.5 seconds; clicking or typing in the launcher keeps it open. Escape
+On macOS, `./run.sh` starts with a black cap covering the notch and a Bonaventure
+icon in the menu bar. Use **Option + Command + B** from any app, the icon's
+**Open launcher / Hide launcher** action, or hover below the notch for 0.2 seconds
+to reveal it. The idle panel includes an invisible activation area below and on
+either side of the camera. Hover reveals dismiss after the pointer leaves for
+0.5 seconds; clicking or typing in the launcher keeps it open. Escape
 hides it (except during analysis). Scans, records, and presentation text survive
 hiding. On screens without a notch, hover below the center of the menu bar.
-The menu toggle also has **Option + Command + B** while Bonaventure is the active
-app. macOS controls the icon's ordering among other menu bar items.
-Expansion animates downward; Reduce Motion disables that animation.
+macOS controls the icon's ordering among other menu bar items. If another app
+already owns the shortcut, the menu reports that it is unavailable.
+The borderless panel reaches the screen's top edge and reserves the full camera
+and menu-bar height. Expansion grows a black shell with a smooth timing curve;
+content fades in after the shell starts opening, and disappears before collapse.
+Reduce Motion disables these transitions. The interaction design is informed by
+[NotchBox](https://github.com/chrisdemir/notchBOX), implemented using the existing
+Python/AppKit frontend without bundling its source.
+
+To run without Terminal and automatically at login, quit the current Bonaventure
+instance using its menu, then run this once:
+
+```bash
+.venv/bin/python scripts/install_macos.py
+```
+
+This installs `~/Applications/Bonaventure.app` and a login LaunchAgent, then starts
+the background app. Open Bonaventure from Finder or Spotlight after manually
+quitting it. This development wrapper uses this checkout and `.venv`; keep both
+in place. Logs are at `~/Library/Logs/Bonaventure/bonaventure.log`. Use
+`scripts/install_macos.py --no-login` to install without login startup, or
+`scripts/install_macos.py --uninstall` to remove the wrapper and login agent.
+Both commands use `.venv/bin/python` as above. To inspect activation from Terminal
+without loading models: `BV_MOCK=1 BV_DEBUG=1 ./run.sh`.
+
 The current adapters use CUDA when available, otherwise CPU; Apple MPS is not
 enabled. MedGemma runs without 4-bit CUDA quantization on macOS, so real inference
 needs considerably more RAM and time than the tested NVIDIA setup. A setup check
