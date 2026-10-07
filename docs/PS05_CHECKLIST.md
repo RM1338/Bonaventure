@@ -73,7 +73,7 @@ Legend: ✅ met · ⚠️ partly met (gap stated) · ❌ not met / still to do
 | "Submit your project through a Git repository that is **public**" | ❌ **to do** | `RM1338/Bonaventure` is currently **private**. Make it public before submitting: `gh repo edit RM1338/Bonaventure --visibility public --accept-visibility-change-consequences` |
 | README explains: what the project does | ✅ | "What it does" |
 | … technologies, libraries and models used | ✅ | "Technologies, libraries and models" + register |
-| … how to install dependencies | ✅ | "Install" (Linux, macOS, models) |
+| … how to install dependencies | ✅ | "Install" (Linux, models) |
 | … how to configure and run | ✅ | "Configure", "Run" |
 | … how to reproduce the demonstrated results | ✅ | "Reproduce the demonstrated results" |
 | Submit the link on the form before the end of evaluation | ❌ **to do** | https://forms.gle/KGjkU5u66Va1MDhu5 |

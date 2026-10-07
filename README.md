@@ -24,7 +24,7 @@ not back is listed under *Checked and rejected*.
 ## What it does
 
 1. **Island launcher**: a black Dynamic-Island-style pill at the top of the screen (`Super + Alt + B` or the bar
-   icon on Linux, `⌥⌘B` / notch on macOS). Drop the X-ray (PNG, JPEG or DICOM) and the history PDFs, then type or
+   icon on Linux). Drop the X-ray (PNG, JPEG or DICOM) and the history PDFs, then type or
    **dictate** the presentation. Words appear live while you speak. Press *Analyse*; progress is shown inside the island.
 2. **Four local models read the film.**
    * CLEAR and CheXzero score 16 findings with calibrated cut-offs.
@@ -52,7 +52,7 @@ not back is listed under *Checked and rejected*.
 ## System architecture
 
 Five layers: inputs → desktop app → analysis core → reasoning → outputs. Everything runs locally, and the analysis core
-is identical on Linux and macOS (only the window code differs).
+lives apart from the window code (`desktop.Api` + `pipeline`), so only the shell is OS-specific.
 
 ![System architecture](docs/diagrams/system_architecture.png)
 
@@ -63,7 +63,7 @@ Every model claim has to pass an independent check. A claim that fails is not si
 
 ![Image evidence pipeline](docs/diagrams/image_evidence_pipeline.png)
 
-Diagrams made in Lucidchart ([architecture](https://lucid.app/lucidchart/cf2d15b1-38cf-405c-a665-dcd14d363c2a/view),
+Diagrams made in Lucidchart ([architecture](https://lucid.app/lucidchart/e5b63320-38d0-43b9-97ed-96ebaa596446/view),
 [pipeline](https://lucid.app/lucidchart/b0a9129b-89d2-4667-a56d-17d0a5b11067/view)). Module-level detail, the reconciliation
 decision tree and the `result.json` contract are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -78,7 +78,7 @@ decision tree and the `result.json` contract are in [`docs/ARCHITECTURE.md`](doc
 | Speech | **Whisper** base.en (live) and small.en (final), MIT |
 | Meaning fallback | **all-MiniLM-L6-v2** (Apache-2.0) |
 | Runtime | Python 3.12+, PyTorch 2.11 (CUDA 12.8), transformers 5.19, bitsandbytes 0.50 |
-| Desktop | pywebview 6.2 (WebKitGTK on Linux, WKWebView + PyObjC on macOS), HTML/CSS/JS UI |
+| Desktop | pywebview 6.2 on WebKitGTK (Linux), HTML/CSS/JS UI |
 | Documents | poppler `pdftotext`, WeasyPrint (PDF report), pydicom, Pillow, NumPy |
 | Calibration data | CheXpert v1.0 validation (202 frontal films), NIH ChestX-ray14 test split |
 
@@ -97,18 +97,6 @@ uv venv --python /usr/bin/python3 --system-site-packages .venv          # system
 uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu128
 uv pip install --python .venv/bin/python -r requirements.txt
 ```
-
-### macOS
-
-```bash
-brew install pango poppler ffmpeg
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv python install 3.12 && uv venv --python 3.12 --clear .venv
-uv pip install --python .venv/bin/python -r requirements.txt
-```
-
-The macOS shell (notch island, menu bar) is in `bonaventure/macos_*.py`. There is no CUDA on macOS, so MedGemma runs
-unquantised on the CPU and analysis is much slower.
 
 ### Models
 
@@ -130,8 +118,7 @@ hf download sentence-transformers/all-MiniLM-L6-v2 --local-dir $M/minilm  # phra
 .venv/bin/python scripts/check_setup.py       # dependency + weight check without loading the models
 ```
 
-The alternative layout used by the macOS setup (`models/CLEAR`, `models/CheXzero`, `models/MedSAM`, `models/MedGemma`
-inside the repo) is found automatically.
+An in-repo layout (`models/CLEAR`, `models/CheXzero`, `models/MedSAM`, `models/MedGemma`) is also found automatically.
 
 ## Configure
 
@@ -193,7 +180,6 @@ The full walkthrough of this case is in [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WOR
 ```bash
 PYTHONPATH=. .venv/bin/python scripts/run_demo_cases.py   # demo cases A–E + two normal films, on the real models
 .venv/bin/python -m bonaventure.context && .venv/bin/python -m bonaventure.reconcile && .venv/bin/python -c 'from bonaventure import models; models._selftest()'   # self-tests
-.venv/bin/python -m unittest discover -s tests && node tests/island_state.test.cjs                         # platform / UI tests
 ```
 
 | Case | Input | Expected result |
@@ -260,8 +246,8 @@ models, or named by MedGemma unprompted and confirmed by CLEAR; devices need tha
 
 | Minimum viable solution (implemented, demonstrated) | Stretch goals |
 |---|---|
-| Chest X-ray input (PNG/JPEG/DICOM) with a quality gate | **Implemented:** MedSAM segmentation outlines; open-ended "also seen" survey; dictation with live captions; LLM understanding of free-text presentations; patient identity check; "since last report"; clinician challenge + second look; rejected-claims log; lung diagram in the report; macOS shell |
-| Multi-model image reading with calibrated levels and confidence %, localization (box/outline/zone), occlusion heatmap | **Not done:** CT / MRI; OCR for scanned history PDFs; trained (not zero-shot) classifiers; reliable nodule / mass / pneumothorax detection; tested macOS run with the real models |
+| Chest X-ray input (PNG/JPEG/DICOM) with a quality gate | **Implemented:** MedSAM segmentation outlines; open-ended "also seen" survey; dictation with live captions; LLM understanding of free-text presentations; patient identity check; "since last report"; clinician challenge + second look; rejected-claims log; lung diagram in the report |
+| Multi-model image reading with calibrated levels and confidence %, localization (box/outline/zone), occlusion heatmap | **Not done:** CT / MRI; OCR for scanned history PDFs; trained (not zero-shot) classifiers; reliable nodule / mass / pneumothorax detection; macOS shell (in progress, separate branch) |
 | History parsing with negation, dates and page-level provenance | |
 | Evidence reconciliation → SUPPORTED / UNCERTAIN / CONFLICTING / INSUFFICIENT with reasons | |
 | Desktop review UI and PDF evidence report | |
@@ -281,10 +267,9 @@ models, or named by MedGemma unprompted and confirmed by CLEAR; devices need tha
 
 ```
 bonaventure/
-  app.py            picks the desktop shell for the OS
+  app.py            entry point (starts the Linux shell)
   desktop.py        shared UI bridge (intake, analysis, review, challenge, dictation, export)
   linux_app.py      Linux shell: Hyprland island placement, GTK drag-and-drop
-  macos_app.py      macOS shell (+ macos_launcher / macos_controls / macos_hotkey / launcher_hover)
   pipeline.py       case orchestration, progress, presentation understanding
   imaging.py        scan loading (PNG/JPEG/DICOM), quality gate, model engine (+ mock)
   models.py         CLEAR, concept bank, CheXzero, MedGemma, MedSAM; image-evidence stage
@@ -296,10 +281,9 @@ bonaventure/
   dictation.py      offline Whisper dictation with live captions
   model_paths.py    model locations (both layouts, env overrides)
   calibration.json, concept_calibration.json, audit.json
-  ui/               island.html (Linux), island_macos.html, review.html, fonts
+  ui/               island.html (launcher), review.html (reading room), fonts
 scripts/            calibration, audit, demo cases, demo library, setup checks, toggle
 sample_data/        CC0 demo films, fictional histories
-tests/              platform split, macOS launcher, island UI
 docs/               architecture, walkthrough, PS05 checklist, sample outputs, planning docs, model register
 ```
 

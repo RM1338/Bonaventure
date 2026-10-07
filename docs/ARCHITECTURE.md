@@ -32,12 +32,11 @@ hand-drawn marks, and exported as a PDF evidence report.
 ```mermaid
 flowchart LR
     subgraph Desktop["Desktop shell (pywebview)"]
-        IS["Island launcher<br/>ui/island.html · ui/island_macos.html"]
+        IS["Island launcher<br/>ui/island.html"]
         RV["Reading room<br/>ui/review.html"]
     end
     subgraph Shell["Per-OS window code"]
         LX["linux_app.py<br/>Hyprland placement, GTK drops"]
-        MC["macos_app.py + macos_*.py<br/>notch, menu bar, hotkey"]
     end
     API["desktop.Api<br/>(shared JS bridge)"]
     subgraph Core["Analysis core (OS-independent)"]
@@ -54,7 +53,6 @@ flowchart LR
     IS <--> API
     RV <--> API
     LX --> API
-    MC --> API
     API --> PL --> IM --> MD
     PL --> CX
     PL --> SM
@@ -69,9 +67,9 @@ flowchart LR
 
 | Module | Responsibility | Key functions |
 |---|---|---|
-| `app.py` | Picks the shell by OS | `main()` → `macos_app.main` or `linux_app.main` |
+| `app.py` | Entry point | `main()` → `linux_app.main` |
 | `desktop.py` | Every UI-callable method (shared by both OSes) | `Api.analyze`, `progress`, `get_case`, `challenge`, `record_override`, `export_report`, `start_dictation` … |
-| `linux_app.py` / `macos_app.py` | Window placement, global shortcut, drag-and-drop for that OS only | `LinuxApi._place_island`, `MacApi._place_island` |
+| `linux_app.py` | Window placement (Hyprland), global shortcut, GTK drag-and-drop | `LinuxApi._place_island`, `_bind_file_drops` |
 | `pipeline.py` | Runs one case through 7 visible steps, catches failures, writes `result.json` | `Case.run`, `understand()` |
 | `imaging.py` | Scan loading (incl. DICOM), quality gate, background model loading, GPU lock | `load_scan`, `check_quality`, `ImagingEngine` |
 | `models.py` | Model adapters and the image-evidence stage | `analyze`, `ZeroShot`, `ConceptBank`, `MedGemma`, `MedSAM` |
@@ -240,24 +238,22 @@ flowchart LR
     SEM -- "no clear match" --> UNR["listed as 'not understood'"]
 ```
 
-**Dictation** (`dictation.py`): microphone → raw 16 kHz PCM (`pw-record` on Linux, `ffmpeg` AVFoundation on macOS) →
+**Dictation** (`dictation.py`): microphone → raw 16 kHz PCM (`pw-record`, PipeWire) →
 Whisper base.en re-reads the recording every ~1 s for live captions → on stop, Whisper small.en reads the whole recording
 for the final text. Both are primed with a clinical vocabulary prompt. All on CPU.
 
 ---
 
-## 7. Desktop and platform split
+## 7. Desktop shell
 
 ```mermaid
 flowchart LR
-    APP["app.py"] -- "sys.platform == darwin" --> MAC["macos_app.main<br/>notch island (island_macos.html),<br/>menu-bar icon, ⌥⌘B"]
-    APP -- "otherwise" --> LIN["linux_app.main<br/>Hyprland island (island.html),<br/>Super+Alt+B, bar icon"]
-    MAC --> API["desktop.Api — identical logic"]
-    LIN --> API
+    APP["app.py"] --> LIN["linux_app.main<br/>Hyprland island (island.html),<br/>Super+Alt+B, bar icon"]
+    LIN --> API["desktop.Api: all UI-callable logic"]
 ```
 
-* Only window placement, shortcuts and drag-and-drop differ per OS; analysis, review, dictation, reports and the review
-  UI (`review.html`) are shared.
+* `linux_app.py` only does window placement (Hyprland), the shortcut and GTK drag-and-drop. Analysis, review, dictation
+  and reports live in `desktop.Api` and the pipeline, so another OS only needs its own shell module.
 * Single instance: a UNIX socket (`$XDG_RUNTIME_DIR/bonaventure.sock`) — a second launch, the keybind or the bar button
   just toggles the running island (two copies would not fit two sets of models on a 6 GB GPU).
 * Models load in a background thread while the island is already usable; analysis waits on a `threading.Event`, and one

@@ -138,7 +138,7 @@ presentation*.
 
 ### 5.2 Dictation (`dictation.py`)
 
-`pw-record` (Linux) or `ffmpeg -f avfoundation` (macOS) streams raw 16 kHz mono audio. Every ~0.9 s, Whisper
+`pw-record` (PipeWire) streams raw 16 kHz mono audio. Every ~0.9 s, Whisper
 **base.en** re-reads the recording so far and publishes the caption (audio older than 20 s is frozen into finished text,
 so captions stay fast). On stop, Whisper **small.en** reads the whole recording once for the final text. Both are
 *primed* with a prompt of clinical words ("orthopnoea, haemoptysis, coughs up phlegm, propped up on pillows …"), which

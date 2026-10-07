@@ -39,8 +39,8 @@ Demo inputs:
 
 | Library | Purpose | Version |
 |---|---|---|
-| pywebview + WebKitGTK (Linux) / WKWebView + PyObjC (macOS) | Native desktop windows (island launcher, reading room) | 6.2.1 / webkit2gtk-4.1 |
-| PipeWire `pw-record` (Linux), ffmpeg AVFoundation (macOS) | Microphone capture for dictation | system |
+| pywebview + WebKitGTK | Native desktop windows (island launcher, reading room) | 6.2.1 / webkit2gtk-4.1 |
+| PipeWire `pw-record` | Microphone capture for dictation | system |
 | WeasyPrint | PDF evidence report | 70.0 |
 | poppler `pdftotext` / `pdfinfo` | PDF text extraction for patient history | 26.08 (system) |
 | PyTorch / torchvision | Model inference | 2.11.0+cu128 / 0.26.0 |
