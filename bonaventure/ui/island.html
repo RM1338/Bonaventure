@@ -159,7 +159,7 @@ function render() {
   const st = $("scanTile");
   st.classList.toggle("filled", !!(scan && scan.ok));
   st.innerHTML = !scan
-    ? `<div class="ic">${ICON.scan}</div><div class="t">Chest X-ray</div><div class="s">Drop or click · PNG, JPEG, DICOM</div>`
+    ? `<div class="ic">${ICON.scan}</div><div class="t">Medical image</div><div class="s">Drop or click · PNG, JPEG, DICOM</div>`
     : scan.ok
       ? `<div class="bg" style="background-image:url('${scan.thumb}')"></div><button class="x" onclick="event.stopPropagation(); clearScan()">×</button>
          <div class="ic">${ICON.scan}</div><div class="t">${esc(scan.view)}</div><div class="s">${esc(scan.dims)} · ${esc(scan.size)}</div>
@@ -178,7 +178,7 @@ function render() {
 
   const ready = scan && scan.ok;
   $("go").disabled = !ready;
-  $("hint").textContent = !ready ? "Add a chest X-ray to begin" : ok.length ? "" : "No history — context support limited";
+  $("hint").textContent = !ready ? "Add a medical image to begin" : ok.length ? "" : "No history — context support limited";
 }
 
 function bindDrops() {

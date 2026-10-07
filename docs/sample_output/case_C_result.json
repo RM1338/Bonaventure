@@ -1,7 +1,7 @@
 {
-  "case_id": "BV-110",
+  "case_id": "BV-153",
   "state": "REVIEW_READY",
-  "created": "2026-10-07T14:07:16",
+  "created": "2026-10-07T14:34:16",
   "scan": {
     "file": "degraded_cxr.jpg",
     "view": "Chest X-ray",
@@ -159,6 +159,14 @@
         "support_count": 1,
         "against_count": 0
       },
+      "confidence": {
+        "image": 22,
+        "readers": {
+          "CLEAR": 37,
+          "CheXzero": 8
+        },
+        "basis": "calibrated on 202 labelled films (CheXpert)"
+      },
       "clinician_text": "Cardiomegaly cannot be reliably assessed from the supplied evidence.",
       "id": "finding_01"
     }
@@ -189,10 +197,10 @@
       }
     ],
     "timing": {
-      "CLEAR": 1.01,
-      "CheXzero": 0.06,
-      "CLEAR concepts": 0.1,
-      "MedGemma survey": 2.81,
+      "CLEAR": 1.07,
+      "CheXzero": 0.07,
+      "CLEAR concepts": 0.11,
+      "MedGemma survey": 2.82,
       "MedGemma": 3.98
     },
     "raw_reasoning": [
@@ -252,7 +260,7 @@
         0.645
       ]
     ],
-    "total_seconds": 9.68,
+    "total_seconds": 9.83,
     "engine_status": {
       "imaging": "ready",
       "reasoning": "ready"

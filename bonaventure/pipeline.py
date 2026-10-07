@@ -175,6 +175,18 @@ class Case:
             other = reconcile.other_observations(result, findings)
             reliable = {f for s in result["sources"] for f, ok in s.get("reliable", {}).items() if ok}
             interval = reconcile.interval_changes(findings, events, identity, reliable)
+            # occlusion heatmap per shown finding: where the independent image reader's score actually comes from
+            reader = None if engine.mock else engine.models.get("verifier") or engine.models.get("primary")
+            shown = [f for f in findings if f["status"] != "INSUFFICIENT_EVIDENCE"][:6]
+            if reader and shown:
+                try:
+                    with engine._lock:
+                        heat = reader.occlusion(img, [f["canonical_name"] for f in shown])
+                    for f in shown:
+                        if f["canonical_name"] in heat:
+                            f["heatmap"] = dict(grid=heat[f["canonical_name"]], model=reader.name, method="occlusion")
+                except Exception as e:  # a visual aid only: never fail the case for it
+                    print(f"[pipeline] heatmap skipped: {e!r}")
 
             def prepare():
                 preview = img.copy()

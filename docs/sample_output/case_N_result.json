@@ -1,7 +1,7 @@
 {
-  "case_id": "BV-113",
+  "case_id": "BV-156",
   "state": "REVIEW_READY",
-  "created": "2026-10-07T14:07:48",
+  "created": "2026-10-07T14:34:52",
   "scan": {
     "file": "Normal_posteroanterior_PA_chest_radiograph_X-ray.jpg",
     "view": "Chest X-ray",
@@ -75,10 +75,10 @@
       }
     ],
     "timing": {
-      "CLEAR": 1.12,
-      "CheXzero": 0.09,
-      "CLEAR concepts": 0.1,
-      "MedGemma survey": 2.96
+      "CLEAR": 1.09,
+      "CheXzero": 0.08,
+      "CLEAR concepts": 0.11,
+      "MedGemma survey": 2.92
     },
     "raw_reasoning": [
       "```json\n[\n  {\"name\": \"Elevated right hemidiaphragm\", \"region\": \"Right lower lung\"},\n  {\"name\": \"Possible left lower lobe opacity\", \"region\": \"Left lower lung\"}\n]\n```",

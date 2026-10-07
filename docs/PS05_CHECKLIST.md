@@ -17,7 +17,7 @@ Legend: ✅ met · ⚠️ partly met (gap stated) · ❌ not met / still to do
 | 4 | "Gives an assessment" | ✅ | Per finding: SUPPORTED / UNCERTAIN / CONFLICTING / INSUFFICIENT_EVIDENCE + evidence strength + a one-line impression | `reconcile._assess`, review "Impression" tile |
 | 5 | "Point to exactly where in the image it sees something unusual" | ✅ / ⚠️ | MedSAM outline when MedGemma's box is trustworthy; otherwise an anatomical **zone**, drawn dashed and labelled *approx. zone*. Boxes that contradict the model's own region text are discarded | `models.analyze`, `reconcile._zone_localization`, review grease-pencil marks |
 | 6 | "Explain what it found" | ✅ | Image evidence (each reader's level, MedGemma's observations, closest report phrases), history quotes, symptoms, contradictions, notes | review Focus tile, PDF per-finding block |
-| 7 | "Tell you how confident it is" | ⚠️ | Calibrated **weak / moderate / strong** per reader (90 % sensitivity / Youden / 90 % specificity on labelled films) + evidence strength high / moderate / low. **No percentage is shown** (deliberate; see §2 row 2) | `calibration.json`, `reconcile._assess` |
+| 7 | "Tell you how confident it is" | ✅ | **Image confidence as a percentage** per finding and per reader (e.g. cardiomegaly 90 %: CLEAR 94 %, CheXzero 87 %; the conflicting consolidation only 31 %), from Platt scaling fitted on the labelled films; plus calibrated weak / moderate / strong levels and the evidence strength | `calibration.json` (`platt`), `reconcile._confidence` |
 
 **Key idea:** "A finding with no location in the image or no supporting clinical notes is a hallucination and fails that case."
 
@@ -30,7 +30,7 @@ Legend: ✅ met · ⚠️ partly met (gap stated) · ❌ not met / still to do
 | # | Rule | Status | How |
 |---|---|---|---|
 | 1 | "Every finding must be backed up: point to a region in the image OR cite information from patient notes. Unsupported findings = hallucinations = fail." | ✅ | Region **and** (for SUPPORTED) a cited note: file, page and verbatim quote. Model claims that fail a cross-check are removed and listed under **Checked and rejected** with the reason (case A: 9 rejected) |
-| 2 | "Must include confidence levels. 'I'm 95% sure' vs 'I'm 30% sure' — don't say everything with certainty." | ⚠️ | Levels vary per finding and are calibrated, so "strong" means ≤ 10 % of films without the disease reach that score. Strength high / moderate / low is shown on every finding. **Gap:** no numeric percentage. Zero-shot prompt scores saturate on sick films, so a raw score shown as "95 %" would be misleading. If judges insist, the honest number to show is the calibrated specificity / sensitivity at the reader's level |
+| 2 | "Must include confidence levels. 'I'm 95% sure' vs 'I'm 30% sure' — don't say everything with certainty." | ✅ | Each finding shows **"N % image confidence"**, each reader's own percentage, and the basis ("calibrated on 202 labelled films (CheXpert)"). Raw prompt scores are **not** shown as percentages, because they saturate on sick films; the number is each score mapped through a logistic fit on labelled data. Case A: cardiomegaly 90 %, edema 88 %, consolidation 31 %. The evidence state still weighs the patient's context separately |
 | 3 | "Must present as a helper, not a doctor. 'Doctor, consider this finding…' not 'The patient has…'" | ✅ | All clinician text: "Consider cardiomegaly (heart)…", "Possible …; evidence is limited. Correlate clinically.", "Evidence … is inconsistent. Human review required." Report ends with a review statement | `reconcile._clinician_text`, `report.render_html` |
 
 ## 3. How it will be judged
@@ -50,7 +50,7 @@ Legend: ✅ met · ⚠️ partly met (gap stated) · ❌ not met / still to do
 | Step | Status | |
 |---|---|---|
 | "Use public medical datasets" | ✅ | CheXpert v1.0 validation and NIH ChestX-ray14 (calibration and audit); CC0 Wikimedia films for the demo |
-| "Start with one type of abnormality on single images with a heatmap" | ⚠️ | Went beyond one abnormality (16), but shows **outlines and zones, not a heatmap**. A saliency heatmap from the CLIP readers was not built |
+| "Start with one type of abnormality on single images with a heatmap" | ✅ | 16 findings, each with an **occlusion heatmap** (Heatmap button / H): each cell of an 8×8 grid on the film is greyed out in turn, and the drop in the reader's score is plotted. This shows where the score actually comes from (case A: cardiomegaly over the heart, edema around both hila). Plus MedSAM outlines |
 | "Advanced: segment regions, combine image + patient notes" | ✅ | MedSAM outlines; reconciliation with history and presentation |
 
 ## 5. Submission guidelines (p.3)
@@ -94,12 +94,7 @@ Legend: ✅ met · ⚠️ partly met (gap stated) · ❌ not met / still to do
 
 1. **Make the repository public** and submit the form link. Without this the submission does not count.
 2. **Rehearse and record the demo** as a backup.
-3. **UNCERTAIN noise on bare films.** With no history and no presentation, normal films still show some UNCERTAIN
-   items (audit: 9 of 12 normal films, 22 UNCERTAIN and 3 CONFLICTING items in total; 3 of 12 also had a CLEAR-verified "also seen"). They are never SUPPORTED and are labelled "No supporting clinical context", but a
-   judge could read them as hallucinations. Possible fix: when no context is supplied, collapse UNCERTAIN items that
-   MedGemma did not confirm into one "low-signal, not raised" line.
-4. **Lines & devices on a normal film.** Devices are exempt from the context rule (hardware is not disease), so a device
-   false positive can reach SUPPORTED. Possible fix: require MedGemma or the CLEAR survey check to confirm a device.
-5. **Confidence as a number.** If asked, explain the calibrated levels (§2 row 2). Showing "≤ 10 % false-positive rate
-   at this level" next to *strong* would make the confidence explicit.
-6. CT/MRI, heatmaps, OCR for scanned PDFs, nodule/mass/pneumothorax sensitivity: out of scope, and stated in the README.
+3. ~~UNCERTAIN noise on bare films~~ **fixed**: with no history and no presentation, a finding is shown only if both image models agree, or MedGemma named it unprompted in its survey and CLEAR confirmed it. Anything else goes to the rejected log. (MedGemma's *prompted* "yes" was tried first and did not help: asked about a candidate, it tends to agree.) Re-check of the same 12 audit normal films after the fix: **0 SUPPORTED and 0 CONFLICTING items** (before: 1 and 3 films); 5 / 12 completely clean, the rest show only UNCERTAIN items both image models agreed on. The full 36-film audit has not been re-run since this fix.
+4. ~~Lines & devices on a normal film~~ **fixed**: devices are still exempt from the history rule, but MedGemma must name the device unprompted and CLEAR must confirm it before it is SUPPORTED.
+5. ~~Confidence as a number~~ and ~~heatmap~~ **done** (§1 row 7, §4).
+6. CT/MRI, OCR for scanned PDFs, nodule/mass/pneumothorax sensitivity: out of scope, and stated in the README.

@@ -21,7 +21,13 @@ hand-drawn marks, and exported as a PDF evidence report.
 
 ---
 
-## 2. Component view
+## 2. Overview diagrams
+
+![System architecture](diagrams/system_architecture.png)
+
+![Image evidence pipeline](diagrams/image_evidence_pipeline.png)
+
+## 2b. Component view
 
 ```mermaid
 flowchart LR
@@ -148,6 +154,12 @@ sequenceDiagram
 *strong* = 90 % specificity. A reader only votes on findings where its AUROC ≥ 0.70. Concept-bank rank cut-offs are
 measured the same way (`scripts/eval_concepts.py` → `concept_calibration.json`).
 
+**Confidence %.** The same script fits a Platt curve per reader and finding (`platt` in `calibration.json`);
+`reconcile._confidence` reports each reader's calibrated probability and their mean as the finding's image confidence.
+
+**Heatmap.** `ZeroShot.occlusion` (CheXzero) greys out each cell of an 8×8 grid on the film and records each shown
+finding's score drop. It is computed once per case after reconciliation and stored as `finding.heatmap`.
+
 **Candidate rule.** One reader at *moderate* or every reader at least *weak*; a finding with a single reliable reader
 needs that reader at *strong*. A specific finding suppresses its overlapping parent (cardiomegaly → widened mediastinum,
 consolidation → pneumonia).
@@ -176,7 +188,9 @@ flowchart TB
     CC -- "otherwise" --> UNC3["UNCERTAIN / INSUFFICIENT"]
 ```
 
-Then: a weak concept-bank rank caps SUPPORTED at UNCERTAIN; findings read only by the concept bank (emphysema, fibrosis)
+Then: with no history **and** no presentation, a finding is shown only if both image models agree or MedGemma named it
+unprompted (survey) and CLEAR confirmed it; otherwise it goes to the rejected log. Devices (exempt from the context rule)
+need that same unprompted, CLEAR-confirmed evidence before SUPPORTED. A weak concept-bank rank caps SUPPORTED at UNCERTAIN; findings read only by the concept bank (emphysema, fibrosis)
 need MedGemma to see them **and** a supporting history item. **Evidence strength** (high / moderate / low) is a points
 score — image agreement + 0.5 per supporting context item − 0.5 per contradicting item − 0.5 for limited quality — and
 *high* additionally requires SUPPORTED with at least one context item. It is a rule-based summary, **not** a probability;
@@ -258,7 +272,7 @@ flowchart LR
 | Hardware | Laptop, RTX 3050 6 GB, 12 CPU threads |
 | GPU | MedGemma 4-bit NF4 + MedSAM fp16, peak ≈ 5.1 GB |
 | CPU | CLEAR, CheXzero, concept bank (fp16, ~565 MB RAM), Whisper, MiniLM |
-| Time per case | ~6 s (normal film) to ~21 s (three localized findings); MedGemma dominates |
+| Time per case | ~6 s (normal film) to ~25 s (three localized findings, incl. ~4 s heatmap); MedGemma dominates |
 | Network | None at runtime (`HF_HUB_OFFLINE=1`) — no patient data leaves the machine |
 
 ---

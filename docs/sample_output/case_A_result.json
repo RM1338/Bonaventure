@@ -1,7 +1,7 @@
 {
-  "case_id": "BV-108",
+  "case_id": "BV-151",
   "state": "REVIEW_READY",
-  "created": "2026-10-07T14:06:47",
+  "created": "2026-10-07T14:33:45",
   "scan": {
     "file": "kerley_b.jpg",
     "view": "Chest X-ray",
@@ -182,7 +182,7 @@
       "date": "2026-08-12",
       "source": {
         "file": "case_a_history.pdf",
-        "path": "cases/BV-108/inputs/case_a_history.pdf",
+        "path": "cases/BV-151/inputs/case_a_history.pdf",
         "doc_type": "Radiology report",
         "page": 3,
         "quote": "Upper lobe venous diversion."
@@ -196,7 +196,7 @@
       "date": "2026-08-12",
       "source": {
         "file": "case_a_history.pdf",
-        "path": "cases/BV-108/inputs/case_a_history.pdf",
+        "path": "cases/BV-151/inputs/case_a_history.pdf",
         "doc_type": "Radiology report",
         "page": 3,
         "quote": "Impression: Cardiomegaly with features of pulmonary venous congestion."
@@ -210,7 +210,7 @@
       "date": "2026-07-30",
       "source": {
         "file": "case_a_history.pdf",
-        "path": "cases/BV-108/inputs/case_a_history.pdf",
+        "path": "cases/BV-151/inputs/case_a_history.pdf",
         "doc_type": "Discharge summary",
         "page": 1,
         "quote": "Diagnosis: Acute decompensated congestive heart failure (HFrEF, LVEF 30%)."
@@ -224,7 +224,7 @@
       "date": "2026-07-30",
       "source": {
         "file": "case_a_history.pdf",
-        "path": "cases/BV-108/inputs/case_a_history.pdf",
+        "path": "cases/BV-151/inputs/case_a_history.pdf",
         "doc_type": "Discharge summary",
         "page": 1,
         "quote": "Discharge medications: Furosemide 40 mg once daily, ramipril 5 mg, bisoprolol 2.5 mg, metformin 500 mg twice daily."
@@ -238,7 +238,7 @@
       "date": "2026-07-28",
       "source": {
         "file": "case_a_history.pdf",
-        "path": "cases/BV-108/inputs/case_a_history.pdf",
+        "path": "cases/BV-151/inputs/case_a_history.pdf",
         "doc_type": "Echo report",
         "page": 2,
         "quote": "Ischaemic cardiomyopathy."
@@ -252,7 +252,7 @@
       "date": "2026-07-28",
       "source": {
         "file": "case_a_history.pdf",
-        "path": "cases/BV-108/inputs/case_a_history.pdf",
+        "path": "cases/BV-151/inputs/case_a_history.pdf",
         "doc_type": "Echo report",
         "page": 2,
         "quote": "Moderate mitral regurgitation."
@@ -266,7 +266,7 @@
       "date": "2012",
       "source": {
         "file": "case_a_history.pdf",
-        "path": "cases/BV-108/inputs/case_a_history.pdf",
+        "path": "cases/BV-151/inputs/case_a_history.pdf",
         "doc_type": "Discharge summary",
         "page": 1,
         "quote": "Background of hypertension since 2012 and type 2 diabetes."
@@ -625,7 +625,7 @@
           "category": "Imaging",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Radiology report",
             "page": 3,
             "quote": "Impression: Cardiomegaly with features of pulmonary venous congestion."
@@ -638,7 +638,7 @@
           "category": "Diagnosis",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Discharge summary",
             "page": 1,
             "quote": "Diagnosis: Acute decompensated congestive heart failure (HFrEF, LVEF 30%)."
@@ -651,7 +651,7 @@
           "category": "Diagnosis",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Echo report",
             "page": 2,
             "quote": "Ischaemic cardiomyopathy."
@@ -664,7 +664,7 @@
           "category": "Diagnosis",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Echo report",
             "page": 2,
             "quote": "Moderate mitral regurgitation."
@@ -677,7 +677,7 @@
           "category": "Diagnosis",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Discharge summary",
             "page": 1,
             "quote": "Background of hypertension since 2012 and type 2 diabetes."
@@ -735,8 +735,102 @@
         "support_count": 8,
         "against_count": 0
       },
+      "confidence": {
+        "image": 90,
+        "readers": {
+          "CLEAR": 94,
+          "CheXzero": 87
+        },
+        "basis": "calibrated on 202 labelled films (CheXpert)"
+      },
       "clinician_text": "Consider cardiomegaly (Heart). Imaging and the supplied context agree.",
-      "id": "finding_01"
+      "id": "finding_01",
+      "heatmap": {
+        "grid": [
+          [
+            0.0,
+            0.026000000536441803,
+            0.0,
+            0.041999999433755875,
+            0.02199999988079071,
+            0.0020000000949949026,
+            0.003000000026077032,
+            0.0
+          ],
+          [
+            0.0,
+            0.024000000208616257,
+            0.0,
+            0.08799999952316284,
+            0.08399999886751175,
+            0.0,
+            0.0,
+            0.003000000026077032
+          ],
+          [
+            0.0,
+            0.0,
+            0.3179999887943268,
+            0.13199999928474426,
+            0.012000000104308128,
+            0.18299999833106995,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.3160000145435333,
+            0.17599999904632568,
+            0.31200000643730164,
+            0.17399999499320984,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.15000000596046448,
+            0.8230000138282776,
+            1.0,
+            0.6019999980926514,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.5929999947547913,
+            0.7039999961853027,
+            0.40799999237060547,
+            0.06800000369548798,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.10199999809265137,
+            0.05999999865889549,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.03200000151991844,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "model": "CheXzero",
+        "method": "occlusion"
+      }
     },
     {
       "canonical_name": "PULMONARY_EDEMA",
@@ -1094,7 +1188,7 @@
           "category": "Imaging",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Radiology report",
             "page": 3,
             "quote": "Upper lobe venous diversion."
@@ -1107,7 +1201,7 @@
           "category": "Diagnosis",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Discharge summary",
             "page": 1,
             "quote": "Diagnosis: Acute decompensated congestive heart failure (HFrEF, LVEF 30%)."
@@ -1120,7 +1214,7 @@
           "category": "Medication",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Discharge summary",
             "page": 1,
             "quote": "Discharge medications: Furosemide 40 mg once daily, ramipril 5 mg, bisoprolol 2.5 mg, metformin 500 mg twice daily."
@@ -1133,7 +1227,7 @@
           "category": "Diagnosis",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Echo report",
             "page": 2,
             "quote": "Ischaemic cardiomyopathy."
@@ -1146,7 +1240,7 @@
           "category": "Diagnosis",
           "source": {
             "file": "case_a_history.pdf",
-            "path": "cases/BV-108/inputs/case_a_history.pdf",
+            "path": "cases/BV-151/inputs/case_a_history.pdf",
             "doc_type": "Echo report",
             "page": 2,
             "quote": "Moderate mitral regurgitation."
@@ -1209,8 +1303,102 @@
         "support_count": 9,
         "against_count": 0
       },
+      "confidence": {
+        "image": 88,
+        "readers": {
+          "CLEAR": 79,
+          "CheXzero": 97
+        },
+        "basis": "calibrated on 202 labelled films (CheXpert)"
+      },
       "clinician_text": "Consider pulmonary edema (Lung). Imaging and the supplied context agree.",
-      "id": "finding_02"
+      "id": "finding_02",
+      "heatmap": {
+        "grid": [
+          [
+            0.054999999701976776,
+            0.06199999898672104,
+            0.0,
+            0.0,
+            0.02800000086426735,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.09700000286102295,
+            0.10499999672174454,
+            0.1080000028014183,
+            0.05700000002980232,
+            0.03799999877810478,
+            0.0,
+            0.0
+          ],
+          [
+            0.00800000037997961,
+            0.2540000081062317,
+            0.7089999914169312,
+            0.10300000011920929,
+            0.3019999861717224,
+            0.7110000252723694,
+            0.21400000154972076,
+            0.01600000075995922
+          ],
+          [
+            0.0,
+            0.5569999814033508,
+            0.9829999804496765,
+            0.492000013589859,
+            0.6060000061988831,
+            0.8140000104904175,
+            0.34700000286102295,
+            0.07000000029802322
+          ],
+          [
+            0.0,
+            0.29499998688697815,
+            0.2800000011920929,
+            0.6859999895095825,
+            0.7910000085830688,
+            0.8220000267028809,
+            0.5979999899864197,
+            0.07000000029802322
+          ],
+          [
+            0.006000000052154064,
+            0.6700000166893005,
+            0.32600000500679016,
+            0.1420000046491623,
+            0.3230000138282776,
+            0.47600001096725464,
+            1.0,
+            0.17100000381469727
+          ],
+          [
+            0.0,
+            0.32100000977516174,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.4099999964237213,
+            0.3499999940395355
+          ],
+          [
+            0.0,
+            0.009999999776482582,
+            0.0,
+            0.0,
+            0.013000000268220901,
+            0.0,
+            0.02199999988079071,
+            0.13500000536441803
+          ]
+        ],
+        "model": "CheXzero",
+        "method": "occlusion"
+      }
     },
     {
       "canonical_name": "CONSOLIDATION",
@@ -1360,8 +1548,102 @@
         "support_count": 1,
         "against_count": 2
       },
+      "confidence": {
+        "image": 31,
+        "readers": {
+          "CLEAR": 28,
+          "CheXzero": 34
+        },
+        "basis": "calibrated on 202 labelled films (CheXpert)"
+      },
       "clinician_text": "Evidence for consolidation is inconsistent. Human review required.",
-      "id": "finding_03"
+      "id": "finding_03",
+      "heatmap": {
+        "grid": [
+          [
+            0.07400000095367432,
+            0.24300000071525574,
+            0.35600000619888306,
+            0.01600000075995922,
+            0.2070000022649765,
+            0.27900001406669617,
+            0.1860000044107437,
+            0.007000000216066837
+          ],
+          [
+            0.07400000095367432,
+            0.32100000977516174,
+            0.20000000298023224,
+            0.414000004529953,
+            0.039000000804662704,
+            0.0,
+            0.10199999809265137,
+            0.03099999949336052
+          ],
+          [
+            0.17800000309944153,
+            0.5709999799728394,
+            0.2849999964237213,
+            0.503000020980835,
+            0.3479999899864197,
+            0.0,
+            0.04100000113248825,
+            0.0949999988079071
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.8799999952316284,
+            0.8690000176429749,
+            0.5789999961853027,
+            0.0,
+            0.21199999749660492
+          ],
+          [
+            0.0,
+            0.0,
+            0.6779999732971191,
+            0.42800000309944153,
+            0.24699999392032623,
+            0.2619999945163727,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.06700000166893005,
+            0.19200000166893005,
+            0.0,
+            0.20399999618530273,
+            0.0,
+            0.5619999766349792,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.3269999921321869,
+            0.3019999861717224
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "model": "CheXzero",
+        "method": "occlusion"
+      }
     }
   ],
   "summary": {
@@ -1399,12 +1681,12 @@
       }
     ],
     "timing": {
-      "CLEAR": 1.17,
-      "CheXzero": 0.08,
-      "CLEAR concepts": 0.11,
-      "MedGemma survey": 5.9,
-      "MedGemma": 9.99,
-      "MedSAM": 0.79
+      "CLEAR": 1.3,
+      "CheXzero": 0.4,
+      "CLEAR concepts": 0.22,
+      "MedGemma survey": 6.07,
+      "MedGemma": 10.06,
+      "MedSAM": 0.73
     },
     "raw_reasoning": [
       "```json\n[\n  {\"name\": \"sternal wires\", \"region\": \"mediastinum\"},\n  {\"name\": \"cardiomegaly\", \"region\": \"cardiac silhouette\"},\n  {\"name\": \"pulmonary edema\", \"region\": \"lung fields\"},\n  {\"name\": \"right pleural effusion\", \"region\": \"right lower lung\"},\n  {\"name\": \"left pleural effusion\", \"region\": \"left lower lung\"},\n  {\"name\": \"interstitial thickening\", \"region\": \"lung fields\"}\n]\n```",
@@ -1465,7 +1747,7 @@
         0.6943
       ]
     ],
-    "total_seconds": 20.84,
+    "total_seconds": 25.29,
     "engine_status": {
       "imaging": "ready",
       "reasoning": "ready"

@@ -47,7 +47,7 @@ the sources disagree it says so and shows the evidence, and every claim it threw
    count and the detected document type. A scanned PDF with no text layer is flagged, since OCR is not supported.
 3. **Presentation**: typed, or dictated with the mic button. The words appear live (`Dictation.partial` every 600 ms);
    when the clinician stops, the accurate model replaces them (§5.4).
-4. **Analyse** → `Api.analyze` creates a `pipeline.Case`, copies every input into `cases/BV-108/inputs/` (the case
+4. **Analyse** → `Api.analyze` creates a `pipeline.Case`, copies every input into `cases/BV-151/inputs/` (the case
    is self-contained) and runs it on a background thread. The island polls `Api.progress` and shows the seven steps.
 
 ---
@@ -168,6 +168,15 @@ cut-offs for that finding (`bonaventure/calibration.json`):
 The cut-offs differ widely between readers and findings, which is why they are calibrated instead of using one
 threshold such as 0.5. A reader does not vote at all on a finding where it scored AUROC < 0.70 in calibration.
 
+### 6.1b Confidence as a percentage
+
+`scripts/calibrate.py` also fits, per reader and finding, a logistic curve from the score's logit to the true label on
+the same labelled films (Platt scaling): `P = sigmoid(a · logit(score) + b)`. `reconcile._confidence` turns each voting
+reader's score into that probability and averages them. Case A: cardiomegaly **90 %** (CLEAR 94, CheXzero 87), edema
+**88 %** (79, 97), consolidation **31 %** (28, 34). The number answers "on labelled films, how often was a score like
+this a real finding?". It is image-only: the patient's context is weighed by the evidence state. The re-run that added
+the curves reproduced every earlier cut-off and AUROC exactly.
+
 ### 6.2 The concept bank: what is this film most like?
 
 `ConceptBank.explain` multiplies CLEAR's image embedding with 368,294 pre-computed embeddings of phrases from real
@@ -199,6 +208,14 @@ All prompts ask for JSON only; the parsers tolerate truncated or repeated JSON (
 3. **Locate**: one box per candidate (at most 3, strongest first, only if MedGemma did not just say it cannot see
    it). `box_matches_region` checks that the box sits where MedGemma's own words say: a "right lower lobe" box must be
    on the image's left half (patient's right) and low. A box that fails is discarded and logged.
+
+### 6.3b Heatmap (occlusion)
+
+After reconciliation, `ZeroShot.occlusion` (CheXzero) greys out each cell of an 8 × 8 grid **on the film itself**, one at
+a time, re-scores all shown findings in one batch (65 passes, ~4–5 s on the CPU) and records how much each finding's
+score dropped. This is model-agnostic and faithful: it shows what the reader's score depends on, not what a gradient
+suggests. Case A: cardiomegaly peaks over the heart, edema around both hila. The reading room overlays it with
+**Heatmap** or **H**.
 
 ### 6.4 MedSAM: box → outline
 
@@ -242,7 +259,8 @@ clinician.
 
 | Rule | Prevents |
 |---|---|
-| SUPPORTED needs ≥ 1 context item (devices exempt) | A bare film with no history being called "supported" by pixels alone |
+| SUPPORTED needs ≥ 1 context item (devices exempt, but MedGemma must name the device unprompted and CLEAR confirm it) | A bare film with no history being called "supported" by pixels alone; a phantom "line" on a normal film |
+| No history and no presentation: shown only if both image models agree, or MedGemma named it unprompted and CLEAR confirmed it | Noise on bare normal films being read as findings |
 | Records against + nothing for → CONFLICTING | Ignoring a recent report that says "normal heart size" (case B) |
 | 2–1 reader split → UNCERTAIN, not CONFLICTING | Over-alarming when MedGemma sides with one image model |
 | Concept-only findings need MedGemma + a supporting history item | Emphysema / fibrosis being raised on normal films by language retrieval alone |
@@ -346,10 +364,10 @@ readers (or one at *strong*) plus the concept-rank specificity gate. MedGemma's 
 confirmed by CLEAR. Boxes must match the region the model itself named. Masks must fit their box. SUPPORTED needs the
 patient's records or symptoms. Everything removed is shown in the rejected log, with the reason.
 
-**Is "high / moderate / low" a probability?** No, and the report says so. The calibrated part is each reader's
-*weak / moderate / strong* level, tied to sensitivity and specificity on labelled data. Strength summarises how many
-independent sources agree. A percentage from zero-shot prompt scores would look precise without being so, since those
-scores saturate on sick films.
+**How confident is it?** Each finding shows an **image confidence %**: the reader scores mapped through a logistic fit on
+labelled films (case A consolidation: only 31 %, which is why it is not supported). Raw prompt scores are never shown as
+percentages, since they saturate on sick films. *High / moderate / low* strength is separate: it summarises how many
+independent sources, including the patient's context, agree.
 
 **Where exactly is the finding?** A MedSAM outline when the box was trustworthy. Otherwise an approximate anatomical
 zone, which is labelled as approximate and never passed off as segmentation.
