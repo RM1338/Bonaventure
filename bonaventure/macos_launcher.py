@@ -33,7 +33,7 @@ def launcher_layout(window):
     return result
 
 
-def _place(native, width, height, gap):
+def _place(native, width, height, gap, animate=False):
     import AppKit
 
     screen = native.screen() or AppKit.NSScreen.mainScreen()
@@ -50,13 +50,17 @@ def _place(native, width, height, gap):
     width = min(width, visible.size.width - 2 * gap)
     height = min(height, top - visible.origin.y - gap)
     x = visible.origin.x + (visible.size.width - width) / 2
-    native.setFrame_display_(AppKit.NSMakeRect(x, top - height, width, height), True)
+    rect = AppKit.NSMakeRect(x, top - height, width, height)
+    if animate and native.isVisible() and not AppKit.NSWorkspace.sharedWorkspace().accessibilityDisplayShouldReduceMotion():
+        native.setFrame_display_animate_(rect, True, True)
+    else:
+        native.setFrame_display_(rect, True)
 
 
 def resize_launcher(window, width, height, gap=8):
     from PyObjCTools import AppHelper
 
-    AppHelper.callAfter(_place, window.native, width, height, gap)
+    AppHelper.callAfter(_place, window.native, width, height, gap, True)
 
 
 def configure_launcher(window, gap=8):

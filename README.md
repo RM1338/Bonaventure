@@ -161,6 +161,15 @@ BV_MOCK=1 BV_START=expand ./run.sh
 ```
 
 Then close the mock app and run `BV_START=expand ./run.sh` for real inference.
+On macOS, `./run.sh` starts with the launcher hidden and a Bonaventure icon in the
+menu bar. Use the icon's **Open launcher / Hide launcher** action, or hover just
+below the notch for 0.2 seconds to reveal it. Hover reveals dismiss after the
+pointer leaves for 0.5 seconds; clicking or typing in the launcher keeps it open. Escape
+hides it (except during analysis). Scans, records, and presentation text survive
+hiding. On screens without a notch, hover below the center of the menu bar.
+The menu toggle also has **Option + Command + B** while Bonaventure is the active
+app. macOS controls the icon's ordering among other menu bar items.
+Expansion animates downward; Reduce Motion disables that animation.
 The current adapters use CUDA when available, otherwise CPU; Apple MPS is not
 enabled. MedGemma runs without 4-bit CUDA quantization on macOS, so real inference
 needs considerably more RAM and time than the tested NVIDIA setup. A setup check

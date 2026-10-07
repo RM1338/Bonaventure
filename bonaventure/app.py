@@ -71,6 +71,8 @@ class Api:
         self._histories = []
         self._launcher = None
         self._review = None
+        self._launcher_ready = False
+        self._mac_controls = None
 
     # ----- island geometry -----
     def launcher_layout(self):
@@ -79,7 +81,7 @@ class Api:
             return launcher_layout(self._launcher)
         return dict(notched=False, top_inset=0, min_width=340)
 
-    def island(self, w, h):
+    def island(self, w, h, view=None):
         """Resize the island, keeping it centred and joined to the Mac's notch."""
         w, h = int(w), int(h)
         if _on_hyprland():
@@ -91,9 +93,13 @@ class Api:
             _hypr(f"hl.dsp.window.move({{ x = {int(mx + (mw - w) / 2)}, y = {my + ISLAND_TOP}, {sel} }})")
         elif sys.platform == "darwin":
             from .macos_launcher import resize_launcher
+            from PyObjCTools import AppHelper
+            if self._mac_controls is not None and view is not None:
+                AppHelper.callAfter(setattr, self._mac_controls, "view", view)
             resize_launcher(self._launcher, w, h, ISLAND_TOP)
         else:
             self._launcher.resize(w, h)
+        self._launcher_ready = True
 
     # ----- review window controls (traffic lights) -----
     def window_close(self):
@@ -223,6 +229,8 @@ class Api:
             _open(path)
 
     def quit(self):
+        if self._mac_controls is not None:
+            self._mac_controls.stop()
         for w in list(webview.windows):
             w.destroy()
 
@@ -252,7 +260,11 @@ def _serve_toggle(api):
         conn, _ = srv.accept()
         with conn:
             if conn.recv(64).strip() == b"toggle":
-                api._launcher.evaluate_js("window.toggleIsland && toggleIsland()")
+                if api._mac_controls is not None:
+                    from PyObjCTools import AppHelper
+                    AppHelper.callAfter(api._mac_controls.toggleLauncher_, None)
+                else:
+                    api._launcher.evaluate_js("window.toggleIsland && toggleIsland()")
                 _hypr(f'hl.dsp.focus({{ window = "title:^{ISLAND_TITLE}$" }})')
 
 
@@ -294,7 +306,12 @@ def main():
                                           transparent=sys.platform == "darwin", min_size=(100, 24))
     if sys.platform == "darwin":
         from .macos_launcher import configure_launcher
-        api._launcher.events.shown += lambda: configure_launcher(api._launcher, ISLAND_TOP)
+        from .macos_controls import install_controls
+        def setup_launcher():
+            configure_launcher(api._launcher, ISLAND_TOP)
+            install_controls(api)
+        api._launcher.events.shown += setup_launcher
+        api._launcher.events.closed += lambda: api._mac_controls and api._mac_controls.stop()
     if reopen:
         if not (pipeline.CASES / reopen / "result.json").exists():
             sys.exit(f"No saved case {reopen} in {pipeline.CASES}")

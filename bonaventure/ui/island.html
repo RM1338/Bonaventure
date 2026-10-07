@@ -77,6 +77,10 @@
   .edetails.show { display: block; }
   .eacts { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
   .link { background: none; border: 0; color: #64B5FF; font-size: 12px; padding: 0; margin-top: 6px; text-align: left; }
+  @media (prefers-reduced-motion: reduce) {
+    .view, .tile, .bar i { transition: none; }
+    .glyph.busy, .dot.loading { animation: none; }
+  }
 </style>
 </head>
 <body>
@@ -139,12 +143,14 @@ function show(v) {
   view = v;
   document.querySelectorAll(".view").forEach((el) => el.classList.toggle("show", el.id === v));
   const [w, h] = SIZES[v];
-  pywebview.api.island(w, h || Math.ceil($(v).getBoundingClientRect().height));
+  pywebview.api.island(w, h || Math.ceil($(v).getBoundingClientRect().height), v);
   if (v === "intake") setTimeout(() => $("symptoms").focus(), 250);
 }
 function expand() { if (view === "pill") show("intake"); }
 function collapse() { show("pill"); }
 window.expand = expand;
+window.revealIsland = () => { if (view === "pill") expand(); };
+window.dismissIsland = () => { if (view === "intake") collapse(); };
 window.toggleIsland = () => (view === "pill" ? show("intake") : view === "intake" ? collapse() : null);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && view === "intake") collapse(); });
 
@@ -260,7 +266,7 @@ function showError(e, id) {
 }
 function toggleDetails() {
   $("eDetails").classList.toggle("show");
-  pywebview.api.island(SIZES.err[0], Math.ceil($("err").getBoundingClientRect().height));
+  pywebview.api.island(SIZES.err[0], Math.ceil($("err").getBoundingClientRect().height), "err");
 }
 
 window.resetLauncher = () => {
