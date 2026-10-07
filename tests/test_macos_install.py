@@ -16,12 +16,13 @@ class InstallerTests(unittest.TestCase):
             python.parent.mkdir(parents=True)
             python.write_text('#!/bin/bash\nprintf "%s\\n" "$@"\n')
             python.chmod(0o755)
+            (root / "run.sh").write_text("#!/bin/bash\nexec .venv/bin/python -m bonaventure.app\n")
             home = base / "user home"
             app, agent = install_files(root, home)
             executable = app / "Contents/MacOS/Bonaventure"
             subprocess.run(["bash", str(executable)], check=True)
             log = home / "Library/Logs/Bonaventure/bonaventure.log"
-            self.assertEqual(log.read_text().splitlines(), ["-u", "-m", "bonaventure.app"])
+            self.assertEqual(log.read_text().splitlines(), ["-m", "bonaventure.app"])
             info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
             self.assertTrue(info["LSUIElement"])
             self.assertIn("dictate", info["NSMicrophoneUsageDescription"])
@@ -39,6 +40,7 @@ class InstallerTests(unittest.TestCase):
             python.parent.mkdir(parents=True)
             python.write_text('#!/bin/bash\nprintf "%s" "$PATH"\n')
             python.chmod(0o755)
+            (root / "run.sh").write_text("#!/bin/bash\nexec .venv/bin/python -m bonaventure.app\n")
             app, _ = install_files(root, home)
             subprocess.run(["/bin/bash", str(app / "Contents/MacOS/Bonaventure")],
                            env={"PATH": "/usr/bin:/bin"}, check=True)

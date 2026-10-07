@@ -17,7 +17,7 @@ def launcher_script(root, logs):
         'export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"',
         f"mkdir -p {shlex.quote(str(logs))}",
         f"cd {shlex.quote(str(root))}",
-        f"exec {shlex.quote(str(root / '.venv/bin/python'))} -u -m bonaventure.app "
+        f"exec /bin/bash {shlex.quote(str(root / 'run.sh'))} "
         f">> {shlex.quote(str(logs / 'bonaventure.log'))} 2>&1", "",
     ))
 
@@ -91,7 +91,9 @@ def main():
     python = ROOT / ".venv/bin/python"
     if not python.exists():
         parser.error("The project's .venv/bin/python is missing")
-    subprocess.run([str(python), "-c", "import webview, AppKit, numpy, PIL, weasyprint"], check=True)
+    if not (ROOT / "run.sh").is_file():
+        parser.error("The project's run.sh is missing")
+    subprocess.run(["/bin/bash", str(ROOT / "run.sh"), "--check-runtime"], check=True)
     app, agent = install_files(ROOT, home, login=not args.no_login)
     subprocess.run(["launchctl", "bootout", service], capture_output=True)
     if args.no_login:

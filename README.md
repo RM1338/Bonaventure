@@ -1,5 +1,11 @@
 # Bonaventure — Clinical Evidence Intelligence
 
+> **macOS branch:** this checkout is for macOS. Use [`main`](https://github.com/RM1338/Bonaventure/tree/main) for Omarchy/Linux and [`macos`](https://github.com/RM1338/Bonaventure/tree/macos) for this build. Start with the [Mac setup guide](docs/MACOS_SETUP.md), using Homebrew and pip.
+>
+> For a fresh Mac checkout: `git clone --branch macos https://github.com/RM1338/Bonaventure.git`. In an existing checkout, quit Bonaventure before running `git switch macos`. This branch rejects non-Mac launches before importing native GUI code. Linux/Windows setup and demo recordings retained below describe the other platform builds, not the target of this branch.
+>
+> After updating, quit the old instance and reinstall background startup with `.venv/bin/python scripts/install_macos.py`. Finder/login and Terminal now use the same `run.sh` environment, including Homebrew Pango paths, offline model loading and unbuffered logs. `./run.sh --check-runtime` checks the native Python runtime without opening the GUI. See the [Mac branch audit and verification steps](docs/MACOS_BRANCH_AUDIT.md).
+
 **HackNex 2026 Internal Qualifier · HNX26PSI05: Multimodal Medical Image Intelligence**
 
 Bonaventure is a desktop second-opinion assistant for chest X-rays. It reads the **film**, the patient's **history
@@ -159,6 +165,8 @@ pywebview supplies its macOS PyObjC dependencies automatically.
 git clone https://github.com/RM1338/Bonaventure.git
 cd Bonaventure
 ```
+
+> **Branch-policy clarification:** the next paragraph describes the former combined branch. Under the current split, `main` is Omarchy/Linux and `macos` is the Mac implementation. Select `macos` explicitly when following the Mac instructions.
 
 Linux, macOS and Windows desktop shells are included on `main`. The complete
 [macOS setup and evaluation guide](docs/MACOS_SETUP.md) is also available.

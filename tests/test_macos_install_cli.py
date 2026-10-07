@@ -19,6 +19,7 @@ class InstallerCliTests(unittest.TestCase):
         python = self.root / ".venv/bin/python"
         python.parent.mkdir(parents=True)
         python.write_text("fake Python")
+        (self.root / "run.sh").write_text("fake launch script")
         self.connection = MagicMock()
         self.connection.__enter__.return_value = self.connection
         self.connection.connect.side_effect = OSError("not running")
