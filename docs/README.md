@@ -12,6 +12,7 @@ This documentation set is organized to support implementation, evaluation, team 
 * [`sample_output/`](sample_output/): real outputs of demo cases A–E and a normal film (result JSON, PDF report, annotated film)
 * [`13_MODEL_RESOURCE_REGISTER.md`](13_MODEL_RESOURCE_REGISTER.md): every external model, dataset and library
 * [`DESKTOP_VERIFICATION.md`](DESKTOP_VERIFICATION.md): desktop regressions and native macOS/Linux checks
+* [`MACOS_SETUP.md`](MACOS_SETUP.md): Gavriel’s complete Mac setup, troubleshooting and evaluation guide
 * [`MACOS_PR_REVIEW.md`](MACOS_PR_REVIEW.md): review and integration of Gavriel's existing macOS PR
 
 ## Planning documents (written before implementation)

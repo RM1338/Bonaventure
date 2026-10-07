@@ -18,6 +18,7 @@ not back is listed under *Checked and rejected*.
 | [`docs/PS05_CHECKLIST.md`](docs/PS05_CHECKLIST.md) | Every PS05 requirement and submission guideline, and where it is met |
 | [`docs/13_MODEL_RESOURCE_REGISTER.md`](docs/13_MODEL_RESOURCE_REGISTER.md) | Declared models, datasets and libraries |
 | [`docs/sample_output/`](docs/sample_output/) | Real outputs: result JSON for demo cases A–E and a normal film, PDF report, annotated film |
+| [`docs/MACOS_SETUP.md`](docs/MACOS_SETUP.md) | Gavriel’s complete Homebrew/pip setup and Mac evaluation guide |
 | [`docs/MACOS_PR_REVIEW.md`](docs/MACOS_PR_REVIEW.md) | Review of the macOS PR, integration fixes, tests and remaining native checks |
 
 ---
@@ -142,8 +143,8 @@ git clone https://github.com/RM1338/Bonaventure.git
 cd Bonaventure
 ```
 
-On this PR, both desktop shells are included. Until the PR is merged into `main`,
-select its branch after cloning: `git switch feat/macos-picker-startup-fixes`.
+Both Linux and macOS desktop shells are included on `main`. The complete
+[macOS setup and evaluation guide](docs/MACOS_SETUP.md) is also available.
 
 ### Linux (tested: Arch / Omarchy + Hyprland, RTX 3050 6 GB)
 

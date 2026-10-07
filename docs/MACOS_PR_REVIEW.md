@@ -32,7 +32,9 @@ changed by this documentation follow-up.
 Both platform-specific dependency sets match their source after evaluating OS
 markers. All 15 current README bash blocks pass syntax checks; the local
 dependency/Whisper/recorder check passes. Native installation on a new Mac has
-not been executed here. PR #7 was used as a reference, not merged or rewritten.
+not been executed here. During the setup comparison, PR #7 was used as a reference. Its later merge
+preserves the complete guide in `MACOS_SETUP.md`, correcting outdated clone and
+reference-result details while keeping the current README.
 
 ## Findings and fixes
 
