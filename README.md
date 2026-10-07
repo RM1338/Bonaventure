@@ -19,6 +19,7 @@ not back is listed under *Checked and rejected*.
 | [`docs/13_MODEL_RESOURCE_REGISTER.md`](docs/13_MODEL_RESOURCE_REGISTER.md) | Declared models, datasets and libraries |
 | [`docs/sample_output/`](docs/sample_output/) | Real outputs: result JSON for demo cases A–E and a normal film, PDF report, annotated film |
 | [`docs/MACOS_SETUP.md`](docs/MACOS_SETUP.md) | Gavriel’s complete Homebrew/pip setup and Mac evaluation guide |
+| [`docs/WINDOWS_SETUP.md`](docs/WINDOWS_SETUP.md) | Jebastin’s recorded Windows setup, dependency pins and UI verification |
 | [`docs/MACOS_PR_REVIEW.md`](docs/MACOS_PR_REVIEW.md) | Review of the macOS PR, integration fixes, tests and remaining native checks |
 
 ---
@@ -131,9 +132,9 @@ All patient histories and presentations in this repository are **fictional**.
 
 | Layer | Used |
 |---|---|
-| Runtime | Python 3.12+, PyTorch 2.11 (CUDA 12.8 on Linux; MPS/CPU on macOS), transformers 5.19, accelerate; bitsandbytes 0.50 for Linux CUDA |
-| Desktop | pywebview 6.2 on WebKitGTK (Linux) or Cocoa/WebKit through PyObjC (macOS), HTML/CSS/JS UI; separate native shells |
-| Documents | poppler `pdftotext` / `pdfinfo`, WeasyPrint (PDF report), pydicom, Pillow, NumPy |
+| Runtime | Python 3.12+ (Windows setup uses 3.11), PyTorch 2.11 (CUDA 12.8 on Linux/Windows; MPS/CPU on macOS), transformers 5.19, accelerate; bitsandbytes 0.50 for CUDA |
+| Desktop | pywebview 6.2 on WebKitGTK (Linux) or Cocoa/WebKit through PyObjC (macOS), WebView2 (Windows), HTML/CSS/JS UI; separate native shells |
+| Documents | Poppler or pypdf for history; WeasyPrint (Linux/macOS) or Edge (Windows) for PDF reports; pydicom, Pillow, NumPy |
 | Audio | PipeWire `pw-record` on Linux; ffmpeg/AVFoundation on macOS |
 | Evaluation | scikit-learn (ROC, AUROC, logistic calibration), pandas (parquet datasets) |
 
@@ -156,7 +157,7 @@ git clone https://github.com/RM1338/Bonaventure.git
 cd Bonaventure
 ```
 
-Both Linux and macOS desktop shells are included on `main`. The complete
+Linux, macOS and Windows desktop shells are included on `main`. The complete
 [macOS setup and evaluation guide](docs/MACOS_SETUP.md) is also available.
 
 ### Linux (tested: Arch / Omarchy + Hyprland, RTX 3050 6 GB)
@@ -230,6 +231,16 @@ For the optional Finder/login launcher, quit the app and run
 `.venv/bin/python scripts/install_macos.py` (or add `--no-login`). It uses this
 checkout and its `.venv`; keep both in place. Logs are in
 `~/Library/Logs/Bonaventure/bonaventure.log`. Allow microphone access when prompted.
+
+### Windows (separate Python 3.11 environment)
+
+See [Windows setup and verification](docs/WINDOWS_SETUP.md) for the PR author’s
+PowerShell commands, model layout, recorded dependency versions and sample UI
+checks. Use `requirements-windows.txt` for that environment. Start it with
+`python -m bonaventure.app`; Windows uses a centered launcher and `Ctrl+Alt+B`.
+It uses Edge for PDF export and pypdf if Poppler is missing. Type the presentation;
+Windows microphone recording is not implemented. The merged native Windows
+GUI/Edge behavior still needs a Windows rerun.
 
 ### Models
 
@@ -603,8 +614,9 @@ models, or named by MedGemma unprompted and confirmed by CLEAR; devices need tha
 
 ```
 bonaventure/
-  app.py            entry point (dispatches to the Linux or macOS shell)
+  app.py            entry point (dispatches to Linux, macOS or Windows)
   desktop.py        shared UI bridge (intake, analysis, review, challenge, dictation, export)
+  windows_app.py    Windows shell: centered launcher and Ctrl+Alt+B shortcut
   linux_app.py      Linux shell: Hyprland island placement, GTK drag-and-drop
   macos_app.py      macOS shell: notch placement, menu bar, picker and shortcut
   pipeline.py       case orchestration, progress, presentation understanding

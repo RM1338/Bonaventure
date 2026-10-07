@@ -10,7 +10,9 @@ them with the following details of the current merged implementation.
 The desktop row shows the Linux WebKitGTK/Hyprland shell and PipeWire recorder.
 macOS uses `macos_app.py`, `island_macos.html`, AppKit controls/native pickers and
 ffmpeg/AVFoundation recording. Both share `desktop.Api`, the pipeline and review
-UI. See [MACOS_SETUP.md](MACOS_SETUP.md) for the native Mac setup.
+UI. Windows uses `windows_app.py`, the shared island/review UI and a native
+`Ctrl+Alt+B` hotkey; PDF export uses headless Edge. See
+[WINDOWS_SETUP.md](WINDOWS_SETUP.md) for its separate setup. See [MACOS_SETUP.md](MACOS_SETUP.md) for the native Mac setup.
 
 MedGemma's NF4/GPU label describes the Linux CUDA configuration. On supported
 Macs it uses unquantized MPS bfloat16, with float32 fallback; CPU is also

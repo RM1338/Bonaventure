@@ -157,8 +157,8 @@ class Api:
             return dict(ok=False, name=name, error="Unsupported document. Use PDF or text.")
         try:
             pages = context.read_pages(path)
-        except context.HistoryParseError:
-            return dict(ok=False, name=name, error="This document could not be read.")
+        except context.HistoryParseError as e:
+            return dict(ok=False, name=name, error=str(e))
         has_text = any(p.strip() for p in pages)
         entry = dict(id=uuid.uuid4().hex[:8], path=str(path), name=name, source=str(Path(path).resolve()))
         self._histories.append(entry)
@@ -178,15 +178,17 @@ class Api:
         return self._cases[case_id].progress()
 
     def open_review(self, case_id):
-        self._scan, self._histories = None, []
         self._current = case_id
         self._before_review()
         if self._review is None:
             self._review = _review_window(self, case_id)
         else:
-            self._review.load_url(str(UI / "review.html"))
+            # WebView2 can skip navigation to the same URL. Force a fresh case load.
+            review_url = self._review.real_url.split("?", 1)[0]
+            self._review.load_url(f"{review_url}?case={case_id}")
             self._review.set_title(REVIEW_TITLE.format(case_id))
             self._review.show()
+        self._scan, self._histories = None, []
 
     def _on_review_closed(self):
         self._review = None
@@ -321,8 +323,18 @@ def _deliver(api, uris):
 
 
 def _review_window(api, case_id):
-    w = webview.create_window(REVIEW_TITLE.format(case_id), str(UI / "review.html"), js_api=api, width=1600, height=960,
-                              min_size=(1200, 720), background_color="#000000", frameless=True, easy_drag=False)
+    width, height, position = 1600, 960, {}
+    if sys.platform == "win32":
+        screen = api._launcher_screen or webview.screens[0]
+        area = screen.frame
+        left, top = (area.X, area.Y) if area else (screen.x, screen.y)
+        available_w, available_h = (area.Width, area.Height) if area else (screen.width, screen.height)
+        width, height = min(width, available_w - 32), min(height, available_h - 32)
+        position = dict(x=left + (available_w - width) // 2,
+                        y=top + (available_h - height) // 2, screen=screen)
+    w = webview.create_window(REVIEW_TITLE.format(case_id), str(UI / "review.html"), js_api=api, width=width, height=height,
+                              min_size=(min(1200, width), min(720, height)), background_color="#000000", frameless=True,
+                              easy_drag=False, **position)
     w.events.closed += api._on_review_closed
     return w
 

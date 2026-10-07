@@ -30,8 +30,8 @@ class PlatformEntryTests(unittest.TestCase):
     def test_mac_imports_only_notch_desktop(self):
         self.check_platform("darwin", "macos_app", "linux_app")
 
-    def test_other_platforms_do_not_enter_mac_desktop(self):
-        self.check_platform("win32", "linux_app", "macos_app")
+    def test_windows_imports_only_windows_desktop(self):
+        self.check_platform("win32", "windows_app", "linux_app")
 
 
 if __name__ == "__main__":

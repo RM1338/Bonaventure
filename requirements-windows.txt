@@ -1,0 +1,25 @@
+# Windows Python 3.11 versions recorded from Jebastin's working environment (PR #9).
+# Install torch/torchvision from the CUDA 12.8 index first (docs/WINDOWS_SETUP.md).
+# A clean installation of these recorded pins still needs native Windows verification.
+pywebview==6.2.1
+pythonnet==3.2.0
+pydicom==3.0.2
+pypdf==6.7.5
+pillow==12.3.0
+numpy==2.3.5
+torch==2.11.0
+torchvision==0.26.0
+transformers==5.19.0
+accelerate==1.15.0
+bitsandbytes==0.50.2
+huggingface_hub==1.33.0
+ftfy==6.3.1
+regex==2026.9.29
+pandas==2.3.3
+scikit-learn==1.8.0
+scipy==1.17.1
+h5py==3.15.1
+tqdm==4.70.1
+einops==0.8.2
+sentencepiece==0.2.1
+protobuf==6.33.6

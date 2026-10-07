@@ -206,6 +206,11 @@ class Case:
                         else "IMAGE_MODEL_FAILED")
                 return self._fail(code, e)
             self._step("localize", lambda: None)  # localization is produced alongside the image analysis
+            if not result.get("localizations"):
+                self.steps["localize"] = "skipped"
+            for entry in result.get("model_audit", []):
+                if entry["state"] in ("failed", "unavailable"):
+                    warnings.append(f"{entry['model']}: {entry['state']} — {entry['detail']}")
 
             findings, summary = self._step("reconcile", lambda: reconcile.reconcile(result, quality, symptoms, events, bool(self.histories)))
             not_assessable = reconcile.not_assessable(symptoms, events)
@@ -240,6 +245,7 @@ class Case:
                     timeline=context.build_timeline(events, reconcile.relevant_concepts(findings)),
                     findings=findings, summary=summary, not_assessable=not_assessable, other_observations=other,
                     technical=dict(models=[dict(role=s["role"], model=s["model"]) for s in result["sources"]],
+                                   model_audit=result.get("model_audit", []), demo=engine.mock,
                                    timing=result.get("timing", {}), stage_seconds=dict(self.stage_seconds), raw_reasoning=(result.get("raw_reasoning") or []) + ([f"[natural-language understanding] {self._nl_raw}"] if getattr(self, "_nl_raw", None) else []),
                                    top_concepts=result.get("top_concepts") or [], total_seconds=round(time.time() - t0, 2), engine_status=dict(engine.status)),
                 )

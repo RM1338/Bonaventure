@@ -14,6 +14,7 @@ This documentation set is organized to support implementation, evaluation, team 
 * [`DESKTOP_VERIFICATION.md`](DESKTOP_VERIFICATION.md): desktop regressions and native macOS/Linux checks
 * [`MACOS_SETUP.md`](MACOS_SETUP.md): Gavriel’s complete Mac setup, troubleshooting and evaluation guide
 * [`DIAGRAM_NOTES.md`](DIAGRAM_NOTES.md): platform scope and current processing details for the Lucidchart figures
+* [`WINDOWS_SETUP.md`](WINDOWS_SETUP.md): Windows setup, recorded dependencies and native UI verification
 * [`MACOS_PR_REVIEW.md`](MACOS_PR_REVIEW.md): review and integration of Gavriel's existing macOS PR
 
 ## Planning documents (written before implementation)

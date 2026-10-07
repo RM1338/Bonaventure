@@ -26,6 +26,10 @@ from .model_paths import CHEXZERO_CKPT, CHEXZERO_DIR, CLEAR_CKPT, CLEAR_CODE, CL
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # 6 GB budget: MedGemma (4-bit) + MedSAM's 1024px encoder own the GPU; the two CLIP-style readers are quick enough on CPU
 CLIP_DEVICE = os.environ.get("BV_CLIP_DEVICE", "cpu")
+# Reuse a bundled DINOv2 source cache when the Windows setup provides one.
+_local_torch_home = Path(__file__).resolve().parent.parent / "models/.torch-cache"
+if (_local_torch_home / "hub/facebookresearch_dinov2_main/hubconf.py").is_file():
+    os.environ.setdefault("TORCH_HOME", str(_local_torch_home))
 CALIBRATION = Path(__file__).resolve().parent / "calibration.json"   # scripts/calibrate.py on CheXpert validation
 
 
@@ -166,7 +170,8 @@ class ZeroShot:
 def load_clear():
     sys.path.insert(0, str(CLEAR_CODE / "src"))
     import clear
-    model, preprocess = clear.load_pretrained(CLEAR_CKPT, device=CLIP_DEVICE)
+    model, preprocess = clear.load_pretrained(CLEAR_CKPT, device=CLIP_DEVICE,
+                                              local_files_only=os.environ.get("HF_HUB_OFFLINE") == "1")
     zs = ZeroShot("CLEAR", model, preprocess, clear.tokenize)
     zs.tokenize = clear.tokenize
     return zs
@@ -607,6 +612,7 @@ def load_all(status):
 
 def analyze(models, img):
     timing, sources = {}, []
+    audit = []
     for role in ("primary", "verifier"):
         m = models.get(role)
         if m:
@@ -614,11 +620,17 @@ def analyze(models, img):
             sources.append(dict(role=role, model=m.name, scores=m.scores(img), thresholds=THRESHOLDS[m.name], reliable=RELIABLE[m.name],
                                 platt=PLATT.get(m.name, {})))
             timing[m.name] = round(time.time() - t, 2)
+            audit.append(dict(model=m.name, state="complete", detail="Image scores produced."))
+        else:
+            audit.append(dict(model=role, state="unavailable", detail="Reader was not loaded."))
     concepts, top_concepts = {}, []
     if models.get("concepts") and models["primary"].name == "CLEAR":
         t = time.time()
         concepts, top_concepts = models["concepts"].explain(models["primary"].last_features)
         timing["CLEAR concepts"] = round(time.time() - t, 2)
+        audit.append(dict(model="CLEAR concepts", state="complete", detail="Image matched against the concept bank."))
+    else:
+        audit.append(dict(model="CLEAR concepts", state="unavailable", detail="Concept retrieval was not available."))
     localizations, descriptions, raw, parsed, cands, rejected = {}, {}, [], {}, [], []
     mg = models.get("reasoning")
     other = []
@@ -677,10 +689,16 @@ def analyze(models, img):
                 if box:
                     localizations[fid] = dict(bbox=box, region_name=r.get("region") or FINDINGS[fid]["region"], source="MedGemma 1.5")
             timing["MedGemma"] = round(time.time() - t, 2)
+    audit.append(dict(model="MedGemma", state="complete" if mg else "unavailable",
+                      detail=f"Survey completed; {len(cands)} candidates checked; {len(localizations)} boxes accepted." if mg else "Reasoning model was not loaded."))
+    segmentation_state, segmentation_detail = "skipped", "No accepted box to segment."
+    if not models.get("segmentation"):
+        segmentation_state, segmentation_detail = "unavailable", "Segmentation model was not loaded."
     if models.get("segmentation") and localizations:
         t = time.time()
         try:
             outlines = models["segmentation"].outline(img, {f: l["bbox"] for f, l in localizations.items()})
+            segmentation_state, segmentation_detail = "complete", f"{len(outlines)} outlines accepted from {len(localizations)} boxes."
             for fid, contour in outlines.items():
                 localizations[fid]["contour"] = contour
                 localizations[fid]["source"] += " + MedSAM"
@@ -688,10 +706,12 @@ def analyze(models, img):
                 rejected.append(dict(claim=f"Segmentation of {FINDINGS[fid]['name'].lower()}", by="MedSAM",
                                      reason="mask was empty or spilled far outside the box; the box is kept"))
         except Exception as e:  # segmentation is a refinement: keep the box, but say so
+            segmentation_state, segmentation_detail = "failed", str(e)
             print(f"[models] MedSAM failed, keeping boxes: {e!r}")
             if DEVICE == "cuda":
                 torch.cuda.empty_cache()
         timing["MedSAM"] = round(time.time() - t, 2)
+    audit.append(dict(model="MedSAM", state=segmentation_state, detail=segmentation_detail))
     regions = {f: r["region"] for f, r in (parsed if mg and cands else {}).items() if r.get("region")}
     return dict(sources=sources, localizations=localizations, descriptions=descriptions, concepts=concepts, top_concepts=top_concepts,
-                other_findings=other, regions=regions, rejected=rejected, concept_reader=CONCEPT_READER, masks={}, timing=timing, raw_reasoning=raw)
+                other_findings=other, regions=regions, rejected=rejected, concept_reader=CONCEPT_READER, masks={}, timing=timing, raw_reasoning=raw, model_audit=audit)
